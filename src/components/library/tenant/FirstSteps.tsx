@@ -32,8 +32,9 @@ import { openProject, useWorkspace } from './useWorkspace';
  * kinds of project to start with, and every step to a working project, each
  * explained, with its guide on the docs site. Once there's a project it folds
  * into a checklist above the projects until every step is done or it's
- * hidden — there and on a project's dashboard, where the steps' buttons open
- * that project. The first two steps and inviting the team tick themselves; the
+ * hidden. (A project's dashboard shows ProjectSuggestions instead — the same
+ * steps as cards for that project.) The steps' buttons open the first
+ * project. The first two steps and inviting the team tick themselves; the
  * others are ticked by hand (kept in this browser, per organization).
  *
  * The welcome email at sign-up lists the same steps (backend

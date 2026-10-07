@@ -10,7 +10,7 @@ import Dashboard from './dashboard/page';
  */
 export const metadata: Metadata = IS_TENANT_PANEL
 	? {
-			title: 'MINT — Apps and websites for your business',
+			title: { absolute: 'MINT — Apps and websites for your business' },
 			description:
 				'Describe what you keep track of and get a ready panel — tables, forms, dashboards — for your team, with a public API and customer sign-in for your own site or app.',
 	  }

@@ -13,7 +13,9 @@ const outfit = Outfit({ subsets: ['latin'], weight: ['200', '300', '400', '500']
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400'], variable: '--font-jetbrains', display: 'swap' });
 
 export const metadata: Metadata = {
-	title: 'MINT',
+	// Pages set their own part ('Sign in' → 'Sign in · MINT'); panel pages set the
+	// tab's title from Layout, with the project's name (panel.ts tabTitle).
+	title: { default: 'MINT', template: '%s · MINT' },
 	description: 'Your MINT workspace — projects, data, websites and APIs.',
 };
 

@@ -12,7 +12,8 @@ import { useIsMobile, useAppDispatch } from '../hooks';
 import { unselectAll, useGetQuery, navigate } from '../store';
 import { padding, sizes } from '../config';
 import Footer from './Footer';
-import { IS_TENANT_PANEL } from '../config/lib/constants/panel';
+import { IS_TENANT_PANEL, getProjectSlug, tabTitle } from '../config/lib/constants/panel';
+import { useWorkspace } from '../tenant/useWorkspace';
 import WorkspaceSwitcher from '../tenant/WorkspaceSwitcher';
 import { CAPS } from '@/theme/tones';
 
@@ -90,6 +91,14 @@ const Layout: FC<LayoutProps> = ({
 		// previous table, so that part still gets cleared.
 		dispatch(unselectAll());
 	}, []);
+
+	// The tab's title in the tenant panel: the page, then its project (or the
+	// organization outside one) — "Customers · Acme Store · MINT".
+	const { project, organization } = useWorkspace();
+	useEffect(() => {
+		if (!IS_TENANT_PANEL) return;
+		document.title = tabTitle(title, project?.name || (getProjectSlug() ? '' : organization?.name));
+	}, [title, project?.name, organization?.name]);
 
 	// Chakra UI v3: useMediaQuery expects an array and returns an array of booleans
 	const [isLargerThan800] = useMediaQuery(['(min-width: 800px)']);

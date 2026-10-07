@@ -132,6 +132,16 @@ export const apiUrl = (path = ''): string => {
  */
 export const HOME = IS_TENANT_PANEL ? '/dashboard' : '/';
 
+/**
+ * The browser tab's title for a panel page: "Customers · Acme Store · MINT" —
+ * the page first, so a row of tabs reads by page; the project (or, outside one,
+ * the organization) next. Empty parts and a page named like its project drop out.
+ */
+export const tabTitle = (...parts: (string | null | undefined)[]): string =>
+	[...parts.map(p => String(p || '').trim()), 'MINT']
+		.filter((p, i, all) => p && all.indexOf(p) === i)
+		.join(' · ');
+
 /** A sidebar link as this tab should follow it: '/' is HOME, and inside a project, the project's address. */
 export const homeHref = (href: string): string => projectHref(href === '/' ? HOME : href);
 
