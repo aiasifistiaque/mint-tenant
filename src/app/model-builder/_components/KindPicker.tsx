@@ -1,7 +1,8 @@
 'use client';
 
-import { FC } from 'react';
-import { Box, CloseButton, Dialog, Flex, Grid, Portal, Text } from '@chakra-ui/react';
+import { FC, useState } from 'react';
+import { Box, CloseButton, Dialog, Flex, Grid, Input, InputGroup, Portal, Text } from '@chakra-ui/react';
+import { Search } from 'lucide-react';
 import { AlertDialogContent, AlertDialogHeader } from '@/components/library';
 import KindIcon from './KindIcon';
 import { FieldKind, KINDS, KIND_GROUPS } from './modelKinds';
@@ -30,12 +31,37 @@ type Props = {
 	kinds?: FieldKind[];
 };
 
+/**
+ * How well a kind matches the search: its name first ("link" → Link, Link to
+ * a record), then its id or group, then what it's for. 0 is no match.
+ */
+const score = (k: (typeof KINDS)[number], q: string) => {
+	if (!q) return 1;
+	const has = (t?: string) => String(t || '').toLowerCase().includes(q);
+	if (String(k.label).toLowerCase().startsWith(q)) return 4;
+	if (has(k.label)) return 3;
+	if (has(k.value) || has(k.group) || has(GROUP_HINT[k.group])) return 2;
+	return has(k.hint) ? 1 : 0;
+};
+
 const KindPicker: FC<Props> = ({ isOpen, onClose, onPick, kinds }) => {
-	const offered = KINDS.filter(k => !k.hidden && (!kinds || kinds.includes(k.value)));
+	const [query, setQuery] = useState('');
+	const q = query.trim().toLowerCase();
+	const offered = KINDS.filter(k => !k.hidden && (!kinds || kinds.includes(k.value)) && score(k, q) > 0);
+	// Enter takes the best match, wherever its group sits on the page.
+	const best = [...offered].sort((a, b) => score(b, q) - score(a, q))[0];
+	const close = () => {
+		setQuery('');
+		onClose();
+	};
+	const pick = (kind: FieldKind) => {
+		setQuery('');
+		onPick(kind);
+	};
 	return (
 		<Dialog.Root
 			open={isOpen}
-			onOpenChange={e => !e.open && onClose()}
+			onOpenChange={e => !e.open && close()}
 			size='xl'
 			placement='center'
 			scrollBehavior='inside'
@@ -58,9 +84,41 @@ const KindPicker: FC<Props> = ({ isOpen, onClose, onPick, kinds }) => {
 							<Text
 								fontSize='sm'
 								color='fg.muted'
-								mb={4}>
+								mb={3}>
 								Pick a type — you can change it later. You’ll name the field next.
 							</Text>
+							{/* Stays in view while the types scroll under it. */}
+							<Box
+								position='sticky'
+								top={0}
+								zIndex={1}
+								bg='bg.panel'
+								pb={4}>
+								<InputGroup startElement={<Search size={15} />}>
+									<Input
+										size='sm'
+										autoFocus
+										placeholder='Search types — text, date, image, link…'
+										value={query}
+										onChange={e => setQuery(e.target.value)}
+										onKeyDown={e => {
+											if (e.key === 'Enter' && best) {
+												e.preventDefault();
+												pick(best.value);
+											}
+										}}
+									/>
+								</InputGroup>
+							</Box>
+							{!offered.length && (
+								<Text
+									fontSize='sm'
+									color='fg.muted'
+									py={6}
+									textAlign='center'>
+									No type matches “{query.trim()}”.
+								</Text>
+							)}
 							<Flex
 								direction='column'
 								gap={5}>
@@ -105,7 +163,7 @@ const KindPicker: FC<Props> = ({ isOpen, onClose, onPick, kinds }) => {
 														transition='border-color 0.12s, background 0.12s'
 														_hover={{ borderColor: 'fg.muted', bg: 'bg.subtle' }}
 														_focusVisible={{ outline: '2px solid', outlineColor: 'fg', outlineOffset: '1px' }}
-														onClick={() => onPick(k.value)}>
+														onClick={() => pick(k.value)}>
 														<KindIcon kind={k.value} />
 														<Box minW={0}>
 															<Text

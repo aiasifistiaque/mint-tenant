@@ -1,7 +1,9 @@
 'use client';
 
 import { FC, memo, useEffect, ReactNode } from 'react';
-import { Flex, Heading, useMediaQuery, FlexProps, HeadingProps } from '@chakra-ui/react';
+import { Flex, Heading, IconButton, useMediaQuery, FlexProps, HeadingProps } from '@chakra-ui/react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 
 import { SelfMenu, SearchMenu, NotificationMenu } from '../menu';
 import { AuthWrapper } from '../wrappers';
@@ -12,7 +14,7 @@ import { useIsMobile, useAppDispatch } from '../hooks';
 import { unselectAll, useGetQuery, navigate } from '../store';
 import { padding, sizes } from '../config';
 import Footer from './Footer';
-import { IS_TENANT_PANEL, getProjectSlug, tabTitle } from '../config/lib/constants/panel';
+import { HOME, IS_TENANT_PANEL, getProjectSlug, tabTitle } from '../config/lib/constants/panel';
 import { useWorkspace } from '../tenant/useWorkspace';
 import WorkspaceSwitcher from '../tenant/WorkspaceSwitcher';
 import { CAPS } from '@/theme/tones';
@@ -27,6 +29,34 @@ const ICON_SIZE = 17;
  * only on their own state — the sidebar data, the signed-in admin.
  */
 const MemoSidebar = memo(Sidebar);
+
+/**
+ * Back, like the browser's own button. A page opened straight from a link (a
+ * new tab, a bookmark) has nothing in this tab to go back to, so it goes home.
+ */
+const BackButton: FC = () => {
+	const router = useRouter();
+	const back = () => {
+		const fromHere = typeof document !== 'undefined' && document.referrer.startsWith(window.location.origin);
+		if (window.history.length > 1 && fromHere) router.back();
+		else router.push(HOME);
+	};
+	return (
+		<IconButton
+			size='xs'
+			variant='ghost'
+			aria-label='Back'
+			title='Back'
+			ml={-1.5}
+			color='inherit'
+			onClick={back}>
+			<ArrowLeft
+				size={16}
+				strokeWidth={1.75}
+			/>
+		</IconButton>
+	);
+};
 
 const NavActions = memo(function NavActions({ sidebarData }: { sidebarData: any }) {
 	return (
@@ -120,7 +150,13 @@ const Layout: FC<LayoutProps> = ({
 					w={showMenu ? 'full' : sizes.HOME_NAV_MAX_WIDTH}
 					left={showMenu ? 0 : sizes.HOME_NAV_LEFT}>
 					<SpaceBetween>
-						<Heading {...titleCss}>{title}</Heading>
+						<Flex
+							align='center'
+							gap={1.5}
+							minW={0}>
+							<BackButton />
+							<Heading {...titleCss}>{title}</Heading>
+						</Flex>
 					</SpaceBetween>
 					<NavActions sidebarData={data} />
 				</Navbar>
