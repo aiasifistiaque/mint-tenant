@@ -22,6 +22,10 @@ const createType = ({ type, isReadOnly, fieldType }: any) => {
 // branches in createFormFields call this instead of hand-copying the same ~20
 // optional-prop spreads twice (and drifting, per WO-05/WO-11 defects).
 const OPTIONAL_FIELD_PROPS = [
+	// Muted on the edit form when it can't be changed (functions/fieldLocks.ts).
+	'noEdit',
+	'lockWhen',
+	'lockMatch',
 	'limit',
 	'section',
 	'placeholder',

@@ -22,7 +22,7 @@ import {
 
 import CreateModalProps from './types';
 import { nounOf } from './CreateModal';
-import { lockText, meets } from '../../functions/fieldLocks';
+import { mutedForUpdate } from '../../functions/fieldLocks';
 import { styles } from '../../config';
 
 const CreateModal = (props: CreateModalProps) => {
@@ -76,17 +76,7 @@ const CreateModal = (props: CreateModalProps) => {
 	// paid bill's status) shows read-only with the reason. The server refuses
 	// the change anyway; this says so before anyone tries.
 	const record = populate || prevData;
-	const fields = useMemo(
-		() =>
-			type === 'update' && record
-				? (data || []).map((f: any) =>
-						f?.lockWhen?.length && meets(record, f.lockWhen, f.lockMatch)
-							? { ...f, type: 'locked', helper: `Locked: can’t be changed once ${lockText(f.lockWhen, f.lockMatch)}` }
-							: f
-				  )
-				: data,
-		[data, record, type]
-	);
+	const fields = useMemo(() => (type === 'update' && record ? mutedForUpdate(data, record) : data), [data, record, type]);
 
 	const { isSuccess, isLoading } = type === 'update' ? updateResult : result;
 

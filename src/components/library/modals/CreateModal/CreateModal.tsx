@@ -27,6 +27,7 @@ import { styles } from '../../config';
 
 import CreateModalProps from './types';
 import { withoutHidden } from '../../functions/formRules';
+import { mutedForUpdate } from '../../functions/fieldLocks';
 
 /** 'invoice-items' -> 'invoice item', for "Edit invoice item". */
 export const nounOf = (path?: string) => {
@@ -361,6 +362,9 @@ const CreateModal = (props: CreateModalProps) => {
 	const heading =
 		prompt?.title || (genericTitle ? `${isUpdate ? 'Edit' : 'New'} ${nounOf(path)}` : title);
 	const record = prevData || populate || doc;
+	// Editing: what this record can't change (locked by its state, or never after
+	// it's created) shows muted with the reason — the server refuses it anyway.
+	const muted = (fields: any[]) => (isUpdate && record ? mutedForUpdate(fields, record) : fields);
 	const updated = isUpdate ? ago(record?.updatedAt) : '';
 	const subheading = isUpdate
 		? [recordLabel(record), updated && `Updated ${updated}`].filter(Boolean).join(' · ')
@@ -430,7 +434,7 @@ const CreateModal = (props: CreateModalProps) => {
 								!schemaLoading && (
 									<>
 										<FormMain
-											fields={createFormFields({ schema: schemaData, layout })}
+											fields={muted(createFormFields({ schema: schemaData, layout }))}
 											formData={formData}
 											setFormData={setFormData}
 											setChangedData={setChangedData}
@@ -440,7 +444,7 @@ const CreateModal = (props: CreateModalProps) => {
 								)
 							) : (
 								<FormMain
-									fields={data}
+									fields={muted(data)}
 									formData={formData}
 									setFormData={setFormData}
 									setChangedData={setChangedData}

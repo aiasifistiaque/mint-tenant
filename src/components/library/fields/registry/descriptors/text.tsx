@@ -2,6 +2,8 @@
 // the matching case from FormInput.tsx (no behaviour change) — see WO-11, which
 // makes FormInput.tsx delegate to these instead of its own 720-line switch.
 import VPassword from '@/components/library/utils/inputs/VPassword';
+import VMuted from '@/components/library/utils/inputs/VMuted';
+import { Sigma } from 'lucide-react';
 import {
 	VInput,
 	VTextarea,
@@ -79,18 +81,6 @@ const SlugInput = ({ item, isRequired, type, ...props }: any) => (
 	/>
 );
 
-const ReadOnlyInput = ({ item, isRequired, type, ...props }: any) => (
-	<VInput
-		type={type}
-		isRequired={isRequired}
-		helper={item?.helper}
-		{...props}
-		// Chakra v3's prop — `isReadOnly` was v2's and is ignored, which left these typeable.
-		readOnly
-		bg='bg.muted'
-	/>
-);
-
 /** A value as words: an option's label, a linked record's name, a list joined. */
 const shown = (v: any, item: any): string => {
 	if (v === null || v === undefined || v === '') return '—';
@@ -101,22 +91,26 @@ const shown = (v: any, item: any): string => {
 	return String(option?.label ?? v);
 };
 
+// Muted like every field that can't be typed in (VMuted).
+const ReadOnlyInput = ({ item, isRequired, label, value }: any) => (
+	<VMuted
+		label={label}
+		isRequired={isRequired}
+		helper={item?.helper}
+		value={shown(value, item)}
+	/>
+);
+
 /**
  * A field the record's state has locked (settings: `lockWhen` — a paid bill's
  * status). Its value, read-only, with the reason as the helper line.
  */
 const LockedInput = ({ item, isRequired, label, value }: any) => (
-	<ViewOnly
+	<VMuted
 		label={label}
 		isRequired={isRequired}
 		helper={item?.helper}
 		value={shown(value, item)}
-		fontSize='sm'
-		px={3}
-		py={2}
-		borderRadius='md'
-		bg='bg.muted'
-		color='fg.muted'
 	/>
 );
 
@@ -246,16 +240,11 @@ registerFieldType({
 
 /** A field worked out from linked records (settings `rollup`): shown on the form, never typed. */
 const RollupInput = ({ item, label, value }: any) => (
-	<ViewOnly
+	<VMuted
 		label={label}
 		helper={item?.helper || 'Worked out from linked records — it updates by itself.'}
-		value={value === null || value === undefined || value === '' ? '—' : typeof value === 'number' ? value.toLocaleString() : String(value)}
-		fontSize='sm'
-		px={3}
-		py={2}
-		borderRadius='md'
-		bg='bg.muted'
-		color='fg.muted'
+		value={value === null || value === undefined || value === '' ? '' : typeof value === 'number' ? value.toLocaleString() : String(value)}
+		icon={<Sigma size={13} />}
 	/>
 );
 

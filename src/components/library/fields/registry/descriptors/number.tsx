@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { VInput } from '@/components/library/utils/inputs';
+import VMuted from '@/components/library/utils/inputs/VMuted';
+import { Calculator } from 'lucide-react';
 import { evaluate, format, parse } from '@/components/library/functions/formula';
 import { registerFieldType } from '../registry';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
@@ -40,17 +42,14 @@ const FormulaInput = ({ item, isRequired, type, value: _value, onChange: _onChan
 		}
 	}, [item?.formula]);
 	const result = tree ? evaluate(tree, formData || {}) : null;
+	// Worked out, never typed: muted like every field that can't be typed in.
 	return (
-		<VInput
-			type='text'
-			readOnly
-			bg='bg.muted'
-			cursor='default'
+		<VMuted
+			label={props.label}
 			value={result === null ? '' : result.toLocaleString(undefined, { maximumFractionDigits: 10 })}
-			onChange={() => {}}
 			placeholder={tree ? '—' : 'No formula set'}
 			helper={[tree ? `= ${format(tree)}` : '', item?.helper].filter(Boolean).join(' · ')}
-			{...props}
+			icon={<Calculator size={13} />}
 		/>
 	);
 };

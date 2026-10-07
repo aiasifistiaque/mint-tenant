@@ -141,3 +141,27 @@ export const lockedChanges = (
 /** The refusal for a locked change. */
 export const lockedMessage = (locked: { label: string; why: string }[]) =>
 	locked.map(l => `${l.label} can’t be changed any more (${l.why})`).join('; ');
+
+/** Inputs that read well as a muted line of text; richer ones (images, sections, editors) keep their own look. */
+const PLAIN = new Set([
+	'string', 'text', 'textarea', 'number', 'email', 'url', 'uri', 'tel', 'date', 'date-only', 'select', 'data-menu',
+	'data-select', 'tag', 'data-tag', 'checkbox', 'switch', 'boolean', 'color', 'slug', 'array-string',
+]);
+/** Already shown muted on their own. */
+const SHOWN_MUTED = new Set(['formula', 'rollup', 'read-only', 'locked', 'view-only']);
+
+/**
+ * The edit form's fields for this record: what it can't change shows muted,
+ * with why — locked by its state (`lockWhen`: a paid bill's status), or never
+ * changeable after it's created (`noEdit`: "Can be changed later" is off).
+ * The server refuses those changes either way; this says so before anyone tries.
+ */
+export const mutedForUpdate = (fields: any[] = [], record: any): any[] =>
+	(fields || []).map((f: any) => {
+		if (!f || !record || SHOWN_MUTED.has(f.type)) return f;
+		if (f.lockWhen?.length && meets(record, f.lockWhen, f.lockMatch))
+			return { ...f, type: 'locked', helper: `Locked: can’t be changed once ${lockText(f.lockWhen, f.lockMatch)}` };
+		if (f.noEdit && PLAIN.has(f.type)) return { ...f, type: 'locked', helper: f.helper || 'Can’t be changed after it’s created.' };
+		return f;
+	});
+
