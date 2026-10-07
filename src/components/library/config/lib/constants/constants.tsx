@@ -19,9 +19,15 @@ export const STORE: string = process.env.NEXT_PUBLIC_STORE || '6587157f9b62eb0e7
 export const CART_NAME: string =
 	process.env.NEXT_PUBLIC_CART_NAME || 'THINKCRYPT_ERP_CART_TEST_ONE';
 
+/**
+ * What an <img> shows when a record has no picture: a grey crossed-out picture
+ * and "No image", drawn inline so it can't fail to load (it was a hotlinked
+ * stock image that stopped loading). ImageContainer and the record page draw a
+ * themed NoImage box instead; this is for the plain <img> users.
+ */
 export const PLACEHOLDER_IMAGE =
 	process.env.PLACEHOLDER_IMAGE ||
-	'https://img.freepik.com/free-vector/illustration-gallery-icon_53876-27002.jpg?size=626&ext=jpg&ga=GA1.1.1412446893.1704931200&semt=ais';
+	"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20120%20120'%3E%3Cg%20fill='none'%20stroke='%239ca3af'%20stroke-width='3'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M43%2037h34a6%206%200%200%201%206%206v26M83%2081a6%206%200%200%201-6%203H43a6%206%200%200%201-6-6V43a6%206%200%200%201%203-5'/%3E%3Cpath%20d='M37%2072l12-12%208%208M66%2057a5%205%200%200%200-3-3'/%3E%3Cpath%20d='M30%2030l60%2060'/%3E%3C/g%3E%3Ctext%20x='60'%20y='104'%20text-anchor='middle'%20font-family='system-ui,sans-serif'%20font-size='11'%20fill='%239ca3af'%3ENo%20image%3C/text%3E%3C/svg%3E";
 
 export const URL = {
 	backend: process.env.NEXT_PUBLIC_BACKEND || 'http://localhost:5000',

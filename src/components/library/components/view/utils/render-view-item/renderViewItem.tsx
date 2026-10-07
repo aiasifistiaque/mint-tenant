@@ -2,6 +2,7 @@ import { Flex, Badge, Text, Link, Tag, Box } from '@chakra-ui/react';
 import { TextProps, LinkProps, Grid, Heading } from '@chakra-ui/react';
 import { Column, Align, Icon, FullScreenImage, ViewItemModal } from '../../../..';
 import { PLACEHOLDER_IMAGE, ImageContainer } from '../../../..';
+import NoImage from '../../../../containers/NoImage';
 import { JSONDisplay } from '../..';
 import { ExternalLink } from 'lucide-react';
 import moment from 'moment';
@@ -99,7 +100,8 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 		);
 
 	if (
-		(LIST_TYPES.includes(type) && (!Array.isArray(children) || !children.length)) ||
+		// (An empty gallery gets its "No images" box below.)
+		(LIST_TYPES.includes(type) && type !== 'image-array' && (!Array.isArray(children) || !children.length)) ||
 		(OBJECT_TYPES.includes(type) && (!children || typeof children !== 'object' || Array.isArray(children)))
 	)
 		return <Text {...textCss}>--</Text>;
@@ -334,6 +336,15 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 		// On a phone a picture takes the full width under its label (ViewRow
 		// stacks image rows); from md up, the fixed sizes beside the label.
 		case 'image':
+			// No picture: a "No image" box the same size, with nothing to open full screen.
+			if (!children || typeof children !== 'string')
+				return (
+					<NoImage
+						w={{ base: 'full', md: '300px' }}
+						h={{ base: 'auto', md: '300px' }}
+						aspectRatio={{ base: '4 / 3', md: 'auto' }}
+					/>
+				);
 			return (
 				<FullScreenImage
 					src={children || PLACEHOLDER_IMAGE}
@@ -347,19 +358,29 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 					/>
 				</FullScreenImage>
 			);
-		case 'image-array':
+		case 'image-array': {
+			const images = (Array.isArray(children) ? children : [children]).filter((v: any) => typeof v === 'string' && v.trim());
+			if (!images.length)
+				return (
+					<NoImage
+						label='No images'
+						w={{ base: 'full', md: '160px' }}
+						h={{ base: 'auto', md: '100px' }}
+						aspectRatio={{ base: '4 / 3', md: 'auto' }}
+					/>
+				);
 			return (
 				<Grid
 					w={{ base: 'full', md: 'auto' }}
 					templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', md: 'repeat(auto-fill, 100px)' }}
 					gap={2}>
-					{children?.map((item: string, i: number) => (
+					{images.map((item: string, i: number) => (
 						<FullScreenImage
-							src={item || PLACEHOLDER_IMAGE}
+							src={item}
 							key={i}
 							w={{ base: 'full', md: 'auto' }}>
 							<ImageContainer
-								src={item || PLACEHOLDER_IMAGE}
+								src={item}
 								size={100}
 								w={{ base: 'full', md: '100px' }}
 								h={{ base: 'auto', md: '100px' }}
@@ -369,6 +390,7 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 					))}
 				</Grid>
 			);
+		}
 		case 'date':
 			return <Text {...textCss}>{children?.toLocaleString()}</Text>;
 		case 'date-only':

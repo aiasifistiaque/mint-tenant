@@ -41,7 +41,7 @@ import { BulkActionsPanel, PageOptionsPanel, RowMenuPanel } from '@/app/builder/
 import FiltersPanel from '@/app/builder/_components/FiltersPanel';
 import ViewLayoutPanel from '@/app/builder/_components/ViewLayoutPanel';
 import PagePreview, { PreviewField, PreviewTab } from '@/app/builder/_components/PagePreview';
-import { AreaCard, AreaIntro, AreaKey, AreaTabLabel, ToneIcon, ToneTitle } from '@/app/builder/_components/areas';
+import { AREAS, AreaCard, AreaIntro, AreaKey, AreaTabLabel, ToneIcon, ToneTitle } from '@/app/builder/_components/areas';
 import { DocLink, viewProblems } from '@/app/builder/_components/ui';
 import { EditableFilter, fromServer, toServer, validate } from '@/app/builder/_components/filterTypes';
 import { BULK_MENU_TYPES, ROW_MENU_TYPES, validateMenu } from '@/app/builder/_components/menuTypes';
@@ -115,6 +115,8 @@ type Saved = {
 	settings: SettingsField[];
 	config: any | null;
 	sidebar: { add: boolean; category: string };
+	/** The parts of the pages step already looked at. */
+	seen?: AreaKey[];
 };
 
 /** An eight-step save's step in the three steps: model, everything in between, sidebar & create. */
@@ -339,6 +341,8 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 	const [resumed, setResumed] = useState(false);
 	const [ai, setAi] = useState<{ summary: string; warnings: string[]; model?: string } | null>(null);
 	const [area, setArea] = useState<AreaKey>('overview');
+	// Step 2 goes through its parts one by one; Finish opens once all were seen.
+	const [seen, setSeen] = useState<AreaKey[]>(['overview']);
 	const [moreOpen, setMoreOpen] = useState(false);
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const [previewTab, setPreviewTab] = useState<PreviewTab>('table');
@@ -358,6 +362,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 			setSettings(saved.settings || []);
 			setConfig(split(saved.config));
 			setSidebar(saved.sidebar || { add: true, category: '' });
+			setSeen(saved.seen || (at(saved.step) >= 2 ? PAGE_TABS : ['overview']));
 			setResumed(true);
 		}
 		loaded.current = true;
@@ -376,11 +381,12 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					settings,
 					config: preview ? join(config) : null,
 					sidebar,
+					seen,
 				}),
 			300
 		);
 		return () => clearTimeout(t);
-	}, [model, step, reached, preview, previewedDef, settings, config, sidebar, created]);
+	}, [model, step, reached, preview, previewedDef, settings, config, sidebar, seen, created]);
 
 	// Default the sidebar category once the categories arrive.
 	useEffect(() => {
@@ -481,11 +487,47 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 			const found = stepProblems(STEPS[step].key);
 			if (found.length) return setProblems(found);
 		}
+		if (target === 2 && !allSeen) {
+			setStep(1);
+			return setProblems([`Look at every part of the pages first — next is ${AREAS[firstUnseen].label}. Press Next to go on.`]);
+		}
 		// Leaving the first step with changes rebuilds the pages from it.
 		if (step === 0 && target > 0 && modelChanged && !(await runPreview())) return;
 		setStep(target);
 		setReached(r => Math.max(r, target));
 		window.scrollTo({ top: 0 });
+	};
+
+	/* The pages step, one part at a time. */
+	const partIndex = PAGE_TABS.indexOf(area);
+	const nextPart: AreaKey | undefined = PAGE_TABS[partIndex + 1];
+	const allSeen = PAGE_TABS.every(t => seen.includes(t));
+	const firstUnseen = PAGE_TABS.find(t => !seen.includes(t)) || 'overview';
+	const showPart = (t: AreaKey) => {
+		setArea(t);
+		setSeen(s => (s.includes(t) ? s : [...s, t]));
+		window.scrollTo({ top: 0 });
+	};
+	const nextOfPages = () => {
+		setProblems([]);
+		const found = pageProblems().filter(p => p.area === area);
+		if (found.length) return setProblems(found.map(p => p.text));
+		if (nextPart) showPart(nextPart);
+		else go(2);
+	};
+	const backOfPages = () => {
+		setProblems([]);
+		if (partIndex > 0) showPart(PAGE_TABS[partIndex - 1]);
+		else go(0);
+	};
+	/** A card or tab: parts already seen open any time; the next one opens like Next; the rest wait their turn. */
+	const openPart = (t: AreaKey) => {
+		if (seen.includes(t) || t === firstUnseen) return showPart(t);
+		toaster.create({
+			title: 'One part at a time',
+			description: `Next is ${AREAS[firstUnseen].label} — press Next to go through the parts in order.`,
+			type: 'info',
+		});
 	};
 
 	const create = async () => {
@@ -547,13 +589,16 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 		setSettings(res.preview?.settings?.fields || []);
 		setConfig(split(res.preview?.config));
 		if (res.sidebarCategory) setSidebar({ add: true, category: res.sidebarCategory });
-		setReached(STEPS.length - 1);
+		// Everything is filled in, but the pages are still looked at one by one.
+		setReached(1);
+		setSeen(['overview']);
+		setArea('overview');
 		setProblems([]);
 		setResumed(false);
 		setAi({ summary: res.summary || '', warnings: res.warnings || [], model: res.model });
 		toaster.create({
 			title: `${d.title || 'The model'} drafted`,
-			description: 'Every step is filled in. Look through them, then create it on the last step.',
+			description: 'Every step is filled in. Go through them with Next, then create it on the last step.',
 			type: 'success',
 		});
 	};
@@ -572,6 +617,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 		setCreated(null);
 		setAi(null);
 		setArea('overview');
+		setSeen(['overview']);
 	};
 
 	const openPreview = (tab: PreviewTab = 'table') => {
@@ -872,7 +918,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					[hasAdd && 'add button', page.export && 'export', page.select?.show && 'actions on selected rows'].filter(Boolean).join(' · ') ||
 						'No header buttons',
 				]}
-				onOpen={() => setArea('table')}
+				onOpen={() => openPart('table')}
 			/>
 			<AreaCard
 				area='form'
@@ -881,7 +927,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					`${plural(formSections.length, 'section')} · ${plural(countFields(formSections), 'field')}`,
 					formSections.map(s => s.sectionTitle || 'Untitled').join(', '),
 				].filter(Boolean)}
-				onOpen={() => setArea('form')}
+				onOpen={() => openPart('form')}
 			/>
 			<AreaCard
 				area='view'
@@ -891,12 +937,12 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						? [`${plural(viewSections.length, 'section')} · ${plural(countFields(viewSections), 'field')}`, viewSections.map(s => s.title || 'Untitled').join(', ')]
 						: ['Follows the form’s sections']
 				}
-				onOpen={() => setArea('view')}
+				onOpen={() => openPart('view')}
 			/>
 			<AreaCard
 				area='filters'
 				lines={[plural(config.filters.length, 'filter'), config.filters.map(f => f.label || f.name).slice(0, 4).join(', ') || 'None']}
-				onOpen={() => setArea('filters')}
+				onOpen={() => openPart('filters')}
 			/>
 			<AreaCard
 				area='settings'
@@ -905,7 +951,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					`${plural(settings.length, 'field')} · ${settings.filter((f: any) => f.required).length} required · ${settings.filter((f: any) => f.edit).length} can be changed later`,
 					settingsChanged ? 'Changed by you' : 'As made from the fields',
 				]}
-				onOpen={() => setArea('settings')}
+				onOpen={() => openPart('settings')}
 			/>
 		</Grid>
 	);
@@ -923,9 +969,13 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 
 	const pagesStep = (
 		<ConsoleTabs
-			tabs={PAGE_TABS.map(t => ({ value: t, label: <AreaTabLabel area={t} /> }))}
+			tabs={PAGE_TABS.map(t => ({
+				value: t,
+				label: <AreaTabLabel area={t} />,
+				disabled: !seen.includes(t) && t !== firstUnseen,
+			}))}
 			value={area}
-			onChange={v => setArea(v as AreaKey)}>
+			onChange={v => openPart(v as AreaKey)}>
 			{area === 'overview' && overview}
 
 			{area === 'table' && (
@@ -1207,7 +1257,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 
 	const intro: Record<StepKey, ReactNode> = {
 		model: 'Name what you’re keeping track of — Customers, Orders, Bookings… — and list what every record holds. The form preview shows what people will fill in.',
-		pages: 'Your table page, form and record page, made from the fields. They’re ready to use as they are — preview them, change anything you like, or just go on.',
+		pages: 'Your pages, made from the fields. Go through each part with Next — what it is, and a Preview of how it looks. They’re ready as they are; change anything you like on the way.',
 		finish: 'Choose where it shows in the sidebar, check the summary, and create it. You can change everything later.',
 	};
 
@@ -1298,7 +1348,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						size='sm'
 						variant='outline'
 						disabled={step === 0 || busy}
-						onClick={() => go(step - 1)}>
+						onClick={() => (key === 'pages' ? backOfPages() : go(step - 1))}>
 						<ArrowLeft size={14} />
 						Back
 					</Button>
@@ -1307,6 +1357,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						color='fg.muted'
 						display={{ base: 'none', md: 'block' }}>
 						Step {step + 1} of {STEPS.length}
+						{key === 'pages' && ` · part ${partIndex + 1} of ${PAGE_TABS.length}: ${AREAS[area].label}`}
 					</Text>
 					{last ? (
 						<Button
@@ -1325,8 +1376,8 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 							loading={previewing}
 							loadingText='Making the pages'
 							disabled={busy}
-							onClick={() => go(step + 1)}>
-							Next: {STEPS[step + 1].title.toLowerCase()}
+							onClick={() => (key === 'pages' ? nextOfPages() : go(step + 1))}>
+							Next: {(key === 'pages' && nextPart ? AREAS[nextPart].label : STEPS[step + 1].title).toLowerCase()}
 							<ArrowRight size={14} />
 						</Button>
 					)}

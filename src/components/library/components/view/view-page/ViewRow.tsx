@@ -120,7 +120,7 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 					<SkeletonContent isLoading>
 						<Text fontSize='13px'>—</Text>
 					</SkeletonContent>
-				) : isEmpty ? undefined : (
+				) : isEmpty && !isImage ? undefined : (
 					<Flex
 						align='center'
 						gap={2}

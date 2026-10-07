@@ -7,6 +7,8 @@ import { radius } from '../index';
 export type ConsoleTab = {
 	value: string;
 	label: ReactNode;
+	/** Shown but can't be opened yet (a wizard's parts not reached). */
+	disabled?: boolean;
 };
 
 type ConsoleTabsProps = {
@@ -44,6 +46,8 @@ const ConsoleTabs = ({ tabs, value, onChange, children }: ConsoleTabsProps) => (
 				<Tabs.Trigger
 					key={tab.value}
 					value={tab.value}
+					disabled={tab.disabled}
+					_disabled={{ opacity: 0.45, cursor: 'not-allowed' }}
 					px={3}
 					fontSize='13px'
 					borderRadius={radius.PILL}
