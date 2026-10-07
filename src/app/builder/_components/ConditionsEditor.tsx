@@ -16,7 +16,9 @@ import { ModelField } from './filterTypes';
 
 const ICON = { size: 14, strokeWidth: 1.75 };
 
-export type TabCondition = { field: string; op: CondOp; value?: string };
+export type TabCondition = { field: string; op: CondOp; value?: string | string[] };
+/** How the conditions combine: every one must hold, or any one is enough. */
+export type Match = 'all' | 'any';
 export type CondOp = 'is' | 'not' | 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'empty' | 'filled';
 
 /** The conditions offered for a field, by what it holds. */
@@ -61,17 +63,56 @@ const OP_LABEL: Record<CondOp, string> = {
 /** "status is due", for the tab's problems line. */
 export const conditionText = (c: TabCondition) => {
 	const op = OP_LABEL[c.op] || c.op;
-	return ['empty', 'filled'].includes(c.op) ? `${c.field} ${op}` : `${c.field} ${op} ${c.value ?? ''}`.trim();
+	const value = Array.isArray(c.value) ? c.value.join(', ') : c.value;
+	return ['empty', 'filled'].includes(c.op) ? `${c.field} ${op}` : `${c.field} ${op} ${value ?? ''}`.trim();
 };
 
-const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v: string) => void }> = ({ field, cond, onChange }) => {
+/** "status is void or status is paid" — conditions read as one line. */
+export const conditionsText = (where: TabCondition[] = [], match: Match = 'all') =>
+	where.filter(c => c.field).map(conditionText).join(match === 'any' ? ' or ' : ' and ');
+
+/** A value is missing (empty and filled need none; a list needs one item). */
+export const missingValue = (c: TabCondition) =>
+	!['empty', 'filled'].includes(c.op) && (Array.isArray(c.value) ? !c.value.length : c.value === undefined || c.value === '');
+
+const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v: string | string[] | undefined) => void }> = ({
+	field,
+	cond,
+	onChange,
+}) => {
 	if (['empty', 'filled'].includes(cond.op)) return null;
+	// "is one of" on a choice: pick any number of its values.
+	if (field?.enum?.length && cond.op === 'in') {
+		const picked = Array.isArray(cond.value) ? cond.value : String(cond.value || '').split(',').map(x => x.trim()).filter(Boolean);
+		return (
+			<Flex
+				gap={1}
+				flexWrap='wrap'>
+				{field.enum.map((e: any) => {
+					const v = String(e);
+					const on = picked.includes(v);
+					return (
+						<Button
+							key={v}
+							size='2xs'
+							variant={on ? 'solid' : 'outline'}
+							onClick={() => {
+								const next = on ? picked.filter(x => x !== v) : [...picked, v];
+								onChange(next.length ? next : undefined);
+							}}>
+							{v}
+						</Button>
+					);
+				})}
+			</Flex>
+		);
+	}
 	if (field?.instance === 'Boolean')
 		return (
 			<Dropdown
 				size='xs'
 				w='110px'
-				value={cond.value || ''}
+				value={String(cond.value ?? '')}
 				placeholder='Pick'
 				onChange={(v: string) => onChange(v)}>
 				<option value='true'>Yes</option>
@@ -83,7 +124,7 @@ const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v:
 			<Dropdown
 				size='xs'
 				w='160px'
-				value={cond.value || ''}
+				value={String(cond.value ?? '')}
 				placeholder='Pick a value'
 				onChange={(v: string) => onChange(v)}>
 				{field.enum.map((e: any) => (
@@ -101,7 +142,7 @@ const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v:
 			w='180px'
 			type={field?.instance === 'Date' ? 'date' : field?.instance === 'Number' ? 'number' : 'text'}
 			placeholder={cond.op === 'in' ? 'due, overdue' : field?.ref ? 'Record id' : 'Value'}
-			value={cond.value || ''}
+			value={Array.isArray(cond.value) ? cond.value.join(', ') : cond.value || ''}
 			onChange={e => onChange(e.target.value)}
 		/>
 	);
@@ -116,14 +157,53 @@ const ConditionsEditor: FC<{
 	hint: string;
 	emptyHint: string;
 	disabled?: boolean;
-}> = ({ fields, where, onChange, hint, emptyHint, disabled }) => {
+	/** How they combine — all (and) by default. Without `onMatch` they're always all. */
+	match?: Match;
+	onMatch?: (m: Match) => void;
+}> = ({ fields, where, onChange, hint, emptyHint, disabled, match = 'all', onMatch }) => {
 	const set = (i: number, c: TabCondition) => onChange(where.map((x, j) => (j === i ? c : x)));
+	const any = match === 'any';
+	// "status is void" and "status is paid" can't both hold: say so, and how to fix it.
+	const clash =
+		!any &&
+		where.some(
+			(c, i) =>
+				c.op === 'is' && c.field && where.some((d, j) => j !== i && d.op === 'is' && d.field === c.field && String(d.value) !== String(c.value))
+		);
 	return (
 		<Flex
 			direction='column'
 			gap={1.5}
 			flex='1'
 			minW={0}>
+			{where.length > 1 && onMatch && (
+				<Flex
+					align='center'
+					gap={2}
+					flexWrap='wrap'>
+					<Text
+						fontSize='xs'
+						color='fg.muted'>
+						Match
+					</Text>
+					<Flex gap={1}>
+						<Button
+							size='2xs'
+							variant={any ? 'outline' : 'solid'}
+							disabled={disabled}
+							onClick={() => onMatch('all')}>
+							All of these
+						</Button>
+						<Button
+							size='2xs'
+							variant={any ? 'solid' : 'outline'}
+							disabled={disabled}
+							onClick={() => onMatch('any')}>
+							Any of these
+						</Button>
+					</Flex>
+				</Flex>
+			)}
 			{where.map((c, i) => {
 				const field = fields.find(f => f.key === c.field);
 				const ops = opsFor(field);
@@ -138,7 +218,7 @@ const ConditionsEditor: FC<{
 								fontSize='11px'
 								color='fg.muted'
 								w='26px'>
-								and
+								{any ? 'or' : 'and'}
 							</Text>
 						)}
 						<Dropdown
@@ -174,7 +254,7 @@ const ConditionsEditor: FC<{
 						<ConditionValue
 							field={field}
 							cond={c}
-							onChange={v => set(i, { ...c, value: v || undefined })}
+							onChange={v => set(i, { ...c, value: v === '' ? undefined : v })}
 						/>
 						<IconButton
 							size='2xs'
@@ -197,7 +277,7 @@ const ConditionsEditor: FC<{
 					disabled={disabled}
 					onClick={() => onChange([...where, { field: '', op: 'is' }])}>
 					<Plus {...ICON} />
-					{where.length ? 'And…' : 'Add a condition'}
+					{!where.length ? 'Add a condition' : any ? 'Or…' : 'And…'}
 				</Button>
 				<Text
 					fontSize='11px'
@@ -205,6 +285,14 @@ const ConditionsEditor: FC<{
 					{where.length ? hint : emptyHint}
 				</Text>
 			</Flex>
+			{clash && (
+				<Text
+					fontSize='11px'
+					color='orange.fg'>
+					A field can’t be two values at once, so these never all hold.{' '}
+					{onMatch ? 'Choose “Any of these” above, or use ' : 'Use '}“is one of” to pick several values in one condition.
+				</Text>
+			)}
 		</Flex>
 	);
 };

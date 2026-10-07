@@ -16,7 +16,7 @@ import { Dropdown, Panel } from '@/components/library/cl';
 import { defaultAddLabel } from '@/components/library/components/view/view-page/addLabel';
 import { ModelField } from './filterTypes';
 import { DocLink } from './ui';
-import ConditionsEditor, { TabCondition, conditionText } from './ConditionsEditor';
+import ConditionsEditor, { Match, TabCondition, conditionText, missingValue } from './ConditionsEditor';
 
 /**
  * The detail page's tabs — the config's `viewTabs`. The page opens on
@@ -51,6 +51,8 @@ export type ViewTab = {
 	via?: { route: string; foreignField?: string; localField?: string };
 	/** Conditions every listed record must meet — a "Due bills" tab beside "All bills". */
 	where?: TabCondition[];
+	/** How `where` combines: all (default) or any. */
+	match?: Match;
 };
 
 type Backlink = { route: string; model: string; fields: string[] };
@@ -173,7 +175,7 @@ export const tabProblems = (tabs: ViewTab[] = []) => {
 		if (t.related && !t.columns?.length) out.push(`${where}: pick at least one column`);
 		(t.where || []).forEach(c => {
 			if (!c.field) out.push(`${where}: pick a field for each condition`);
-			else if (!['empty', 'filled'].includes(c.op) && (c.value === undefined || c.value === ''))
+			else if (missingValue(c))
 				out.push(`${where}: give “${conditionText(c)}” a value`);
 		});
 	});
@@ -396,7 +398,9 @@ const TabCard: FC<{
 							<ConditionsEditor
 								fields={relatedFields}
 								where={tab.where || []}
-								onChange={w => onChange({ ...tab, where: w.length ? w : undefined })}
+								onChange={w => onChange({ ...tab, where: w.length ? w : undefined, ...(w.length < 2 && { match: undefined }) })}
+								match={tab.match}
+								onMatch={m => onChange({ ...tab, match: m === 'any' ? 'any' : undefined })}
 								hint='Only records meeting every condition are listed. “is” conditions are also filled in when adding from this tab.'
 								emptyHint='Every linked record is listed. Add a condition for a tab like “Due bills” (status is due).'
 							/>

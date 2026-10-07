@@ -14,6 +14,7 @@ import {
 	Plus,
 	RotateCcw,
 	Search,
+	Sigma,
 	SlidersHorizontal,
 	Trash2,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { Dropdown } from '@/components/library/cl';
 import { FieldInfo, checkFormula } from '@/components/library/functions/formula';
 import FormulaModal from './FormulaModal';
 import ConditionsEditor from './ConditionsEditor';
+import RollupEditor, { rollupText } from './RollupEditor';
 import SectionFieldsModal from '@/app/model-builder/_components/SectionFieldsModal';
 import { dataModelOf, editableSection, isSectionInput, sectionFormulaInfo, withSection } from './sectionDataModel';
 import LinkedRecordsEditor, { RECORD_INPUTS } from './LinkedRecordsEditor';
@@ -72,7 +74,8 @@ const DATA_TYPES = [
  * their id.
  */
 const INPUT_GROUPS = [...new Set(INPUTS.map(i => i.group))];
-const OTHER_INPUTS = inputDataOptions.filter((t: string) => !INPUTS.some(i => i.value === t));
+// (Not `rollup`: it's set up from "Add a field from linked records", with where its value comes from.)
+const OTHER_INPUTS = inputDataOptions.filter((t: string) => t !== 'rollup' && !INPUTS.some(i => i.value === t));
 
 /**
  * The input list for a Dropdown: named groups, then the rest by id. A plain
@@ -129,6 +132,8 @@ const ICON = { size: 14, strokeWidth: 1.75 };
 
 type Props = {
 	fields: SettingsField[];
+	/** This route's model name — a field worked out from linked records reads the routes linking to it. */
+	model?: string;
 	codeFields: SettingsField[];
 	modelFields: ModelField[];
 	readOnly?: boolean;
@@ -189,6 +194,8 @@ type RowActions = {
 	pickType: (key: string, type: string) => void;
 	reset: (key: string, code: SettingsField) => void;
 	remove: (key: string) => void;
+	/** A rollup's API name (it's new, so nothing else uses it yet). */
+	rename: (key: string, next: string) => void;
 	toggle: (key: string) => void;
 	editFormula: (key: string) => void;
 	editSection: (key: string) => void;
@@ -230,6 +237,8 @@ type RowProps = {
 	formFields: { key: string; title?: string }[];
 	/** The model's fields with their types and choices — what "Locked when" can test. */
 	lockFields: ModelField[];
+	/** This route's model — a rollup's records are the ones linking to it. */
+	model?: string;
 	actions: RowActions;
 };
 
@@ -237,6 +246,7 @@ type RowProps = {
 const ruleLock = (f: SettingsField, code: SettingsField | undefined, prop: string, system: boolean) => {
 	const on = !!f[prop];
 	if (system) return 'Fixed: this field is filled in by the system';
+	if (f.rollup && prop !== 'exclude') return 'Worked out from linked records when read — never typed, stored, searched or sorted';
 	if (f.schema?.type === 'formula' && (prop === 'edit' || prop === 'required')) return 'A calculated field is worked out, never typed';
 	if (unsafe(f, code, prop, !on)) return 'Not allowed on a field holding a secret — it can only be made stricter';
 	return '';
@@ -316,6 +326,7 @@ const FieldRow = memo(function FieldRow({
 	schemaRev,
 	formFields,
 	lockFields,
+	model,
 	actions,
 }: RowProps) {
 	const [advanced, setAdvanced] = useState(false);
@@ -453,6 +464,23 @@ const FieldRow = memo(function FieldRow({
 								Linked to <b>{link}</b>
 							</Text>
 						</Flex>
+					) : f.rollup ? (
+						<Button
+							size='xs'
+							variant='outline'
+							w='full'
+							justifyContent='flex-start'
+							borderColor={f.rollup.from ? undefined : 'red.solid'}
+							color={f.rollup.from ? undefined : 'red.fg'}
+							title={rollupText(f.rollup)}
+							onClick={() => !isOpen && actions.toggle(f.key)}>
+							<Sigma size={12} />
+							<Text
+								as='span'
+								truncate>
+								{rollupText(f.rollup)}
+							</Text>
+						</Button>
 					) : formula ? (
 						<Button
 							size='xs'
@@ -578,6 +606,28 @@ const FieldRow = memo(function FieldRow({
 					pl={{ md: readOnly ? 12 : 16 }}
 					borderTopWidth='1px'
 					borderColor='border.muted'>
+					{f.rollup && (
+						<Group
+							title='Worked out from linked records'
+							hint='A value from the records linking to this one — a client’s due payment from its bills.'>
+							<RollupEditor
+								fieldKey={f.key}
+								rollup={f.rollup}
+								model={model}
+								taken={formFields.map(x => x.key).filter(k => k !== f.key)}
+								disabled={locked}
+								onChange={(rollup, display) =>
+									actions.set(f.key, {
+										rollup,
+										type: display === 'date' ? 'date' : 'number',
+										schema: { ...(f.schema || {}), type: 'rollup', tableType: display, viewType: display },
+									})
+								}
+								onRename={next => actions.rename(f.key, next)}
+							/>
+						</Group>
+					)}
+
 					<Group
 						title='Rules'
 						hint={system ? 'This field is filled in by the system, so its rules are fixed.' : 'What the server checks and allows for this field.'}>
@@ -625,19 +675,21 @@ const FieldRow = memo(function FieldRow({
 						</Grid>
 					</Group>
 
-					{!system && !formula && (
+					{!system && !formula && !f.rollup && (
 						<Group
 							title='Locked when'
 							hint={
 								f.edit
-									? 'It can be changed until the record meets these — then it keeps its value. A bill’s status: locked when status is one of void, paid.'
+									? 'It can be changed until the record meets these — then it keeps its value. A bill’s status: “status is one of void, paid” — or two conditions with “Any of these”.'
 									: 'Only matters while “Can be changed later” is on — now it can’t be changed at all.'
 							}>
 							<ConditionsEditor
 								fields={lockFields}
 								where={f.lockWhen || []}
 								disabled={locked}
-								onChange={w => actions.set(f.key, { lockWhen: w.length ? w : undefined })}
+								onChange={w => actions.set(f.key, { lockWhen: w.length ? w : undefined, ...(w.length < 2 && { lockMatch: undefined }) })}
+								match={f.lockMatch}
+								onMatch={m => actions.set(f.key, { lockMatch: m === 'any' ? 'any' : undefined })}
 								hint='Checked against the record as it’s saved, so the change that sets it to paid goes through and every change after it is refused. The edit form shows it locked.'
 								emptyHint='Never locked: it can always be changed (while “Can be changed later” is on).'
 							/>
@@ -847,7 +899,7 @@ const FieldRow = memo(function FieldRow({
 	);
 });
 
-const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, onChange }) => {
+const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, readOnly, onChange }) => {
 	const [open, setOpen] = useState<string | null>(null);
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -1008,6 +1060,10 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 				setSchemaRev(r => r + 1);
 			},
 			remove: key => latest.current.onChange(latest.current.fields.filter(x => x.key !== key)),
+			rename: (key, next) => {
+				latest.current.onChange(latest.current.fields.map(x => (x.key === key ? { ...x, key: next } : x)));
+				setOpen(next);
+			},
 			toggle: key => setOpen(o => (o === key ? null : key)),
 			editFormula: key => setFormulaFor(key),
 			editSection: key => setSectionFor(key),
@@ -1106,6 +1162,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 						schemaRev={isOpen ? schemaRev : 0}
 						formFields={formFields}
 						lockFields={lockFields}
+						model={model}
 						actions={actions}
 					/>
 				);
@@ -1120,6 +1177,41 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 						No field matches “{query.trim()}”.
 					</Text>
 				)}
+
+			{!readOnly && (
+				<Flex
+					gap={2}
+					align='center'
+					flexWrap='wrap'>
+					<Button
+						size='sm'
+						variant='outline'
+						title='A value worked out from the records linking to this one — a client’s due payment from its bills'
+						onClick={() => {
+							let key = 'fromLinked';
+							for (let n = 2; present.has(key) || modelByKey.has(key); n++) key = `fromLinked${n}`;
+							onChange([
+								...fields,
+								{
+									key,
+									title: 'New calculated field',
+									type: 'number',
+									schema: { type: 'rollup', tableType: 'number', viewType: 'number' },
+									rollup: { from: '', via: '', op: 'count' },
+								},
+							]);
+							setOpen(key);
+						}}>
+						<Sigma {...ICON} />
+						Add a field from linked records
+					</Button>
+					<Text
+						fontSize='xs'
+						color='fg.muted'>
+						A total, count, average, smallest or largest of linked records — a client’s due payment from its bills.
+					</Text>
+				</Flex>
+			)}
 
 			{!readOnly && addable.length > 0 && (
 				<Flex

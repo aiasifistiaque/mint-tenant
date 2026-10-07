@@ -898,6 +898,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						}>
 						<SettingsEditor
 							fields={settingsWorking}
+							model={data.model}
 							codeFields={codeSettingsFields}
 							modelFields={modelFields}
 							readOnly={settingsReadOnly}

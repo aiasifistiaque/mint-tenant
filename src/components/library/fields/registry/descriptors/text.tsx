@@ -244,6 +244,33 @@ registerFieldType({
 	storage: 'string',
 });
 
+/** A field worked out from linked records (settings `rollup`): shown on the form, never typed. */
+const RollupInput = ({ item, label, value }: any) => (
+	<ViewOnly
+		label={label}
+		helper={item?.helper || 'Worked out from linked records — it updates by itself.'}
+		value={value === null || value === undefined || value === '' ? '—' : typeof value === 'number' ? value.toLocaleString() : String(value)}
+		fontSize='sm'
+		px={3}
+		py={2}
+		borderRadius='md'
+		bg='bg.muted'
+		color='fg.muted'
+	/>
+);
+
+registerFieldType({
+	id: 'rollup',
+	family: 'text',
+	input: RollupInput,
+	changeMode: 'event',
+	emptyValue: () => undefined,
+	supportsInlineEdit: false,
+	table: { type: 'number', cell: NotYetImplementedCell },
+	view: { type: 'number', render: NotYetImplementedView, layout: 'inline' },
+	storage: 'number',
+});
+
 registerFieldType({
 	id: 'locked',
 	family: 'text',

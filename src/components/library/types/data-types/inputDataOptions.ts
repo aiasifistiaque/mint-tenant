@@ -18,6 +18,8 @@ export const inputDataOptions = [
 	'read-only',
 	// Calculated from other number fields (settings `schema.formula`); shown, never typed.
 	'formula',
+	// Worked out from linked records when read (settings `rollup`); shown, never typed.
+	'rollup',
 	'editor',
 	'select',
 	'data-select',

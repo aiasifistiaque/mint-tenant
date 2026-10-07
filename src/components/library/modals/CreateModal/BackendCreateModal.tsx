@@ -80,8 +80,8 @@ const CreateModal = (props: CreateModalProps) => {
 		() =>
 			type === 'update' && record
 				? (data || []).map((f: any) =>
-						f?.lockWhen?.length && meets(record, f.lockWhen)
-							? { ...f, type: 'locked', helper: `Locked: can’t be changed once ${lockText(f.lockWhen)}` }
+						f?.lockWhen?.length && meets(record, f.lockWhen, f.lockMatch)
+							? { ...f, type: 'locked', helper: `Locked: can’t be changed once ${lockText(f.lockWhen, f.lockMatch)}` }
 							: f
 				  )
 				: data,
