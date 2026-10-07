@@ -9,6 +9,7 @@ import {
 	radius,
 	useGetBuilderBacklinksQuery,
 	useGetBuilderModelFieldsQuery,
+	useLazyGetBuilderBacklinksQuery,
 	useLazyGetBuilderModelFieldsQuery,
 } from '@/components/library';
 import { Dropdown, Panel } from '@/components/library/cl';
@@ -23,6 +24,11 @@ import { DocLink } from './ui';
  *
  * - their field points at this record (Blog.author → an author's blogs), or
  * - this record's field holds them (Author.books → the books it lists).
+ *
+ * - or through a route in between (`via`): a client's documents, through its
+ *   projects (Document.project → Project.client → this client). The link
+ *   fields then join the tab's records to that route, and the add button is
+ *   muted — a new document would need a project picked, not this client.
  *
  * Each tab has a name, a description, the columns to show, table or card
  * display, and a page size. The page adds search and paging.
@@ -40,7 +46,11 @@ export type ViewTab = {
 	/** The tab's add button — on unless false. Only tabs whose records point here have one. */
 	allowAdd?: boolean;
 	addLabel?: string;
+	/** The route in between, and how it links to this record (its field, or this record's). */
+	via?: { route: string; foreignField?: string; localField?: string };
 };
+
+type Backlink = { route: string; model: string; fields: string[] };
 
 type RouteOption = { route: string; model: string | null; title?: string | null };
 
@@ -52,6 +62,9 @@ type Props = {
 	modelFields: ModelField[];
 	routes: RouteOption[];
 };
+
+/** One way to reach a tab's records through a route in between. */
+type NestedLink = { value: string; label: string; chain: string };
 
 const ICON = { size: 14, strokeWidth: 1.75 };
 const IMAGE_NAME = /(^|[._-])(image|img|photo|avatar|logo|thumbnail|thumb|picture|banner|cover|icon)s?$/i;
@@ -73,12 +86,79 @@ const linksBetween = (model: string, modelFields: ModelField[], relatedModel: st
 	ours: relatedModel ? modelFields.filter(f => f.ref === relatedModel).map(f => f.key) : [],
 });
 
-const linkValue = (t: ViewTab) => (t.foreignField ? `f:${t.foreignField}` : t.localField ? `l:${t.localField}` : '');
+/** `f:<field>` / `l:<field>` — which side of a link holds the field. */
+const side = (l?: { foreignField?: string; localField?: string }) =>
+	l?.foreignField ? `f:${l.foreignField}` : l?.localField ? `l:${l.localField}` : '';
+const fromSide = (v: string) =>
+	v.startsWith('f:') ? { foreignField: v.slice(2) } : v.startsWith('l:') ? { localField: v.slice(2) } : {};
+
+/** Direct links read `f:…` / `l:…`; links through a route `v:<route>|<its link here>|<the tab's link to it>`. */
+const linkValue = (t: ViewTab) => (t.via?.route ? `v:${t.via.route}|${side(t.via)}|${side(t)}` : side(t));
 const withLink = (t: ViewTab, v: string): ViewTab => {
-	const { foreignField: _f, localField: _l, ...rest } = t;
-	if (v.startsWith('f:')) return { ...rest, foreignField: v.slice(2) };
-	if (v.startsWith('l:')) return { ...rest, localField: v.slice(2) };
-	return rest;
+	const { foreignField: _f, localField: _l, via: _v, ...rest } = t;
+	if (v.startsWith('v:')) {
+		const [route, hop1, hop2] = v.slice(2).split('|');
+		return { ...rest, ...fromSide(hop2), via: { route, ...fromSide(hop1) } };
+	}
+	return { ...rest, ...fromSide(v) };
+};
+
+/**
+ * The links through a route in between: a route linked to this record (it
+ * points here, or this record lists it), whose records the tab's records are
+ * linked to (they point at it, or it lists them). Client → Projects →
+ * Documents: "Documents of this record's Projects".
+ */
+const nestedLinks = ({
+	model,
+	modelFields,
+	routes,
+	here,
+	related,
+	relatedModel,
+	relatedFields,
+	there,
+	name,
+	titleOf,
+}: {
+	model: string;
+	modelFields: ModelField[];
+	routes: RouteOption[];
+	/** Routes whose fields point at this model. */
+	here: Backlink[];
+	related: string;
+	relatedModel?: string;
+	relatedFields: ModelField[];
+	/** Routes whose fields point at the tab's model. */
+	there: Backlink[];
+	name: string;
+	titleOf: (route: string) => string;
+}): NestedLink[] => {
+	if (!relatedModel) return [];
+	const mids: { route: string; model: string; hop: string; how: string }[] = [
+		...here.flatMap(l => l.fields.map(f => ({ route: l.route, model: l.model, hop: `f:${f}`, how: `by their ${f}` }))),
+		...modelFields
+			.filter(f => f.ref)
+			.flatMap(f =>
+				routes
+					.filter(r => r.model === f.ref)
+					.map(r => ({ route: r.route, model: r.model as string, hop: `l:${f.key}`, how: `in this record’s ${f.key}` }))
+			),
+	].filter(m => m.route !== related && m.model !== model && m.model !== relatedModel);
+
+	return mids.flatMap(m => {
+		const mid = titleOf(m.route);
+		const theirs = relatedFields.filter(f => f.ref === m.model).map(f => ({ hop: `f:${f.key}`, how: `by their ${f.key}` }));
+		const held = there
+			.filter(l => l.route === m.route)
+			.flatMap(l => l.fields.map(f => ({ hop: `l:${f}`, how: `in each one’s ${f}` })));
+		// "This record → Projects (by their client) → Documents (by their project)"
+		return [...theirs, ...held].map(h => ({
+			value: `v:${m.route}|${m.hop}|${h.hop}`,
+			label: `${name} of this record’s ${mid} (${h.hop.slice(2)} · ${m.hop.slice(2)})`,
+			chain: `This record → ${mid} (${m.how}) → ${name} (${h.how})`,
+		}));
+	});
 };
 
 export const tabProblems = (tabs: ViewTab[] = []) => {
@@ -116,19 +196,36 @@ const TabCard: FC<{
 	modelFields: ModelField[];
 	routes: RouteOption[];
 	titleOf: (route: string) => string;
+	/** Routes pointing at this model — the first step of a link through another route. */
+	backlinks: Backlink[];
 	onChange: (t: ViewTab) => void;
 	onPickRoute: (route: string) => void;
 	onMove: (to: number) => void;
 	onRemove: () => void;
-}> = ({ tab, index, count, model, modelFields, routes, titleOf, onChange, onPickRoute, onMove, onRemove }) => {
+}> = ({ tab, index, count, model, modelFields, routes, titleOf, backlinks, onChange, onPickRoute, onMove, onRemove }) => {
 	const relatedModel = routes.find(r => r.route === tab.related)?.model || undefined;
 	const { data } = useGetBuilderModelFieldsQuery(relatedModel as string, { skip: !relatedModel });
+	const { data: there } = useGetBuilderBacklinksQuery(relatedModel as string, { skip: !relatedModel });
 	const relatedFields: ModelField[] = (data?.fields || []).filter(usable);
 	const { theirs, ours } = linksBetween(model, modelFields, relatedModel, relatedFields);
-	const columnChoices = relatedFields.filter(f => f.key !== tab.foreignField);
+	// (A tab through another route keeps its link column: it says which project.)
+	const columnChoices = relatedFields.filter(f => tab.via || f.key !== tab.foreignField);
 	const problems = tabProblems([tab]).map(p => p.replace(/^[^:]*: /, ''));
 	const display = tab.display || 'table';
 	const name = tab.related ? titleOf(tab.related) : 'records';
+	const nested = nestedLinks({
+		model,
+		modelFields,
+		routes,
+		here: backlinks,
+		related: tab.related,
+		relatedModel,
+		relatedFields,
+		there: there?.doc || [],
+		name,
+		titleOf,
+	});
+	const picked = nested.find(n => n.value === linkValue(tab));
 
 	return (
 		<Box
@@ -218,42 +315,67 @@ const TabCard: FC<{
 
 				{tab.related && (
 					<Row label='Linked by'>
-						{theirs.length || ours.length ? (
-							<Dropdown
-								size='xs'
-								w='320px'
-								value={linkValue(tab)}
-								placeholder='Pick the link'
-								onChange={(v: string) => onChange(withLink(tab, v))}>
-								{theirs.length > 0 && (
-									<optgroup label={`${name} pointing at this record`}>
-										{theirs.map(k => (
-											<option
-												key={`f:${k}`}
-												value={`f:${k}`}>
-												{`${name} whose ${k} is this record`}
-											</option>
-										))}
-									</optgroup>
+						{theirs.length || ours.length || nested.length ? (
+							<Flex
+								direction='column'
+								gap={1}
+								flex='1'
+								minW={0}>
+								<Dropdown
+									size='xs'
+									w='full'
+									maxW='440px'
+									value={linkValue(tab)}
+									placeholder='Pick the link'
+									onChange={(v: string) => onChange(withLink(tab, v))}>
+									{theirs.length > 0 && (
+										<optgroup label={`${name} pointing at this record`}>
+											{theirs.map(k => (
+												<option
+													key={`f:${k}`}
+													value={`f:${k}`}>
+													{`${name} whose ${k} is this record`}
+												</option>
+											))}
+										</optgroup>
+									)}
+									{ours.length > 0 && (
+										<optgroup label={`This record's fields`}>
+											{ours.map(k => (
+												<option
+													key={`l:${k}`}
+													value={`l:${k}`}>
+													{`${name} listed in this record’s ${k}`}
+												</option>
+											))}
+										</optgroup>
+									)}
+									{nested.length > 0 && (
+										<optgroup label='Through another route'>
+											{nested.map(n => (
+												<option
+													key={n.value}
+													value={n.value}>
+													{n.label}
+												</option>
+											))}
+										</optgroup>
+									)}
+								</Dropdown>
+								{picked && (
+									<Text
+										fontSize='11px'
+										color='fg.muted'>
+										{picked.chain}
+									</Text>
 								)}
-								{ours.length > 0 && (
-									<optgroup label={`This record's fields`}>
-										{ours.map(k => (
-											<option
-												key={`l:${k}`}
-												value={`l:${k}`}>
-												{`${name} listed in this record’s ${k}`}
-											</option>
-										))}
-									</optgroup>
-								)}
-							</Dropdown>
+							</Flex>
 						) : (
 							<Text
 								fontSize='xs'
 								color='red.fg'>
 								{relatedModel
-									? `No field links ${name} and ${model}. Add a reference field between them first.`
+									? `No field links ${name} and ${model}, directly or through another route. Add a reference field between them first.`
 									: 'Loading…'}
 							</Text>
 						)}
@@ -333,7 +455,14 @@ const TabCard: FC<{
 						</Row>
 
 						<Row label='Add button'>
-							{tab.localField ? (
+							{tab.via ? (
+								<Text
+									fontSize='11px'
+									color='fg.muted'>
+									Shown muted: these {name.toLowerCase()} belong to this record’s {titleOf(tab.via.route).toLowerCase()}, so a
+									new one needs one of those picked. Add them from a {titleOf(tab.via.route).toLowerCase()} page instead.
+								</Text>
+							) : tab.localField ? (
 								<Text
 									fontSize='11px'
 									color='fg.muted'>
@@ -387,10 +516,11 @@ const TabCard: FC<{
 const ViewTabsEditor: FC<Props> = ({ tabs, onChange, model, modelFields, routes }) => {
 	const { data: backlinks } = useGetBuilderBacklinksQuery(model, { skip: !model });
 	const [loadFields] = useLazyGetBuilderModelFieldsQuery();
+	const [loadBacklinks] = useLazyGetBuilderBacklinksQuery();
 
 	const titleOf = (route: string) => routes.find(r => r.route === route)?.title || route;
 	const modelOf = (route: string) => routes.find(r => r.route === route)?.model || backlinks?.doc.find(l => l.route === route)?.model;
-	const has = (route: string, field: string) => tabs.some(t => t.related === route && t.foreignField === field);
+	const has = (route: string, field: string) => tabs.some(t => !t.via && t.related === route && t.foreignField === field);
 	// Quick picks: routes that already point at this model.
 	const suggestions = (backlinks?.doc || [])
 		.flatMap(l => l.fields.map(f => ({ route: l.route, field: f, many: l.fields.length > 1 })))
@@ -404,7 +534,7 @@ const ViewTabsEditor: FC<Props> = ({ tabs, onChange, model, modelFields, routes 
 		const res: any = relatedModel ? await loadFields(relatedModel, true).unwrap().catch(() => null) : null;
 		const fields: ModelField[] = res?.fields || [];
 		const { theirs, ours } = linksBetween(model, modelFields, relatedModel, fields);
-		const link =
+		let link: Partial<ViewTab> =
 			base.foreignField || base.localField
 				? {}
 				: theirs.length + ours.length === 1
@@ -412,8 +542,25 @@ const ViewTabsEditor: FC<Props> = ({ tabs, onChange, model, modelFields, routes 
 					? { foreignField: theirs[0] }
 					: { localField: ours[0] }
 				: {};
+		// No direct link: the one way through another route, when there's just one.
+		if (!base.foreignField && !base.localField && !theirs.length && !ours.length && relatedModel) {
+			const there: any = await loadBacklinks(relatedModel, true).unwrap().catch(() => null);
+			const nested = nestedLinks({
+				model,
+				modelFields,
+				routes,
+				here: backlinks?.doc || [],
+				related: route,
+				relatedModel,
+				relatedFields: fields.filter(usable),
+				there: there?.doc || [],
+				name: titleOf(route),
+				titleOf,
+			});
+			if (nested.length === 1) link = withLink({ related: route, columns: [] }, nested[0].value);
+		}
 		const t: ViewTab = { related: route, display: 'table', pageSize: 20, ...base, ...link, columns: [] };
-		t.columns = defaultColumns(fields, t.foreignField);
+		t.columns = defaultColumns(fields, t.via ? undefined : t.foreignField);
 		return t;
 	};
 
@@ -471,6 +618,7 @@ const ViewTabsEditor: FC<Props> = ({ tabs, onChange, model, modelFields, routes 
 						modelFields={modelFields}
 						routes={routes}
 						titleOf={titleOf}
+						backlinks={backlinks?.doc || []}
 						onChange={t => setTab(i, t)}
 						onPickRoute={route => pickRoute(i, route)}
 						onMove={to => move(i, to)}

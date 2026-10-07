@@ -12,7 +12,7 @@ import Panel from '../../../cl/Panel';
 import DataTable from '../../../cl/DataTable';
 import { EmptyState, ErrorState, TableSkeleton } from '../../../cl/States';
 import { cellNode, cellText, firstImage, isImageKind } from './cells';
-import { projectHref } from '../../../config/lib/constants/panel';
+import { pagePath, projectHref } from '../../../config/lib/constants/panel';
 
 /**
  * One tab of a view page after Overview: the records of another route linked
@@ -124,7 +124,9 @@ const Cards: FC<{ columns: any[]; rows: any[]; onOpen: (r: any) => void }> = ({ 
 
 /**
  * Disabled, with the reason on hover, for someone without create permission on
- * the tab's route — the button still says what the tab can do.
+ * the tab's route — the button still says what the tab can do. Also muted on a
+ * tab that reaches its records through another route (a client's documents,
+ * through its projects): a new one would need one of those picked.
  */
 const AddButton: FC<{
 	label: string;
@@ -134,7 +136,9 @@ const AddButton: FC<{
 	path: string;
 	fields: any[];
 	defaults: Record<string, any>;
-}> = ({ label, allowed, ready, name, path, fields, defaults }) => {
+	/** Set on a tab through another route: why the button is muted. */
+	reason?: string;
+}> = ({ label, allowed, ready, name, path, fields, defaults, reason }) => {
 	const button = (
 		<Button
 			size='xs'
@@ -150,7 +154,7 @@ const AddButton: FC<{
 				as='span'
 				display='inline-flex'
 				cursor='not-allowed'
-				title={`You don’t have permission to add ${name.toLowerCase()}`}>
+				title={reason || `You don’t have permission to add ${name.toLowerCase()}`}>
 				{button}
 			</Box>
 		);
@@ -249,7 +253,7 @@ const ViewTabTable: FC<Props> = ({ path, id, index, title }) => {
 				<Flex
 					align='center'
 					gap={3}>
-					<Link href={`/${data?.route}`}>
+					<Link href={pagePath(data?.route)}>
 						<Text
 							fontSize='xs'
 							color='fg.muted'
@@ -266,6 +270,11 @@ const ViewTabTable: FC<Props> = ({ path, id, index, title }) => {
 							path={data.route}
 							fields={addFields}
 							defaults={{ [add.field]: add.many ? [id] : id }}
+							reason={
+								add.nested
+									? `These ${name.toLowerCase()} belong to this record’s ${add.via} — add one from one of those, where it’s linked for you`
+									: undefined
+							}
 						/>
 					)}
 				</Flex>

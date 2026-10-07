@@ -190,6 +190,7 @@ export const {
 	useGetViewDocumentQuery,
 	useGetViewTabQuery,
 	useGetBuilderBacklinksQuery,
+	useLazyGetBuilderBacklinksQuery,
 	useCompareBuilderRouteQuery,
 	useSetBuilderStateMutation,
 	useSetBuilderSourceMutation,

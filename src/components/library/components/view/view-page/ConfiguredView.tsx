@@ -9,7 +9,7 @@ import DataTable from '../../../cl/DataTable';
 import { DetailSkeleton } from '../../../cl/States';
 import ViewRow from './ViewRow';
 import { cellNode } from './cells';
-import { projectHref } from '../../../config/lib/constants/panel';
+import { pagePath, projectHref } from '../../../config/lib/constants/panel';
 
 /**
  * A record laid out by its route's `view` config — the sections, titles and
@@ -123,7 +123,7 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 								}
 								actions={
 									item.allowed && item.total > 0 ? (
-										<Link href={`/${item.route}`}>
+										<Link href={pagePath(item.route)}>
 											<Text
 												fontSize='xs'
 												color='fg.muted'
