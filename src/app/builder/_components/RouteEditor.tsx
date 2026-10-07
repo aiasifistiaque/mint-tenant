@@ -967,8 +967,8 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						}
 						subtitle={
 							settingsReadOnly
-								? 'Read-only: this route controls access, so its settings stay as in code.'
-								: 'The fields the API validates, stores, edits, sorts, searches and returns — the settings file, in order. Drives the API once published.'
+								? 'Read only: this page controls who can sign in, so its fields and rules stay as they are.'
+								: 'Every field a record has, in order, and the rules the server checks — what must be filled in, what can be changed later, what the search box finds. Takes effect once published.'
 						}
 						actions={
 							!settingsReadOnly &&

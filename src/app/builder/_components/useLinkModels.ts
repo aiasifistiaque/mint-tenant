@@ -38,5 +38,8 @@ export const useLinkModels = () => {
 export const mainRoute = (m: LinkModel) => (m.route && m.routes.includes(m.route) ? m.route : m.routes[0]);
 
 /** "Software — Projects · /projects +1" — the route too, as a model's name isn't always its page's. */
-export const modelLabel = (m: LinkModel) =>
-	`${m.name}${m.title && m.title !== m.name ? ` — ${m.title}` : ''} · /${mainRoute(m)}${m.routes.length > 1 ? ` +${m.routes.length - 1}` : ''}`;
+export const modelLabel = (m: LinkModel) => {
+	// A project's model names carry the project's id (T<id>_Customer); people know it as Customer.
+	const name = m.name.replace(/^T[0-9a-f]{24}_/, '');
+	return `${name}${m.title && m.title !== name ? ` — ${m.title}` : ''} · /${mainRoute(m)}${m.routes.length > 1 ? ` +${m.routes.length - 1}` : ''}`;
+};

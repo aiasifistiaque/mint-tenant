@@ -1,8 +1,22 @@
 'use client';
 
 import { DragEvent, FC, memo, useMemo, useRef, useState } from 'react';
-import { Badge, Box, Button, Flex, Grid, IconButton, Input, Text, Textarea } from '@chakra-ui/react';
-import { Calculator, ChevronDown, ChevronRight, GripVertical, Link2, ListTree, Lock, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text, Textarea } from '@chakra-ui/react';
+import {
+	Calculator,
+	ChevronDown,
+	ChevronRight,
+	ChevronUp,
+	GripVertical,
+	Link2,
+	ListTree,
+	Lock,
+	Plus,
+	RotateCcw,
+	Search,
+	SlidersHorizontal,
+	Trash2,
+} from 'lucide-react';
 import { inputDataOptions, radius } from '@/components/library';
 import { TABLE_CELLS } from '@/components/library/fields/registry/tableCells';
 import { ModelField } from './filterTypes';
@@ -13,6 +27,8 @@ import SectionFieldsModal from '@/app/model-builder/_components/SectionFieldsMod
 import { dataModelOf, editableSection, isSectionInput, sectionFormulaInfo, withSection } from './sectionDataModel';
 import LinkedRecordsEditor, { RECORD_INPUTS } from './LinkedRecordsEditor';
 import { INPUTS } from './inputTypes';
+import { DATA_TYPE_LABEL, InputIcon, LIMITED_INPUTS, RULES, cellLabel, inputLabel, inputOf } from './settingsMeta';
+import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 
 /**
  * A route's settings file, field by field — the same properties the file
@@ -107,16 +123,6 @@ const SYSTEM_HINT: Record<string, string> = {
 
 // Same as the server's: these fields can be tightened, never loosened.
 const SENSITIVE = /pass(word)?|token|secret|api_?key|apikey|private|otp|salt|hash/i;
-
-const FLAGS: { prop: string; label: string; hint: string }[] = [
-	{ prop: 'required', label: 'Required', hint: 'Must be sent when creating' },
-	{ prop: 'unique', label: 'Unique', hint: 'Creating a duplicate is refused' },
-	{ prop: 'edit', label: 'Editable', hint: 'Can be changed after creation' },
-	{ prop: 'sort', label: 'Sortable', hint: 'The table can sort by it' },
-	{ prop: 'search', label: 'Searchable', hint: 'The search box matches it' },
-	{ prop: 'exclude', label: 'Hidden', hint: 'Never returned by the API' },
-	{ prop: 'trim', label: 'Trim', hint: 'Surrounding spaces are removed' },
-];
 
 const ICON = { size: 14, strokeWidth: 1.75 };
 
@@ -224,10 +230,71 @@ type RowProps = {
 	actions: RowActions;
 };
 
+/** Where a rule can't be changed, why — or nothing when it can. */
+const ruleLock = (f: SettingsField, code: SettingsField | undefined, prop: string, system: boolean) => {
+	const on = !!f[prop];
+	if (system) return 'Fixed: this field is filled in by the system';
+	if (f.schema?.type === 'formula' && (prop === 'edit' || prop === 'required')) return 'A calculated field is worked out, never typed';
+	if (unsafe(f, code, prop, !on)) return 'Not allowed on a field holding a secret — it can only be made stricter';
+	return '';
+};
+
+const Switchy: FC<{ on: boolean; disabled?: boolean; label: string; title?: string; onClick: () => void }> = ({
+	on,
+	disabled,
+	label,
+	title,
+	onClick,
+}) => (
+	<Switch.Root
+		size='sm'
+		checked={on}
+		disabled={disabled}
+		title={title}
+		onCheckedChange={onClick}>
+		<Switch.HiddenInput />
+		<Switch.Control>
+			<Switch.Thumb />
+		</Switch.Control>
+		<Switch.Label fontSize='xs'>{label}</Switch.Label>
+	</Switch.Root>
+);
+
+/** A heading inside a field's details. */
+const Group: FC<{ title: string; hint?: string; children: any }> = ({ title, hint, children }) => (
+	<Box>
+		<Text
+			fontSize='xs'
+			fontWeight='600'
+			color='fg.muted'
+			textTransform='uppercase'
+			letterSpacing='0.06em'
+			mb={hint ? 0.5 : 2.5}>
+			{title}
+		</Text>
+		{hint && (
+			<Text
+				fontSize='xs'
+				color='fg.muted'
+				mb={2.5}>
+				{hint}
+			</Text>
+		)}
+		{children}
+	</Box>
+);
+
+/** The column widths the header row and the rows share. */
+const COLS = { name: '220px', input: '190px' };
+
 /**
  * One settings field. Memoized: a settings list is 20–40 of these, each with
- * three dropdowns, and re-rendering them all on every keystroke or toggle is
- * what made the Settings tab (and the formula window on it) slow.
+ * dropdowns, and re-rendering them all on every keystroke or toggle is what
+ * made the Settings tab (and the formula window on it) slow.
+ *
+ * The row is what people change most — the name, how it's asked for, Required
+ * and Can be changed later — with the other rules that are on as chips; More
+ * opens the rest in groups, the technical parts under Advanced.
  */
 const FieldRow = memo(function FieldRow({
 	f,
@@ -247,64 +314,101 @@ const FieldRow = memo(function FieldRow({
 	formFields,
 	actions,
 }: RowProps) {
+	const [advanced, setAdvanced] = useState(false);
 	const sensitive = SENSITIVE.test(f.key);
 	const changed = !code || JSON.stringify(code) !== JSON.stringify(f);
 	const formula = formulaLabel === undefined ? null : { ok: formulaOk, label: formulaLabel, title: formulaTitle };
+	const input = formula ? 'formula' : inputOf(f);
+	const locked = readOnly || system;
+	// Off goes back to however the settings file says it — explicit false or
+	// absent — so on-then-off isn't a change.
+	const flip = (prop: string) =>
+		actions.set(f.key, { [prop]: !f[prop] ? true : code && prop in code ? code[prop] && false : undefined });
+	const extraRules = RULES.filter(r => !r.inline && f[r.prop]);
+	const isNumber = f.type === 'number' || formula;
+	const hasLimits = !formula && LIMITED_INPUTS.includes(input) && ['string', 'text', 'email', 'uri', 'number'].includes(f.type || 'string');
+
 	return (
-			<Box
-				draggable={!isOpen && !readOnly && !system}
-				onDragStart={(e: DragEvent) => {
-					actions.dragStart(index);
-					e.dataTransfer.effectAllowed = 'move';
-					e.dataTransfer.setData('text/plain', f.key);
-				}}
-				onDragOver={(e: DragEvent) => {
-					e.preventDefault();
-					actions.dragOver(index);
-				}}
-				onDrop={(e: DragEvent) => {
-					e.preventDefault();
-					actions.drop(index);
-				}}
-				onDragEnd={actions.dragEnd}
-				borderWidth='1px'
-				borderStyle={isTarget ? 'dashed' : 'solid'}
-				borderColor={isTarget ? 'fg' : 'border'}
-				borderRadius={radius.CONTAINER}
-				bg='bg.panel'
-				opacity={dragging ? 0.4 : 1}>
-				<Flex
-					align='center'
-					gap={2}
-					px={2.5}
-					py={1.5}
-					flexWrap='wrap'>
-					{!readOnly && (
-						<Flex
-							color='fg.subtle'
-							cursor='grab'
-							title='Drag to reorder'>
-							<GripVertical {...ICON} />
-						</Flex>
+		<Box
+			draggable={!isOpen && !readOnly && !system}
+			onDragStart={(e: DragEvent) => {
+				actions.dragStart(index);
+				e.dataTransfer.effectAllowed = 'move';
+				e.dataTransfer.setData('text/plain', f.key);
+			}}
+			onDragOver={(e: DragEvent) => {
+				e.preventDefault();
+				actions.dragOver(index);
+			}}
+			onDrop={(e: DragEvent) => {
+				e.preventDefault();
+				actions.drop(index);
+			}}
+			onDragEnd={actions.dragEnd}
+			borderWidth='1px'
+			borderStyle={isTarget ? 'dashed' : 'solid'}
+			borderColor={isTarget ? 'fg' : 'border'}
+			borderRadius={radius.CONTAINER}
+			bg={system ? 'bg.subtle' : 'bg.panel'}
+			opacity={dragging ? 0.4 : 1}>
+			<Flex
+				align='center'
+				gap={2}
+				px={2.5}
+				py={2}
+				flexWrap='wrap'>
+				{!readOnly && (
+					<Flex
+						color='fg.subtle'
+						cursor={system ? 'default' : 'grab'}
+						visibility={system ? 'hidden' : undefined}
+						title='Drag to reorder'>
+						<GripVertical {...ICON} />
+					</Flex>
+				)}
+				<Box title={inputLabel(input)}>
+					<InputIcon input={input} />
+				</Box>
+
+				{/* The name people see, with the API name under it. */}
+				<Box
+					w={COLS.name}
+					minW={0}>
+					{locked ? (
+						<Text
+							fontSize='sm'
+							fontWeight='500'
+							truncate>
+							{f.title || f.key}
+						</Text>
+					) : (
+						<Input
+							size='xs'
+							value={f.title || ''}
+							placeholder={f.key}
+							title='The field’s name, as people see it'
+							onChange={e => actions.set(f.key, { title: e.target.value })}
+						/>
 					)}
 					<Flex
 						align='center'
 						gap={1.5}
-						w='190px'
+						mt={0.5}
+						px={0.5}
 						minW={0}>
 						{(sensitive || system) && (
 							<Flex
 								color={system ? 'fg.muted' : 'orange.fg'}
-								title={system ? `System field — generated, read only. ${SYSTEM_HINT[f.key] || ''}` : 'Sensitive: can be made stricter, never looser'}>
-								<Lock size={12} />
+								title={system ? `Filled in by the system, read only. ${SYSTEM_HINT[f.key] || ''}` : 'Holds a secret: its rules can be made stricter, never looser'}>
+								<Lock size={10} />
 							</Flex>
 						)}
 						<Text
-							fontSize='xs'
+							fontSize='11px'
 							fontFamily='mono'
-							fontWeight='600'
+							color='fg.subtle'
 							truncate
-							title={f.key}>
+							title={`API name: ${f.key}`}>
 							{f.key}
 						</Text>
 						{system && (
@@ -312,7 +416,7 @@ const FieldRow = memo(function FieldRow({
 								size='xs'
 								variant='outline'
 								title={SYSTEM_HINT[f.key]}>
-								system
+								automatic
 							</Badge>
 						)}
 						{changed && !system && (
@@ -320,45 +424,17 @@ const FieldRow = memo(function FieldRow({
 								size='xs'
 								colorPalette='blue'
 								variant='subtle'
-								title={code ? 'Differs from the settings file' : 'Not in the settings file'}>
+								title={code ? 'Changed from how it started' : 'Added here'}>
 								{code ? 'changed' : 'new'}
 							</Badge>
 						)}
 					</Flex>
-					<Input
-						size='xs'
-						w='170px'
-						value={f.title || ''}
-						placeholder='Title'
-						disabled={readOnly || system}
-						onChange={e => actions.set(f.key, { title: e.target.value })}
-					/>
-					<Dropdown
-						size='xs'
-						w='130px'
-						disabled={readOnly || system}
-						title={
-							system
-								? 'Fixed on a system field'
-								: 'How the value is stored and validated. “formula”: a number calculated from other number fields'
-						}
-						value={f.schema?.type === 'formula' ? 'formula' : f.type || 'string'}
-						onChange={v => actions.pickType(f.key, v)}>
-						{DATA_TYPES.map(t => (
-							<option
-								key={t}
-								value={t}>
-								{t}
-							</option>
-						))}
-						{/* Offered where the model stores a number — a formula's result has to fit. */}
-						{(f.type === 'number' || f.schema?.type === 'formula' || modelNumber) && (
-							<option value='formula'>formula</option>
-						)}
-					</Dropdown>
+				</Box>
+
+				{/* How it's asked for: the input — or, calculated, its formula; or the fixed link of a system field. */}
+				<Box w={COLS.input}>
 					{link ? (
 						<Flex
-							w='170px'
 							h={8}
 							align='center'
 							gap={1.5}
@@ -374,12 +450,10 @@ const FieldRow = memo(function FieldRow({
 							</Text>
 						</Flex>
 					) : formula ? (
-						// A formula field has no input to pick — it's calculated. Its
-						// formula sits here instead; the data type switches it back.
 						<Button
 							size='xs'
 							variant='outline'
-							w='170px'
+							w='full'
 							justifyContent='flex-start'
 							disabled={readOnly}
 							borderColor={formula.ok ? undefined : 'red.solid'}
@@ -397,83 +471,92 @@ const FieldRow = memo(function FieldRow({
 					) : (
 						<Dropdown
 							size='xs'
-							w='170px'
-							disabled={readOnly || system}
-							title={system ? 'Fixed on a system field' : 'The form input — also how the table and detail page show it'}
+							disabled={locked}
+							title={system ? 'Fixed on a system field' : 'How people fill it in — also how the table and record page show it'}
 							value={f.schema?.type || ''}
 							onChange={v => actions.pickInput(f.key, v)}>
-							<option value=''>Input: from the data type</option>
+							<option value=''>{`${inputLabel(inputOf({ type: f.type }))} (automatic)`}</option>
 							{inputOptions(f.schema?.type)}
 						</Dropdown>
 					)}
-					{isSectionInput(f.schema?.type) && (
-						// A section's own fields: opens the section field builder.
-						<Button
-							size='xs'
-							variant='outline'
-							maxW='240px'
-							justifyContent='flex-start'
-							disabled={readOnly || system}
-							title='Choose the section’s fields'
-							onClick={() => actions.editSection(f.key)}>
-							<ListTree size={12} />
-							<Text
-								as='span'
-								truncate>
-								{dataModelOf(f).length
-									? `${dataModelOf(f).length} fields: ${dataModelOf(f)
-											.map((x: any) => x.label || x.name)
-											.join(', ')}`
-									: 'Choose fields'}
-							</Text>
-						</Button>
-					)}
-					<Flex
-						gap={1}
-						flexWrap='wrap'
-						flex='1'>
-						{FLAGS.map(flag => {
-							const on = !!f[flag.prop];
-							const fixed = system || (f.schema?.type === 'formula' && (flag.prop === 'edit' || flag.prop === 'required'));
-							const blocked = fixed || unsafe(f, code, flag.prop, !on);
-							return (
-								<Button
-									key={flag.prop}
-									size='2xs'
-									variant={on ? 'solid' : 'outline'}
-									disabled={readOnly || blocked}
-									title={
-										fixed
-											? f.schema?.type === 'formula' && !system
-												? `${flag.label}: a formula is calculated, never typed`
-												: `${flag.label}: fixed on a system field`
-											: blocked
-											? `${flag.label}: not allowed on a sensitive field`
-											: flag.hint
-									}
-									// Off goes back to however the settings file says it —
-									// explicit false or absent — so on-then-off isn't a change.
-									onClick={() =>
-										actions.set(f.key, { [flag.prop]: !on ? true : code && flag.prop in code ? code[flag.prop] && false : undefined })
-									}>
-									{flag.label}
-								</Button>
-							);
-						})}
-					</Flex>
-					<IconButton
+				</Box>
+
+				{isSectionInput(f.schema?.type) && (
+					// A section's own fields: opens the section field builder.
+					<Button
 						size='xs'
-						variant='ghost'
-						aria-label={isOpen ? 'Hide details' : 'Show details'}
+						variant='outline'
+						maxW='240px'
+						justifyContent='flex-start'
+						disabled={locked}
+						title='Choose the section’s fields'
+						onClick={() => actions.editSection(f.key)}>
+						<ListTree size={12} />
+						<Text
+							as='span'
+							truncate>
+							{dataModelOf(f).length
+								? `${dataModelOf(f).length} fields: ${dataModelOf(f)
+										.map((x: any) => x.label || x.name)
+										.join(', ')}`
+								: 'Choose fields'}
+						</Text>
+					</Button>
+				)}
+
+				{/* The two rules people change most, as switches; the others that are on, as chips. */}
+				<Flex
+					gap={4}
+					rowGap={2}
+					align='center'
+					flexWrap='wrap'
+					flex='1'
+					minW={0}>
+					{RULES.filter(r => r.inline).map(r => {
+						const why = ruleLock(f, code, r.prop, system);
+						return (
+							<Switchy
+								key={r.prop}
+								on={!!f[r.prop]}
+								disabled={readOnly || !!why}
+								label={r.label}
+								title={why || r.hint}
+								onClick={() => flip(r.prop)}
+							/>
+						);
+					})}
+					{extraRules.map(r => (
+						<Badge
+							key={r.prop}
+							size='sm'
+							colorPalette={r.palette}
+							variant='subtle'
+							cursor='pointer'
+							title={`${r.hint} — click to change`}
+							onClick={() => !isOpen && actions.toggle(f.key)}>
+							{r.label}
+						</Badge>
+					))}
+				</Flex>
+
+				<Flex
+					gap={1}
+					ml='auto'>
+					<Button
+						size='xs'
+						variant={isOpen ? 'subtle' : 'ghost'}
+						aria-expanded={isOpen}
+						title='All rules, how it looks, limits and advanced settings'
 						onClick={() => actions.toggle(f.key)}>
-						{isOpen ? <ChevronDown {...ICON} /> : <ChevronRight {...ICON} />}
-					</IconButton>
+						{isOpen ? <ChevronUp {...ICON} /> : <SlidersHorizontal {...ICON} />}
+						{isOpen ? 'Less' : 'More'}
+					</Button>
 					{!readOnly && !system && (
 						<IconButton
 							size='xs'
 							variant='ghost'
 							aria-label={`Remove ${f.key}`}
-							title='Remove from settings: the API stops validating, editing and returning it'
+							title='Remove: the server stops checking, editing and returning it. The stored values stay.'
 							color='red.500'
 							_dark={{ color: 'red.300' }}
 							onClick={() => actions.remove(f.key)}>
@@ -481,166 +564,263 @@ const FieldRow = memo(function FieldRow({
 						</IconButton>
 					)}
 				</Flex>
+			</Flex>
 
-				{isOpen && (
-					<Flex
-						direction='column'
-						gap={3}
-						p={3}
-						pt={1}
-						borderTopWidth='1px'
-						borderColor='border.muted'>
+			{isOpen && (
+				<Flex
+					direction='column'
+					gap={5}
+					p={4}
+					pl={{ md: readOnly ? 12 : 16 }}
+					borderTopWidth='1px'
+					borderColor='border.muted'>
+					<Group
+						title='Rules'
+						hint={system ? 'This field is filled in by the system, so its rules are fixed.' : 'What the server checks and allows for this field.'}>
 						<Grid
-							templateColumns={{ base: '1fr', md: 'repeat(4, 1fr)' }}
+							templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
+							gap={3}>
+							{RULES.map(r => {
+								const why = ruleLock(f, code, r.prop, system);
+								return (
+									<Flex
+										key={r.prop}
+										gap={3}
+										align='flex-start'
+										p={2.5}
+										borderWidth='1px'
+										borderColor={f[r.prop] ? `${r.palette}.muted` : 'border.muted'}
+										bg={f[r.prop] ? `${r.palette}.subtle` : undefined}
+										borderRadius='md'>
+										<Switch.Root
+											size='sm'
+											mt={0.5}
+											checked={!!f[r.prop]}
+											disabled={readOnly || !!why}
+											onCheckedChange={() => flip(r.prop)}>
+											<Switch.HiddenInput />
+											<Switch.Control>
+												<Switch.Thumb />
+											</Switch.Control>
+										</Switch.Root>
+										<Box minW={0}>
+											<Text
+												fontSize='sm'
+												fontWeight='500'>
+												{r.label}
+											</Text>
+											<Text
+												fontSize='xs'
+												color={why ? 'orange.fg' : 'fg.muted'}>
+												{why || r.hint}
+											</Text>
+										</Box>
+									</Flex>
+								);
+							})}
+						</Grid>
+					</Group>
+
+					<Group title='How it looks'>
+						<Grid
+							templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
 							gap={3}>
 							<Box>
-								<Small>Label in the admin</Small>
+								<Small>Label on the form and record page</Small>
 								<Input
 									size='sm'
 									value={f.schema?.label || ''}
 									placeholder={f.title || f.key}
-									disabled={readOnly || system}
+									disabled={locked}
 									onChange={e => actions.setSchema(f.key, { label: e.target.value || undefined })}
 								/>
 							</Box>
 							<Box>
-								<Small>Form input</Small>
+								<Small>Shown in the table as</Small>
 								<Dropdown
 									size='sm'
-									disabled={readOnly || system}
-									value={f.schema?.type || ''}
-									onChange={v => actions.pickInput(f.key, v)}>
-									<option value=''>From the data type</option>
-									{inputOptions(f.schema?.type)}
-								</Dropdown>
-							</Box>
-							<Box>
-								<Small>Table cell</Small>
-								<Dropdown
-									size='sm'
-									disabled={readOnly || system}
+									disabled={locked}
 									value={f.schema?.tableType || ''}
 									onChange={v => actions.setSchema(f.key, { tableType: v || undefined })}>
-									<option value=''>Same as the form input</option>
+									<option value=''>Same as the form</option>
 									{Object.keys(TABLE_CELLS).map(t => (
 										<option
 											key={t}
 											value={t}>
-											{t}
+											{cellLabel(t)}
 										</option>
 									))}
 									{f.schema?.tableType && !(f.schema.tableType in TABLE_CELLS) && (
-										<option value={f.schema.tableType}>{f.schema.tableType}</option>
+										<option value={f.schema.tableType}>{cellLabel(f.schema.tableType)}</option>
 									)}
 								</Dropdown>
 							</Box>
 							<Box>
-								<Small>In the table by default</Small>
-								<Button
-									size='sm'
-									variant={f.schema?.default ? 'solid' : 'outline'}
-									disabled={readOnly || system}
+								<Small>Column in the table</Small>
+								<Switchy
+									on={!!f.schema?.default}
+									disabled={locked}
+									label={f.schema?.default ? 'Shown from the start' : 'Hidden until someone adds it'}
 									onClick={() =>
 										actions.setSchema(f.key, {
 											default: !f.schema?.default ? true : code?.schema && 'default' in code.schema ? false : undefined,
 										})
-									}>
-									{f.schema?.default ? 'Shown' : 'Hidden until chosen'}
-								</Button>
-							</Box>
-						</Grid>
-
-						<Grid
-							templateColumns={{ base: '1fr', md: 'repeat(4, 1fr)' }}
-							gap={3}>
-							<Box>
-								<Small>Min</Small>
-								<Input
-									size='sm'
-									type='number'
-									value={f.min ?? ''}
-									disabled={readOnly || system}
-									onChange={e => actions.set(f.key, { min: e.target.value === '' ? undefined : Number(e.target.value) })}
-								/>
-							</Box>
-							<Box>
-								<Small>Max</Small>
-								<Input
-									size='sm'
-									type='number'
-									value={f.max ?? ''}
-									disabled={readOnly || system}
-									onChange={e => actions.set(f.key, { max: e.target.value === '' ? undefined : Number(e.target.value) })}
-								/>
-							</Box>
-							<Box>
-								<Small>Populate path</Small>
-								<Input
-									size='sm'
-									value={typeof f.populate === 'object' ? f.populate?.path || '' : f.populate || ''}
-									placeholder='Not populated'
-									disabled={readOnly || system}
-									onChange={e =>
-										actions.set(f.key, {
-											populate: e.target.value
-												? { ...(typeof f.populate === 'object' ? f.populate : {}), path: e.target.value }
-												: undefined,
-										})
-									}
-								/>
-							</Box>
-							<Box>
-								<Small>Populate fields</Small>
-								<Input
-									size='sm'
-									value={typeof f.populate === 'object' ? f.populate?.select || '' : ''}
-									placeholder='name email'
-									disabled={readOnly || system || !f.populate}
-									onChange={e =>
-										actions.set(f.key, {
-											populate: { ...(typeof f.populate === 'object' ? f.populate : { path: f.populate }), select: e.target.value || undefined },
-										})
 									}
 								/>
 							</Box>
 						</Grid>
+					</Group>
 
-						{RECORD_INPUTS.includes(f.schema?.type) && (
+					{hasLimits && (
+						<Group
+							title={isNumber ? 'Limits' : 'Length'}
+							hint={isNumber ? 'The lowest and highest value allowed.' : 'The fewest and most characters allowed.'}>
+							<Grid
+								templateColumns={{ base: '1fr 1fr', md: 'repeat(4, minmax(0, 1fr))' }}
+								gap={3}>
+								<Box>
+									<Small>{isNumber ? 'Lowest' : 'Fewest'}</Small>
+									<Input
+										size='sm'
+										type='number'
+										placeholder='No limit'
+										value={f.min ?? ''}
+										disabled={locked}
+										onChange={e => actions.set(f.key, { min: e.target.value === '' ? undefined : Number(e.target.value) })}
+									/>
+								</Box>
+								<Box>
+									<Small>{isNumber ? 'Highest' : 'Most'}</Small>
+									<Input
+										size='sm'
+										type='number'
+										placeholder='No limit'
+										value={f.max ?? ''}
+										disabled={locked}
+										onChange={e => actions.set(f.key, { max: e.target.value === '' ? undefined : Number(e.target.value) })}
+									/>
+								</Box>
+							</Grid>
+						</Group>
+					)}
+
+					{RECORD_INPUTS.includes(f.schema?.type) && (
+						<Group title='Picking a linked record'>
 							<LinkedRecordsEditor
 								schema={f.schema}
 								formFields={formFields}
 								fieldKey={f.key}
-								disabled={readOnly || system}
+								disabled={locked}
 								onChange={patch => actions.setSchema(f.key, patch)}
 							/>
-						)}
+						</Group>
+					)}
 
-						<Box>
-							<Small>All presentation options (schema)</Small>
-							<SchemaJson
-								key={`${f.key}-${schemaRev}`}
-								value={f.schema}
-								disabled={readOnly || system}
-								onChange={schema => actions.set(f.key, { schema })}
-							/>
-						</Box>
-
-						{code && changed && !readOnly && (
-							<Box>
-								<Button
-									size='xs'
-									variant='ghost'
-									onClick={() => {
-										actions.reset(f.key, code);
-									}}>
-									<RotateCcw size={14} />
-									Back to the settings file for this field
-								</Button>
-							</Box>
+					<Box>
+						<Button
+							size='xs'
+							variant='ghost'
+							px={1}
+							color='fg.muted'
+							aria-expanded={advanced}
+							onClick={() => setAdvanced(a => !a)}>
+							{advanced ? <ChevronDown {...ICON} /> : <ChevronRight {...ICON} />}
+							Advanced — how it’s stored, linked details, raw settings
+						</Button>
+						{advanced && (
+							<Flex
+								direction='column'
+								gap={4}
+								mt={3}
+								pl={3}
+								borderLeftWidth='2px'
+								borderColor='border.muted'>
+								<Grid
+									templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
+									gap={3}>
+									<Box>
+										<Small>Stored as</Small>
+										<Dropdown
+											size='sm'
+											disabled={locked}
+											title='How the value is stored and checked. Calculated: a number worked out from other number fields'
+											value={f.schema?.type === 'formula' ? 'formula' : f.type || 'string'}
+											onChange={v => actions.pickType(f.key, v)}>
+											{DATA_TYPES.map(t => (
+												<option
+													key={t}
+													value={t}>
+													{DATA_TYPE_LABEL[t] || t}
+												</option>
+											))}
+											{/* Offered where the model stores a number — a formula's result has to fit. */}
+											{(f.type === 'number' || f.schema?.type === 'formula' || modelNumber) && (
+												<option value='formula'>{DATA_TYPE_LABEL.formula}</option>
+											)}
+										</Dropdown>
+									</Box>
+									<Box>
+										<Small>Linked record: field to load</Small>
+										<Input
+											size='sm'
+											value={typeof f.populate === 'object' ? f.populate?.path || '' : f.populate || ''}
+											placeholder='Not loaded'
+											disabled={locked}
+											onChange={e =>
+												actions.set(f.key, {
+													populate: e.target.value
+														? { ...(typeof f.populate === 'object' ? f.populate : {}), path: e.target.value }
+														: undefined,
+												})
+											}
+										/>
+									</Box>
+									<Box>
+										<Small>Linked record: what to load</Small>
+										<Input
+											size='sm'
+											value={typeof f.populate === 'object' ? f.populate?.select || '' : ''}
+											placeholder='name email'
+											disabled={locked || !f.populate}
+											onChange={e =>
+												actions.set(f.key, {
+													populate: {
+														...(typeof f.populate === 'object' ? f.populate : { path: f.populate }),
+														select: e.target.value || undefined,
+													},
+												})
+											}
+										/>
+									</Box>
+								</Grid>
+								<Box>
+									<Small>Every display option, as raw settings (JSON)</Small>
+									<SchemaJson
+										key={`${f.key}-${schemaRev}`}
+										value={f.schema}
+										disabled={locked}
+										onChange={schema => actions.set(f.key, { schema })}
+									/>
+								</Box>
+								{code && changed && !readOnly && (
+									<Box>
+										<Button
+											size='xs'
+											variant='outline'
+											onClick={() => {
+												actions.reset(f.key, code);
+											}}>
+											<RotateCcw size={14} />
+											{IS_TENANT_PANEL ? 'Put this field back as it started' : 'Back to the settings file for this field'}
+										</Button>
+									</Box>
+								)}
+							</Flex>
 						)}
-					</Flex>
-				)}
-			</Box>
+					</Box>
+				</Flex>
+			)}
+		</Box>
 	);
 });
 
@@ -649,6 +829,8 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
 	const [adding, setAdding] = useState('');
+	// Find a field: a long list narrowed by name or API name. Rows keep their real index, so dragging still works.
+	const [query, setQuery] = useState('');
 	// Remounts the JSON editor when a control changes `schema`, so it shows the new value.
 	const [schemaRev, setSchemaRev] = useState(0);
 
@@ -817,7 +999,60 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 		<Flex
 			direction='column'
 			gap={2}>
+			<Flex
+				align='center'
+				justify='space-between'
+				gap={3}
+				flexWrap='wrap'
+				mb={1}>
+				<Text
+					fontSize='xs'
+					color='fg.muted'>
+					{shown.length} fields · {shown.filter(f => f.required).length} required · {shown.filter(f => f.edit).length} can be
+					changed later
+				</Text>
+				<Flex
+					align='center'
+					gap={2}
+					w={{ base: 'full', md: '260px' }}
+					px={2.5}
+					h={8}
+					borderWidth='1px'
+					borderColor='border'
+					borderRadius='md'
+					bg='bg.panel'>
+					<Search
+						size={13}
+						strokeWidth={1.75}
+					/>
+					<Input
+						size='xs'
+						variant='flushed'
+						border='none'
+						px={0}
+						placeholder='Find a field…'
+						value={query}
+						onChange={e => setQuery(e.target.value)}
+					/>
+				</Flex>
+			</Flex>
+
+			<Flex
+				display={{ base: 'none', md: 'flex' }}
+				gap={2}
+				px={2.5}
+				fontSize='xs'
+				color='fg.muted'>
+				{/* The grip and the input's picture. */}
+				<Box w={readOnly ? '28px' : '50px'} />
+				<Text w={COLS.name}>Field</Text>
+				<Text w={COLS.input}>Asked as</Text>
+				<Text>Rules</Text>
+			</Flex>
+
 			{shown.map((f, i) => {
+				const q = query.trim().toLowerCase();
+				if (q && ![f.key, f.title, f.schema?.label].some(v => String(v || '').toLowerCase().includes(q))) return null;
 				const isFormula = f.schema?.type === 'formula';
 				const check = isFormula ? checkFormula(f.schema?.formula || '', formulaInfo, f.key) : null;
 				const empty = !String(f.schema?.formula || '').trim();
@@ -847,6 +1082,16 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 				);
 			})}
 
+			{query.trim() &&
+				!shown.some(f => [f.key, f.title, f.schema?.label].some(v => String(v || '').toLowerCase().includes(query.trim().toLowerCase()))) && (
+					<Text
+						fontSize='sm'
+						color='fg.muted'
+						py={2}>
+						No field matches “{query.trim()}”.
+					</Text>
+				)}
+
 			{!readOnly && addable.length > 0 && (
 				<Flex
 					gap={2}
@@ -856,7 +1101,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 						w='260px'
 						value={adding}
 						onChange={v => setAdding(v)}>
-						<option value=''>Add a field of this model…</option>
+						<option value=''>Add one of the model’s other fields…</option>
 						{addable.map(k => (
 							<option
 								key={k}
@@ -884,7 +1129,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 							setAdding('');
 						}}>
 						<Plus {...ICON} />
-						Add
+						Add field
 					</Button>
 				</Flex>
 			)}
