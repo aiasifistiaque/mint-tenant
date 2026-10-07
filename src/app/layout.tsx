@@ -22,6 +22,11 @@ export const viewport = {
 	initialScale: 1,
 	maximumScale: 1,
 	userScalable: false,
+	// The browser's own chrome (phones' address bar) in the page's colour, as on the website.
+	themeColor: [
+		{ media: '(prefers-color-scheme: light)', color: '#fbfbfd' },
+		{ media: '(prefers-color-scheme: dark)', color: '#0d0d0d' },
+	],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
