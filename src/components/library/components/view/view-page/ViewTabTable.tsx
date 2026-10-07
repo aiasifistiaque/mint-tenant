@@ -269,7 +269,8 @@ const ViewTabTable: FC<Props> = ({ path, id, index, title }) => {
 							name={name}
 							path={data.route}
 							fields={addFields}
-							defaults={{ [add.field]: add.many ? [id] : id }}
+							// The tab's "is" conditions too: "Add bill" on Due bills adds a due bill.
+							defaults={{ ...(add.defaults || {}), [add.field]: add.many ? [id] : id }}
 							reason={
 								add.nested
 									? `These ${name.toLowerCase()} belong to this record’s ${add.via} — add one from one of those, where it’s linked for you`
