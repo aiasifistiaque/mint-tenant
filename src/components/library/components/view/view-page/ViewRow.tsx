@@ -84,7 +84,8 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 			);
 		}
 
-		if (isEmpty) {
+		// (Documents say "No documents" themselves.)
+		if (isEmpty && !String(type).startsWith('file')) {
 			return (
 				<Text
 					fontSize='13px'

@@ -21,10 +21,11 @@ import { projectHref } from '../../../config/lib/constants/panel';
  * - related records render as a small table, each row linking to its own
  *   view page, with a link to the full list.
  *
- * Long-form fields (editor, textarea) get the full width of their section.
+ * Long-form fields (editor, textarea) and documents (file, file-array) get
+ * a panel of their own, the full width of the page.
  */
 
-const BLOCK_TYPES = ['editor', 'textarea'];
+const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array'];
 
 const typeFromInstance = (instance?: string) =>
 	instance === 'Date' ? 'date' : instance === 'Number' ? 'number' : instance === 'Boolean' ? 'boolean' : 'text';

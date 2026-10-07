@@ -1,6 +1,6 @@
-import { Flex, Badge, Text, Link, Tag, Box } from '@chakra-ui/react';
+import { Flex, Badge, Text, Link, Box } from '@chakra-ui/react';
 import { TextProps, LinkProps, Grid, Heading } from '@chakra-ui/react';
-import { Column, Align, Icon, FullScreenImage, ViewItemModal } from '../../../..';
+import { Column, Align, FullScreenImage, ViewItemModal } from '../../../..';
 import { PLACEHOLDER_IMAGE, ImageContainer } from '../../../..';
 import NoImage from '../../../../containers/NoImage';
 import { JSONDisplay } from '../..';
@@ -11,22 +11,13 @@ import RecordLink from '../record-link/RecordLink';
 import { labelOf } from '../record-link/linked';
 import { SectionObject, SectionRows } from './SectionValues';
 import SecretValue from '../../../../cl/SecretValue';
+import DocumentTiles from './DocumentTiles';
 
 const textCss: TextProps & LinkProps = {
 	fontSize: '.95rem',
 	wordBreak: 'break-all',
 	whiteSpace: 'normal',
 	overflow: 'hidden',
-};
-
-/** The last part of a file's address, readable — "File 2" when there's none. */
-const fileName = (url: string, i: number) => {
-	const last = String(url || '').split('?')[0].split('/').pop() || '';
-	try {
-		return decodeURIComponent(last) || `File ${i + 1}`;
-	} catch {
-		return last || `File ${i + 1}`;
-	}
 };
 
 /**
@@ -100,8 +91,11 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 		);
 
 	if (
-		// (An empty gallery gets its "No images" box below.)
-		(LIST_TYPES.includes(type) && type !== 'image-array' && (!Array.isArray(children) || !children.length)) ||
+		// (An empty gallery or document list says so below.)
+		(LIST_TYPES.includes(type) &&
+			type !== 'image-array' &&
+			type !== 'file-array' &&
+			(!Array.isArray(children) || !children.length)) ||
 		(OBJECT_TYPES.includes(type) && (!children || typeof children !== 'object' || Array.isArray(children)))
 	)
 		return <Text {...textCss}>--</Text>;
@@ -234,52 +228,10 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 				</Link>
 			);
 		}
+		// Documents as the media manager shows them: icon, then name; a click opens one.
 		case 'file':
-			if (!children || children == '--') return null;
-			return (
-				<Flex gap={2}>
-					<Link
-						cursor='pointer'
-						href={children || '#'}
-						{...(children ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-						<Tag.Root
-							size='md'
-							colorPalette='gray'>
-							<Tag.Label mr={1}>Download File</Tag.Label>
-							<Icon
-								name='download'
-								size={16}
-							/>
-						</Tag.Root>
-					</Link>
-				</Flex>
-			);
-
 		case 'file-array':
-			if (!Array.isArray(children) || !children.length) return null;
-			return (
-				<Flex
-					gap={2}
-					flexWrap='wrap'>
-					{children.map((url: string, i: number) => (
-						<Link
-							key={i}
-							href={url}
-							target='_blank'
-							rel='noopener noreferrer'>
-							<Tag.Root
-								size='md'
-								colorPalette='gray'>
-								<Tag.Label mr={1}>{fileName(url, i)}</Tag.Label>
-								<Icon
-									name='download'
-									size={16}
-								/>
-							</Tag.Root>
-						</Link>
-					))}
-				</Flex>
-			);
+			return <DocumentTiles urls={Array.isArray(children) ? children : [children]} />;
 
 		case 'tag':
 			// Empty: the plain placeholder, not a badge reading "--".

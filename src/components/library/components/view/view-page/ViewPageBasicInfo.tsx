@@ -35,9 +35,10 @@ type ViewPageBasicInfoProps = {
  * into the value column of a row built for a date or a status: it either wraps
  * into a ragged block beside its label or pushes every other row out of
  * alignment. These render as their own panel, with the field's label as the
- * heading and the content filling the body.
+ * heading and the content filling the body. Documents too: their tiles (icon,
+ * then name, as in the media manager) need the width a row doesn't have.
  */
-const BLOCK_TYPES = ['editor', 'textarea'];
+const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array'];
 const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layout }) => {
 	const module = layout?.exists ? layout?.module : undefined;
 

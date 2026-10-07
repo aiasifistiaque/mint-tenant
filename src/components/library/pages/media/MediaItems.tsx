@@ -2,22 +2,8 @@
 
 import { FC, memo, useEffect, useRef, useState } from 'react';
 import { Box, chakra, Checkbox, Flex, Grid, IconButton, Image, Input, Skeleton, Text } from '@chakra-ui/react';
-import {
-	ArrowDown,
-	ArrowUp,
-	EllipsisVertical,
-	File as FileIcon,
-	FileArchive,
-	FileCode,
-	FileMusic,
-	FileSpreadsheet,
-	FileText,
-	Film,
-	Folder,
-	Image as ImageIcon,
-	Play,
-	Presentation,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, EllipsisVertical, Folder, Play } from 'lucide-react';
+import { KindGlyph } from './fileKinds';
 import type { MediaFile, MediaFolder } from '../../store/services/mediaApi';
 import {
 	ItemKey,
@@ -26,7 +12,6 @@ import {
 	folderSummary,
 	formatBytes,
 	formatDate,
-	FileKind,
 	extLabel,
 	fileKind,
 	isImage,
@@ -60,36 +45,12 @@ type Common = {
 	handlers: ItemHandlers;
 };
 
-/** Each kind's icon and the hue that tells them apart at a glance (text stays neutral). */
-const KIND: Record<FileKind, { icon: any; color: string; dark: string }> = {
-	image: { icon: ImageIcon, color: 'fg.muted', dark: 'fg.muted' },
-	video: { icon: Film, color: 'purple.600', dark: 'purple.300' },
-	pdf: { icon: FileText, color: 'red.600', dark: 'red.300' },
-	doc: { icon: FileText, color: 'blue.600', dark: 'blue.300' },
-	sheet: { icon: FileSpreadsheet, color: 'green.600', dark: 'green.300' },
-	slides: { icon: Presentation, color: 'orange.600', dark: 'orange.300' },
-	archive: { icon: FileArchive, color: 'yellow.700', dark: 'yellow.300' },
-	audio: { icon: FileMusic, color: 'pink.600', dark: 'pink.300' },
-	code: { icon: FileCode, color: 'teal.600', dark: 'teal.300' },
-	text: { icon: FileText, color: 'fg.muted', dark: 'fg.muted' },
-	file: { icon: FileIcon, color: 'fg.muted', dark: 'fg.muted' },
-};
-
-const FileGlyph: FC<{ file: MediaFile; size?: number }> = ({ file, size = 16 }) => {
-	const k = KIND[fileKind(file)];
-	return (
-		<Box
-			as='span'
-			display='inline-flex'
-			color={k.color}
-			_dark={{ color: k.dark }}>
-			<k.icon
-				size={size}
-				strokeWidth={1.75}
-			/>
-		</Box>
-	);
-};
+const FileGlyph: FC<{ file: MediaFile; size?: number }> = ({ file, size = 16 }) => (
+	<KindGlyph
+		kind={fileKind(file)}
+		size={size}
+	/>
+);
 
 /** A document's face in the grid: its kind's icon, large, over the extension. */
 const DocFace: FC<{ file: MediaFile }> = ({ file }) => (
