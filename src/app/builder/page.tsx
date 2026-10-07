@@ -16,10 +16,12 @@ import {
 	PageHeader,
 	Panel,
 	SortDir,
+	StatusDot,
 	TableSkeleton,
 	when,
 } from '@/components/library/cl';
-import { HOME, docsPath } from '@/components/library/config/lib/constants/panel';
+import { HOME, docsPath, projectHref } from '@/components/library/config/lib/constants/panel';
+import { AREAS, AreaIcon, AreaTabLabel } from './_components/areas';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 
 type Row = {
@@ -43,15 +45,43 @@ type State = {
 };
 
 const KIND_LABEL: Record<Row['kind'], string> = {
-	generic: 'Generic page',
+	generic: 'Table page',
 	resource: 'API only',
-	custom: 'Custom',
+	custom: 'Custom page',
 };
 
 const KIND_HINT: Record<Row['kind'], string> = {
-	generic: 'Its admin page is built from the config — table, filters, buttons',
+	generic: 'A table of records with its form and a page per record — all arranged here',
 	resource: 'Built by defineRoutes; its admin page is hand-written',
 	custom: 'Hand-written route; only its filters are configurable',
+};
+
+/** A project's model names carry the project's id (T<id>_Invoice); people know it as Invoice. */
+const modelLabel = (model: string | null) => String(model || '').replace(/^T[0-9a-f]{24}_/, '') || '—';
+
+/** One status for a page in a project: live (and which version), or not published yet — and a waiting draft. */
+const StatusCell = ({ r }: { r: Row }): ReactNode => {
+	const v = r.config?.version || r.settings?.version || 0;
+	const draft = r.config?.hasDraft || r.settings?.hasDraft;
+	return (
+		<Flex
+			gap={2}
+			align='center'>
+			<StatusDot
+				tone={v ? 'running' : 'idle'}
+				label={v ? `Published · version ${v}` : 'Starting setup'}
+				title={v ? 'Runs on what was last published' : 'Not changed in the builder yet'}
+			/>
+			{draft && (
+				<Badge
+					size='xs'
+					colorPalette='orange'
+					variant='subtle'>
+					Draft waiting
+				</Badge>
+			)}
+		</Flex>
+	);
 };
 
 /** Where a file comes from right now: code, a published version, a draft on top. */
@@ -107,7 +137,7 @@ const StateCell = ({ state, na }: { state: State | null; na?: boolean }): ReactN
 const lastPublished = (r: Row) => [r.settings?.publishedAt, r.config?.publishedAt].filter(Boolean).sort().pop() || '';
 const SORT_VALUE: Record<string, (r: Row) => string> = {
 	route: r => (r.title || r.route).toLowerCase(),
-	model: r => (r.model || '').toLowerCase(),
+	model: r => modelLabel(r.model).toLowerCase(),
 	kind: r => KIND_LABEL[r.kind],
 	published: lastPublished,
 };
@@ -115,7 +145,7 @@ const SORT_VALUE: Record<string, (r: Row) => string> = {
 const FILTERS = [
 	{ value: 'all', label: 'All' },
 	{ value: 'drafts', label: 'With drafts' },
-	{ value: 'generic', label: 'Generic pages' },
+	{ value: 'generic', label: 'Table pages' },
 ];
 
 /**
@@ -175,23 +205,29 @@ const BuilderPage = () => {
 	const columns: Column<Row>[] = [
 		{
 			key: 'route',
-			label: 'Route',
+			label: IS_TENANT_PANEL ? 'Page' : 'Route',
 			sortable: true,
 			render: r => (
 				<Flex
-					direction='column'
+					align='center'
+					gap={3}
 					minW={0}>
-					<Text
-						fontSize='sm'
-						fontWeight='600'>
-						{r.title || r.route}
-					</Text>
-					<Text
-						fontSize='xs'
-						color='fg.muted'
-						fontFamily='mono'>
-						/{r.route}
-					</Text>
+					<AreaIcon area={r.kind === 'generic' ? 'table' : 'overview'} />
+					<Flex
+						direction='column'
+						minW={0}>
+						<Text
+							fontSize='sm'
+							fontWeight='600'>
+							{r.title || r.route}
+						</Text>
+						<Text
+							fontSize='xs'
+							color='fg.muted'
+							fontFamily='mono'>
+							/{r.route}
+						</Text>
+					</Flex>
 				</Flex>
 			),
 		},
@@ -203,13 +239,13 @@ const BuilderPage = () => {
 				<Text
 					fontSize='sm'
 					fontFamily='mono'>
-					{r.model || '—'}
+					{modelLabel(r.model)}
 				</Text>
 			),
 		},
 		{
 			key: 'kind',
-			label: 'Kind',
+			label: 'Type',
 			sortable: true,
 			render: r => (
 				<Flex
@@ -237,17 +273,22 @@ const BuilderPage = () => {
 				</Flex>
 			),
 		},
-		{
-			key: 'settings',
-			label: 'Settings',
-			render: r => (
-				<StateCell
-					state={r.settings}
-					na={r.kind === 'custom'}
-				/>
-			),
-		},
-		{ key: 'config', label: 'Config', render: r => <StateCell state={r.config} /> },
+		// Projects have no code files: one status says it all there.
+		...(IS_TENANT_PANEL
+			? [{ key: 'status', label: 'Status', render: (r: Row) => <StatusCell r={r} /> }]
+			: [
+					{
+						key: 'settings',
+						label: 'Settings',
+						render: (r: Row) => (
+							<StateCell
+								state={r.settings}
+								na={r.kind === 'custom'}
+							/>
+						),
+					},
+					{ key: 'config', label: 'Config', render: (r: Row) => <StateCell state={r.config} /> },
+			  ]),
 		{
 			key: 'published',
 			label: 'Last published',
@@ -267,7 +308,7 @@ const BuilderPage = () => {
 
 	return (
 		<Layout
-			title='Routes'
+			title={IS_TENANT_PANEL ? 'Pages' : 'Routes'}
 			path='builder'>
 			<Flex
 				direction='column'
@@ -276,19 +317,19 @@ const BuilderPage = () => {
 				<PageHeader
 					breadcrumbs={[
 						{ href: HOME, title: 'Home' },
-						{ href: '/builder', title: 'Routes' },
+						{ href: projectHref('/builder'), title: IS_TENANT_PANEL ? 'Pages' : 'Routes' },
 					]}
-					title='Routes'
+					title={IS_TENANT_PANEL ? 'Pages' : 'Routes'}
 					meta={
 						data
-							? `${data.doc.length} admin routes${drafts ? ` · ${drafts} with unpublished drafts` : ''} · changes go live when published`
-							: 'Settings, table, filters and buttons of every admin route'
+							? `${data.doc.length} ${IS_TENANT_PANEL ? 'pages' : 'admin routes'}${drafts ? ` · ${drafts} with unpublished drafts` : ''} · changes go live when published`
+							: 'The table, form and record page of every route'
 					}
 					actions={
 						<Button
 							size='sm'
 							variant='outline'
-							onClick={() => router.push('/model-builder')}>
+							onClick={() => router.push(projectHref('/model-builder'))}>
 							<Boxes size={14} />
 							Models
 						</Button>
@@ -300,14 +341,48 @@ const BuilderPage = () => {
 					justify='space-between'
 					direction={{ base: 'column', md: 'row' }}
 					gap={3}>
-					<Text
-						fontSize='sm'
-						color='fg.muted'
-						maxW='720px'>
-						Every admin route runs on a settings file (fields, validation, what can be edited) and a config file
-						(table, filters, form, view). The builder keeps a copy of both in the database, so a route can be changed
-						here — saved as a draft, then published — without a deploy. The code files stay as the fallback.
-					</Text>
+					{IS_TENANT_PANEL ? (
+						<Flex
+							direction='column'
+							gap={2}
+							maxW='760px'>
+							<Text
+								fontSize='sm'
+								color='fg.muted'>
+								Each of your models has pages here: a <b>table</b> of its records, the <b>form</b> to add and edit
+								them, and a <b>page for each record</b>. Open one to arrange them — preview as you go, save a draft,
+								then publish when it’s ready.
+							</Text>
+							<Flex
+								gap={2}
+								flexWrap='wrap'>
+								{(['table', 'form', 'view', 'filters'] as const).map(k => (
+									<Flex
+										key={k}
+										align='center'
+										px={2.5}
+										py={1}
+										borderRadius='full'
+										bg={`${AREAS[k].palette}.subtle`}
+										color={`${AREAS[k].palette}.fg`}
+										fontSize='xs'
+										fontWeight='500'>
+										<AreaTabLabel area={k} />
+									</Flex>
+								))}
+							</Flex>
+						</Flex>
+					) : (
+						<Text
+							fontSize='sm'
+							color='fg.muted'
+							maxW='720px'>
+							Every admin route runs on a settings file (fields, validation, what can be edited) and a config file
+							(table, filters, form, view). The builder keeps a copy of both in the database, so a route can be
+							changed here — saved as a draft, then published — without a deploy. The code files stay as the
+							fallback.
+						</Text>
+					)}
 					<Link
 						href={docsPath('/docs/builder')}
 						target='_blank'
@@ -376,7 +451,7 @@ const BuilderPage = () => {
 						<FilterInput
 							value={search}
 							onChange={setSearch}
-							placeholder='Search routes, titles, models…'
+							placeholder={IS_TENANT_PANEL ? 'Search pages and models…' : 'Search routes, titles, models…'}
 						/>
 						<SegmentGroup.Root
 							size='xs'
@@ -409,7 +484,7 @@ const BuilderPage = () => {
 							sortKey={sort.key}
 							sortDir={sort.dir}
 							onSort={onSort}
-							onRowClick={r => router.push(`/builder/${r.route}`)}
+							onRowClick={r => router.push(projectHref(`/builder/${r.route}`))}
 						/>
 					)}
 				</Panel>

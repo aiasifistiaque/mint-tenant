@@ -1,5 +1,7 @@
 'use client';
 
+import { PanelTop } from 'lucide-react';
+import { ToneTitle } from './areas';
 import { FC } from 'react';
 import { Button, Flex, Text } from '@chakra-ui/react';
 import { Panel } from '@/components/library/cl';
@@ -28,8 +30,14 @@ type Props = {
 
 const ViewLayoutPanel: FC<Props> = ({ sections, onChange, formSections, allKeys, fields, modelFields, routes, model }) => (
 	<Panel
-		title='View'
-		subtitle='The record’s detail page: sections of its own fields, fields of the records it links to, and lists of records that link to it.'
+		title={
+			<ToneTitle
+				icon={PanelTop}
+				palette='pink'>
+				Sections of the record page
+			</ToneTitle>
+		}
+		subtitle='What a record’s own page shows, in sections: its fields, details of the records it links to, and lists of records that link to it.'
 		actions={
 			sections.length ? (
 				<Button

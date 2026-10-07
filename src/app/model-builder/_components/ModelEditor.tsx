@@ -3,7 +3,24 @@
 import { FC, ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Checkbox, CloseButton, Flex, Grid, Tabs, Text } from '@chakra-ui/react';
-import { ArrowRight, ExternalLink, Info, LayoutTemplate, Link2, Save, Undo2 } from 'lucide-react';
+import {
+	AlertTriangle,
+	ArrowDownLeft,
+	ArrowRight,
+	ArrowUpRight,
+	Code2,
+	ExternalLink,
+	Eye,
+	Info,
+	LayoutTemplate,
+	Link2,
+	ListChecks,
+	Save,
+	SlidersHorizontal,
+	Undo2,
+	Wrench,
+} from 'lucide-react';
+import { ToneIcon, ToneTabLabel, ToneTitle } from '@/app/builder/_components/areas';
 import {
 	Layout,
 	useDeleteBuiltModelMutation,
@@ -51,11 +68,21 @@ type Tab = (typeof TABS)[number];
 /** The page's one-time explanation, hidden for good once closed (this browser only). */
 const INTRO_KEY = 'model-editor-intro-hidden';
 
-const TabLabel: FC<{ children: ReactNode; count?: number; alert?: number }> = ({ children, count, alert }) => (
+const TabLabel: FC<{ children: ReactNode; count?: number; alert?: number; icon: any; palette: string }> = ({
+	children,
+	count,
+	alert,
+	icon,
+	palette,
+}) => (
 	<Flex
 		align='center'
 		gap={1.5}>
-		{children}
+		<ToneTabLabel
+			icon={icon}
+			palette={palette}>
+			{children}
+		</ToneTabLabel>
 		{alert ? (
 			<Badge
 				size='xs'
@@ -316,11 +343,10 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 					borderColor='border'
 					bg='bg.subtle'
 					borderRadius='lg'>
-					<Box
-						color='blue.fg'
-						pt={0.5}>
-						<Info size={16} />
-					</Box>
+					<ToneIcon
+						icon={Info}
+						palette='blue'
+					/>
 					<Box
 						flex='1'
 						fontSize='sm'>
@@ -378,15 +404,46 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 						value: 'fields',
 						label: (
 							<TabLabel
+								icon={ListChecks}
+								palette='blue'
 								count={working.fields.length}
 								alert={errorCount}>
 								Fields
 							</TabLabel>
 						),
 					},
-					{ value: 'settings', label: <TabLabel alert={working.title.trim() ? 0 : 1}>Settings</TabLabel> },
-					{ value: 'connections', label: <TabLabel count={linksOut.length + linksIn.length}>Connections</TabLabel> },
-					{ value: 'advanced', label: 'Advanced' },
+					{
+						value: 'settings',
+						label: (
+							<TabLabel
+								icon={SlidersHorizontal}
+								palette='purple'
+								alert={working.title.trim() ? 0 : 1}>
+								Settings
+							</TabLabel>
+						),
+					},
+					{
+						value: 'connections',
+						label: (
+							<TabLabel
+								icon={Link2}
+								palette='orange'
+								count={linksOut.length + linksIn.length}>
+								Connections
+							</TabLabel>
+						),
+					},
+					{
+						value: 'advanced',
+						label: (
+							<TabLabel
+								icon={Wrench}
+								palette='gray'>
+								Advanced
+							</TabLabel>
+						),
+					},
 				]}>
 				<Tabs.Content
 					value='fields'
@@ -414,11 +471,20 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 									align='baseline'
 									justify='space-between'
 									mb={2}>
-									<Text
-										fontSize='sm'
-										fontWeight='600'>
-										Form preview
-									</Text>
+									<Flex
+										align='center'
+										gap={2}>
+										<ToneIcon
+											icon={Eye}
+											palette='orange'
+											size={24}
+										/>
+										<Text
+											fontSize='sm'
+											fontWeight='600'>
+											Form preview
+										</Text>
+									</Flex>
 									<Text
 										fontSize='xs'
 										color='fg.muted'>
@@ -435,7 +501,13 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 							</Box>
 							{live && (
 								<Panel
-									title='Page layout'
+									title={
+										<ToneTitle
+											icon={LayoutTemplate}
+											palette='teal'>
+											Page layout
+										</ToneTitle>
+									}
 									subtitle='Arrange the table’s columns, the form’s sections and the record page.'>
 									<Button
 										size='xs'
@@ -478,7 +550,13 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 						direction='column'
 						gap={5}>
 						<Panel
-							title={`What ${doc.title.toLowerCase()} link to`}
+							title={
+								<ToneTitle
+									icon={ArrowUpRight}
+									palette='orange'>
+									What {doc.title.toLowerCase()} link to
+								</ToneTitle>
+							}
 							subtitle={`Fields of the type “Link to a record”: each ${recordWord} points at a record of another model.`}>
 							{linksOut.length ? (
 								<Flex
@@ -521,7 +599,13 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 						</Panel>
 
 						<Panel
-							title={`What links to ${doc.title.toLowerCase()}`}
+							title={
+								<ToneTitle
+									icon={ArrowDownLeft}
+									palette='teal'>
+									What links to {doc.title.toLowerCase()}
+								</ToneTitle>
+							}
 							subtitle='Other models with a field pointing here. While they do, this model can’t be deleted.'>
 							{linksIn.length ? (
 								<Flex
@@ -560,7 +644,13 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 						direction='column'
 						gap={5}>
 						<Panel
-							title='Technical details'
+							title={
+								<ToneTitle
+									icon={Code2}
+									palette='gray'>
+									Technical details
+								</ToneTitle>
+							}
 							subtitle='Fixed when the model was made — other models, your API and imports use them.'>
 							<Flex
 								direction='column'
@@ -591,7 +681,13 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 						</Panel>
 
 						<Panel
-							title='Turn off or delete'
+							title={
+								<ToneTitle
+									icon={AlertTriangle}
+									palette='red'>
+									Turn off or delete
+								</ToneTitle>
+							}
 							borderColor='red.muted'>
 							<Flex
 								direction='column'

@@ -1,5 +1,8 @@
 'use client';
 
+import { Heading, ListChecks, MoreHorizontal } from 'lucide-react';
+import { ToneTitle } from './areas';
+import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import { FC } from 'react';
 import { Box, Button, Flex, Grid, Input, Text } from '@chakra-ui/react';
 import { RotateCcw } from 'lucide-react';
@@ -44,8 +47,14 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 
 	return (
 		<Panel
-			title='Page'
-			subtitle='The table page header and how the table behaves.'>
+			title={
+				<ToneTitle
+					icon={Heading}
+					palette='teal'>
+					Page header and buttons
+				</ToneTitle>
+			}
+			subtitle='The title above the table, its buttons, and how the table behaves.'>
 			<Flex
 				direction='column'
 				gap={4}>
@@ -189,8 +198,14 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 
 export const RowMenuPanel: FC<Props & { fields: TableField[] }> = ({ value: page, onChange, code, fields }) => (
 	<Panel
-		title='Row menu'
-		subtitle='The ⋯ menu on every row, in order. Drag to reorder.'
+		title={
+			<ToneTitle
+				icon={MoreHorizontal}
+				palette='teal'>
+				Row menu
+			</ToneTitle>
+		}
+		subtitle='What the ⋯ button on every row offers — View, Edit, Delete and more — in order. Drag to reorder.'
 		actions={
 			code?.menu &&
 			JSON.stringify(page.menu || []) !== JSON.stringify(code.menu) && (
@@ -199,7 +214,7 @@ export const RowMenuPanel: FC<Props & { fields: TableField[] }> = ({ value: page
 					variant='outline'
 					onClick={() => onChange({ ...page, menu: code.menu })}>
 					<RotateCcw size={14} />
-					Code menu
+					{IS_TENANT_PANEL ? 'Starting menu' : 'Code menu'}
 				</Button>
 			)
 		}>
@@ -215,8 +230,14 @@ export const RowMenuPanel: FC<Props & { fields: TableField[] }> = ({ value: page
 
 export const BulkActionsPanel: FC<Props & { fields: TableField[] }> = ({ value: page, onChange, code, fields }) => (
 	<Panel
-		title='Bulk actions'
-		subtitle='Row checkboxes, and what can be done to every selected row at once.'>
+		title={
+			<ToneTitle
+				icon={ListChecks}
+				palette='teal'>
+				Actions on selected rows
+			</ToneTitle>
+		}
+		subtitle='Tick boxes on each row, and what can be done to all the ticked rows at once.'>
 		<Flex
 			direction='column'
 			gap={4}>

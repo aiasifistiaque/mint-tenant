@@ -1,5 +1,7 @@
 'use client';
 
+import { Split } from 'lucide-react';
+import { ToneTitle } from './areas';
 import { FC } from 'react';
 import { Badge, Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
 import { GitBranch, Plus, Trash2, X } from 'lucide-react';
@@ -212,8 +214,14 @@ const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {} }) 
 
 	return (
 		<Panel
-			title='Conditional fields'
-			subtitle='Show a field only when others hold certain values. Rules chain: a hidden field counts as empty, so whatever depends on it hides too.'
+			title={
+				<ToneTitle
+					icon={Split}
+					palette='orange'>
+					Fields that show only when needed
+				</ToneTitle>
+			}
+			subtitle='Show a field only when others hold certain values — e.g. “Reason” only when Status is Cancelled. A hidden field counts as empty, so anything that depends on it hides too.'
 			actions={<DocLink section='form' />}>
 			<Flex
 				direction='column'

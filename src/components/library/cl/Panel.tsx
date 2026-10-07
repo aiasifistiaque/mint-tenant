@@ -4,7 +4,8 @@ import { FC, ReactNode } from 'react';
 import { Box, BoxProps, Flex, Text } from '@chakra-ui/react';
 import { radius } from '../index';
 
-type PanelProps = BoxProps & {
+// Not the HTML `title` attribute: the panel's heading, which can carry an icon.
+type PanelProps = Omit<BoxProps, 'title'> & {
 	title?: ReactNode;
 	/** Small muted text under the title. */
 	subtitle?: ReactNode;

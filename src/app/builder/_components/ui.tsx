@@ -3,7 +3,7 @@
 import { FC, ReactNode } from 'react';
 import { Box, Flex, Link, Switch, Text } from '@chakra-ui/react';
 import { ExternalLink } from 'lucide-react';
-import { docsPath } from '@/components/library/config/lib/constants/panel';
+import { IS_TENANT_PANEL, docsPath } from '@/components/library/config/lib/constants/panel';
 
 /**
  * Small pieces shared by the route builder and the model wizard, so a panel
@@ -49,7 +49,7 @@ export const Toggle: FC<{ label: string; hint: string; code?: boolean; checked: 
 				fontSize='xs'
 				color='fg.muted'>
 				{hint}
-				{code !== undefined && ` The code has it ${code ? 'on' : 'off'}.`}
+				{code !== undefined && (IS_TENANT_PANEL ? ` It starts ${code ? 'on' : 'off'}.` : ` The code has it ${code ? 'on' : 'off'}.`)}
 			</Text>
 		</Box>
 		<Switch.Root

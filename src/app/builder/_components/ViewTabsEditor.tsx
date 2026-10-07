@@ -1,5 +1,7 @@
 'use client';
 
+import { Rows3 } from 'lucide-react';
+import { ToneTitle } from './areas';
 import { FC, ReactNode } from 'react';
 import { Badge, Box, Button, Flex, IconButton, Input, Switch, Text } from '@chakra-ui/react';
 import { ArrowDown, ArrowUp, LayoutGrid, Link2, Plus, Table2, Trash2 } from 'lucide-react';
@@ -429,7 +431,13 @@ const ViewTabsEditor: FC<Props> = ({ tabs, onChange, model, modelFields, routes 
 
 	return (
 		<Panel
-			title='Tabs'
+			title={
+				<ToneTitle
+					icon={Rows3}
+					palette='pink'>
+					Tabs on the record page
+				</ToneTitle>
+			}
 			subtitle='The detail page opens on Overview — the sections above. Each tab after it lists records of another route linked to this one, as a searchable table or cards.'
 			actions={<DocLink section='view' />}>
 			<Flex

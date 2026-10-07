@@ -1,5 +1,7 @@
 'use client';
 
+import { Filter } from 'lucide-react';
+import { ToneTitle } from './areas';
 import { DragEvent, FC, useMemo, useState } from 'react';
 import { Button, Grid, Text } from '@chakra-ui/react';
 import { Download, Plus } from 'lucide-react';
@@ -89,7 +91,13 @@ const FiltersPanel: FC<Props> = ({
 
 	return (
 		<Panel
-			title='Filters'
+			title={
+				<ToneTitle
+					icon={Filter}
+					palette='purple'>
+					Filters
+				</ToneTitle>
+			}
 			subtitle={`Drag cards to set the order chips appear in. The first ${VISIBLE_BEFORE_MORE} show before “Show more filters”.`}
 			actions={
 				<>

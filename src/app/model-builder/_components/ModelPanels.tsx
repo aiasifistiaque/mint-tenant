@@ -5,6 +5,8 @@ import { Box, Flex, Grid, Input, Switch, Text, Textarea } from '@chakra-ui/react
 import { useCheckModelNameQuery } from '@/components/library';
 import { Dropdown, Panel } from '@/components/library/cl';
 import { DocLink } from '@/app/builder/_components/ui';
+import { ToneTitle } from '@/app/builder/_components/areas';
+import { Hash, ListChecks, Lock, NotebookPen } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import FieldsEditor, { LinkTarget } from './FieldsEditor';
 import {
@@ -169,7 +171,13 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 		<>
 			{show('basics') && (
 			<Panel
-				title='Basics'
+				title={
+					<ToneTitle
+						icon={NotebookPen}
+						palette='blue'>
+						Basics
+					</ToneTitle>
+				}
 				subtitle='What it’s called, and where people find it.'
 				actions={<DocLink section='models' />}>
 				<Grid
@@ -293,7 +301,13 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 
 			{show('numbers') && (
 			<Panel
-				title='Record numbers'
+				title={
+					<ToneTitle
+						icon={Hash}
+						palette='orange'>
+						Record numbers
+					</ToneTitle>
+				}
 				subtitle='A readable number on every record, like INV-0001 — given when a record is created and never reused.'
 				actions={<DocLink section='models-code' />}>
 				<Flex
@@ -384,7 +398,13 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 			{/* Per-record access: admins in the super-admin panel, the organization's people in a project (multi-tenancy D19). */}
 			{show('privacy') && (
 			<Panel
-					title='Who sees each record'
+					title={
+						<ToneTitle
+							icon={Lock}
+							palette='purple'>
+							Who sees each record
+						</ToneTitle>
+					}
 					subtitle={
 						IS_TENANT_PANEL
 							? 'Whether every record decides who can see it (access). The role’s Records permissions still come first: without View, no record shows.'
@@ -442,7 +462,13 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 
 			{show('fields') && (
 			<Panel
-				title='Fields'
+				title={
+					<ToneTitle
+						icon={ListChecks}
+						palette='blue'>
+						Fields
+					</ToneTitle>
+				}
 				subtitle='What every record holds, in the order the form, table and record page show them. Drag ⋮⋮ to reorder; More opens a field’s other settings.'
 				actions={<DocLink section='models-fields' />}>
 				<FieldsEditor

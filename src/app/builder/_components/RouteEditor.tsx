@@ -2,8 +2,8 @@
 
 import { FC, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Badge, Box, Button, Flex, Grid, SegmentGroup, Text } from '@chakra-ui/react';
-import { History, RotateCcw, Sparkles } from 'lucide-react';
+import { Badge, Box, Button, CloseButton, Flex, Grid, SegmentGroup, Text } from '@chakra-ui/react';
+import { ArrowRight, Boxes, ClipboardList, Columns3, Eye, History, ListChecks, RotateCcw, Rocket, Save, Sparkles, Undo2 } from 'lucide-react';
 import {
 	Layout,
 	useDiscardBuilderDraftMutation,
@@ -16,6 +16,7 @@ import {
 	useCompareBuilderRouteQuery,
 	useSetBuilderSourceMutation,
 	useGetBuilderRoutesQuery,
+	useGetAllQuery,
 } from '@/components/library';
 import {
 	ConfirmAction,
@@ -24,8 +25,9 @@ import {
 	ConsoleTabs,
 	PageHeader,
 	Panel,
+	StatusDot,
 	when,
-	} from '@/components/library/cl';
+} from '@/components/library/cl';
 import { toaster } from '@/components/ui/toaster';
 import TableColumnsEditor, { TableField } from './TableColumnsEditor';
 import { EditableFilter, ModelField, fromServer, humanize, toServer, validate } from './filterTypes';
@@ -34,78 +36,118 @@ import FiltersPanel, { VISIBLE_BEFORE_MORE } from './FiltersPanel';
 import ViewLayoutPanel from './ViewLayoutPanel';
 import ViewTabsEditor, { tabProblems } from './ViewTabsEditor';
 import FormRulesPanel, { RuleField, formRuleProblems } from './FormRulesPanel';
-import { DocLink, viewProblems } from './ui';
+import { viewProblems } from './ui';
 import SettingsEditor, { SettingsField } from './SettingsEditor';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
+import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
+import { AREAS, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
 import { BULK_MENU_TYPES, DEFAULT_ROW_MENU, ROW_MENU_TYPES, validateMenu } from './menuTypes';
-import { HOME, IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
+import { HOME, IS_TENANT_PANEL, projectHref } from '@/components/library/config/lib/constants/panel';
 
 const DEFAULT_ADD_BUTTON = { title: 'Add Item', isModal: true };
 
-const TABS = [
-	{ value: 'overview', label: 'Overview' },
-	{ value: 'settings', label: 'Settings' },
-	{ value: 'table', label: 'Table' },
-	{ value: 'filters', label: 'Filters' },
-	{ value: 'form', label: 'Form' },
-	{ value: 'view', label: 'View' },
-	{ value: 'source', label: IS_TENANT_PANEL ? 'Versions' : 'Source & versions' },
+const TABS: { value: AreaKey; label?: string }[] = [
+	{ value: 'overview' },
+	{ value: 'table' },
+	{ value: 'form' },
+	{ value: 'view' },
+	{ value: 'filters' },
+	{ value: 'settings' },
+	{ value: 'source', label: IS_TENANT_PANEL ? undefined : 'Source & versions' },
 ];
 
+/** Which preview a tab's Preview button opens. */
+const PREVIEW_FOR: Partial<Record<AreaKey, PreviewTab>> = { table: 'table', filters: 'table', form: 'form', settings: 'form', view: 'view' };
+
+/** The one-time "how changes go live" note, hidden for good once closed (this browser only). */
+const INTRO_KEY = 'route-editor-intro-hidden';
+
+/** One part of the page on the overview: its colour, what it is, where it stands, and the way in. */
 const Summary: FC<{
-	title: string;
-	description: string;
-	doc: string;
+	area: AreaKey;
+	title?: string;
 	lines: string[];
 	onOpen: () => void;
+	onPreview?: () => void;
 	tone?: 'warn';
-}> = ({ title, description, doc, lines, onOpen, tone }) => (
-	<Flex
-		direction='column'
-		justify='space-between'
-		gap={3}
-		p={4}
-		borderWidth='1px'
-		borderColor={tone === 'warn' ? 'orange.muted' : 'border'}
-		borderRadius='md'
-		bg='bg.panel'>
-		<Box>
-			<Text
-				fontSize='sm'
-				fontWeight='600'>
-				{title}
-			</Text>
-			<Text
-				fontSize='xs'
-				color='fg.subtle'
-				mt={0.5}
-				mb={2.5}>
-				{description}
-			</Text>
-			{lines.map((l, i) => (
-				<Text
-					key={i}
-					fontSize='xs'
-					color='fg.muted'>
-					{l}
-				</Text>
-			))}
-		</Box>
+}> = ({ area, title, lines, onOpen, onPreview, tone }) => {
+	const a = AREAS[area];
+	return (
 		<Flex
-			align='center'
+			direction='column'
 			justify='space-between'
-			gap={3}>
-			<Button
-				size='xs'
-				variant='outline'
-				onClick={onOpen}>
-				Open {title.toLowerCase()} →
-			</Button>
-			<DocLink section={doc} />
+			gap={3}
+			p={4}
+			borderWidth='1px'
+			borderTopWidth='3px'
+			borderColor={tone === 'warn' ? 'orange.muted' : 'border'}
+			borderTopColor={`${a.palette}.solid`}
+			borderRadius='lg'
+			bg='bg.panel'
+			cursor='pointer'
+			transition='box-shadow 0.12s'
+			_hover={{ boxShadow: 'sm' }}
+			onClick={onOpen}>
+			<Box>
+				<Flex
+					align='center'
+					gap={2.5}
+					mb={2}>
+					<AreaIcon area={area} />
+					<Text
+						fontSize='sm'
+						fontWeight='600'>
+						{title || a.label}
+					</Text>
+				</Flex>
+				<Text
+					fontSize='xs'
+					color='fg.muted'
+					mb={2.5}>
+					{a.description}
+				</Text>
+				{lines.map((l, i) => (
+					<Text
+						key={i}
+						fontSize='xs'
+						color={i === 0 ? 'fg' : 'fg.muted'}
+						fontWeight={i === 0 ? '500' : undefined}>
+						{l}
+					</Text>
+				))}
+			</Box>
+			<Flex
+				align='center'
+				gap={2}
+				flexWrap='wrap'>
+				<Button
+					size='xs'
+					variant='outline'
+					onClick={e => {
+						e.stopPropagation();
+						onOpen();
+					}}>
+					Change it
+					<ArrowRight size={12} />
+				</Button>
+				{onPreview && (
+					<Button
+						size='xs'
+						variant='ghost'
+						color={`${a.palette}.fg`}
+						onClick={e => {
+							e.stopPropagation();
+							onPreview();
+						}}>
+						<Eye size={12} />
+						Preview
+					</Button>
+				)}
+			</Flex>
 		</Flex>
-	</Flex>
-);
+	);
+};
 
 /**
  * The config the editor works on, minus filters (held separately as cards so
@@ -137,9 +179,8 @@ const toastError = (title: string, e: any) =>
  * its code files) until Publish. Where the editor starts: the saved draft if
  * there is one, else the published copy, else the code.
  */
-const RouteEditor: FC<{ route: string }> = ({ route }) => {
+export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data }) => {
 	const router = useRouter();
-	const { data, isLoading, isError, error, refetch } = useGetBuilderRouteQuery(route);
 
 	const [saveDraft, { isLoading: saving }] = useSaveBuilderDraftMutation();
 	const [discardDraft, { isLoading: discarding }] = useDiscardBuilderDraftMutation();
@@ -171,6 +212,33 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 		window.history.replaceState(null, '', url.toString());
 	};
 	const { data: allRoutes } = useGetBuilderRoutesQuery();
+
+	// Preview: a modal drawing the table, the form and a record page from the working copy.
+	const [preview, setPreview] = useState<PreviewTab | null>(null);
+	const [previewTab, setPreviewTab] = useState<PreviewTab>('table');
+	const openPreview = (t: PreviewTab = 'table') => {
+		setPreviewTab(t);
+		setPreview(t);
+	};
+	// The route's latest records fill the preview in — only asked for once it's opened.
+	const { data: sample, isFetching: sampleLoading } = useGetAllQuery(
+		{ path: route, limit: 5, sort: '-createdAt' },
+		{ skip: !preview || data?.kind === 'custom' }
+	);
+	const [intro, setIntro] = useState(false);
+	useEffect(() => {
+		try {
+			setIntro(localStorage.getItem(INTRO_KEY) !== '1');
+		} catch {
+			setIntro(true);
+		}
+	}, []);
+	const hideIntro = () => {
+		setIntro(false);
+		try {
+			localStorage.setItem(INTRO_KEY, '1');
+		} catch {}
+	};
 
 	const { data: versions } = useGetBuilderVersionsQuery(
 		{ route, kind: versionKind },
@@ -412,27 +480,6 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 		}
 	};
 
-	if (isLoading)
-		return (
-			<Layout
-				title='Loading…'
-				path='builder'>
-				<DetailSkeleton />
-			</Layout>
-		);
-
-	if (isError || !data)
-		return (
-			<Layout
-				title='Routes'
-				path='builder'>
-				<ErrorState
-					error={error}
-					onRetry={refetch}
-				/>
-			</Layout>
-		);
-
 	const title = pageConfig?.title || route;
 	const live = config?.serving === 'db' ? `config v${config.version}` : 'config from code';
 	const settingsLive = settingsDoc?.serving === 'db' ? `settings v${settingsDoc.version}` : 'settings from code';
@@ -480,32 +527,14 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 		<Grid
 			templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }}
 			gap={3}>
-			{hasSettings && (
-				<Summary
-					title='Settings'
-					description='The record’s fields: data type, validation, and what can be edited, sorted, searched or hidden. This changes what the API accepts.'
-					doc='settings'
-					lines={[
-						`${settingsWorking.length} fields · ${settingsWorking.filter(f => f.edit).length} editable · ${settingsWorking.filter(f => f.required).length} required`,
-						settingsDiff
-							? settingsDiff.identical
-								? 'Published copy matches the settings file'
-								: `Published copy differs from the file (${[settingsDiff.added?.length && `${settingsDiff.added.length} added`, settingsDiff.removed?.length && `${settingsDiff.removed.length} removed`, settingsDiff.changed?.length && `${settingsDiff.changed.length} changed`].filter(Boolean).join(', ') || 'reordered'})`
-							: 'Runs on the settings file',
-						data.protected ? 'Locked — controls access' : settingsDirty ? 'Unsaved changes' : '',
-					].filter(Boolean)}
-					onOpen={() => goTo('settings')}
-				/>
-			)}
 			<Summary
-				title='Table'
-				description='The list page: header buttons, columns, the ⋯ row menu and bulk actions on selected rows.'
-				doc='table'
+				area='table'
 				tone={isGeneric ? undefined : 'warn'}
+				onPreview={isGeneric ? () => openPreview('table') : undefined}
 				lines={
 					isGeneric
 						? [
-								`${(working.rest.table || []).length} columns · ${(pageConfig.menu || []).length} row menu items`,
+								`${(working.rest.table || []).length} columns · ${(pageConfig.menu || []).length} items in the ⋯ menu`,
 								[
 									hasAddButton && 'add button',
 									pageConfig.export && 'export',
@@ -516,32 +545,18 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 									.filter(Boolean)
 									.join(' · ') || 'No header buttons',
 						  ]
-						: ['No table config — the page is hand-written', 'Create one from the settings']
+						: ['No table setup yet — the page is hand-written', 'Create one from its fields']
 				}
 				onOpen={() => goTo('table')}
 			/>
 			<Summary
-				title='Filters'
-				description='The filter chips above the table, and where each one gets its options.'
-				doc='filters'
-				lines={[
-					`${working.filters.length} filter chips`,
-					working.filters
-						.slice(0, VISIBLE_BEFORE_MORE)
-						.map(f => f.label || f.name)
-						.join(', ') || 'None',
-				]}
-				onOpen={() => goTo('filters')}
-			/>
-			<Summary
-				title='Form'
-				description='The create and edit form, laid out in titled sections.'
-				doc='form'
+				area='form'
+				onPreview={formSections.length ? () => openPreview('form') : undefined}
 				lines={
 					formSections.length
 						? [
-								`${formSections.length} sections · ${countFields(formSections)} fields${
-									Object.keys(working.rest.formRules || {}).length ? ` · ${Object.keys(working.rest.formRules).length} conditional` : ''
+								`${formSections.length} ${formSections.length === 1 ? 'section' : 'sections'} · ${countFields(formSections)} fields${
+									Object.keys(working.rest.formRules || {}).length ? ` · ${Object.keys(working.rest.formRules).length} shown only when needed` : ''
 								}`,
 								formSections.map(s => s.sectionTitle || 'Untitled').join(', '),
 						  ]
@@ -550,32 +565,57 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 				onOpen={() => goTo('form')}
 			/>
 			<Summary
-				title='View'
-				description='The record’s detail page: sections of fields, linked records, and lists of related records.'
-				doc='view'
-				lines={
-					[
-						...(viewSections.length
-							? [
-									`${viewSections.length} sections · ${countFields(viewSections)} fields${relatedCount ? ` · ${relatedCount} related lists` : ''}`,
-									viewSections.map(s => s.title || 'Untitled').join(', '),
-							  ]
-							: ['No view sections — the detail page uses its default layout']),
-						...(viewTabs.length
-							? [`Tabs: Overview, ${viewTabs.map(t => t.title || t.related).join(', ')}`]
-							: []),
-					]
-				}
+				area='view'
+				onPreview={hasSettings ? () => openPreview('view') : undefined}
+				lines={[
+					...(viewSections.length
+						? [
+								`${viewSections.length} ${viewSections.length === 1 ? 'section' : 'sections'} · ${countFields(viewSections)} fields${relatedCount ? ` · ${relatedCount} related lists` : ''}`,
+								viewSections.map(s => s.title || 'Untitled').join(', '),
+						  ]
+						: ['No layout of its own yet — it follows the form’s sections']),
+					...(viewTabs.length ? [`Tabs: Overview, ${viewTabs.map(t => t.title || t.related).join(', ')}`] : []),
+				]}
 				onOpen={() => goTo('view')}
 			/>
 			<Summary
-				title='Source & versions'
-				description='Whether this route runs on its DB copy or the code files, plus every published version.'
-				doc='source'
+				area='filters'
 				lines={[
-					`Settings: ${hasSettings ? (settingsDoc?.serving === 'db' ? `DB v${settingsDoc.version}` : 'code file') : 'n/a'}`,
-					`Config: ${config?.serving === 'db' ? `DB v${config.version}` : 'code file'}`,
-					hasDraft ? 'A draft is waiting to be published' : 'No draft',
+					`${working.filters.length} ${working.filters.length === 1 ? 'filter' : 'filters'}`,
+					working.filters
+						.slice(0, VISIBLE_BEFORE_MORE)
+						.map(f => f.label || f.name)
+						.join(', ') || 'None',
+				]}
+				onOpen={() => goTo('filters')}
+			/>
+			{hasSettings && (
+				<Summary
+					area='settings'
+					lines={[
+						`${settingsWorking.length} fields · ${settingsWorking.filter(f => f.edit).length} editable · ${settingsWorking.filter(f => f.required).length} required`,
+						IS_TENANT_PANEL
+							? ''
+							: settingsDiff
+							? settingsDiff.identical
+								? 'Published copy matches the settings file'
+								: `Published copy differs from the file (${[settingsDiff.added?.length && `${settingsDiff.added.length} added`, settingsDiff.removed?.length && `${settingsDiff.removed.length} removed`, settingsDiff.changed?.length && `${settingsDiff.changed.length} changed`].filter(Boolean).join(', ') || 'reordered'})`
+							: 'Runs on the settings file',
+						data.protected ? 'Locked — controls access' : settingsDirty ? 'Unsaved changes' : '',
+					].filter(Boolean)}
+					onOpen={() => goTo('settings')}
+				/>
+			)}
+			<Summary
+				area='source'
+				title={IS_TENANT_PANEL ? undefined : 'Source & versions'}
+				lines={[
+					hasDraft ? 'A draft is waiting to be published' : 'Nothing waiting to be published',
+					IS_TENANT_PANEL
+						? config?.version
+							? `Live: version ${config.version}`
+							: 'Not published yet — runs on its starting setup'
+						: `Settings: ${hasSettings ? (settingsDoc?.serving === 'db' ? `DB v${settingsDoc.version}` : 'code file') : 'n/a'} · Config: ${config?.serving === 'db' ? `DB v${config.version}` : 'code file'}`,
 				]}
 				onOpen={() => goTo('source')}
 			/>
@@ -605,8 +645,14 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 		needsTableConfig
 	) : (
 		<Panel
-			title='Form'
-			subtitle='The create and edit form, in sections. A row holds one field, or several side by side.'
+			title={
+				<ToneTitle
+					icon={ClipboardList}
+					palette='orange'>
+					Sections of the form
+				</ToneTitle>
+			}
+			subtitle='The add and edit form, in sections. A row holds one field, or several side by side.'
 			actions={
 				JSON.stringify(formSections) !== JSON.stringify(codeConfig.form || []) &&
 				codeConfig.form && (
@@ -615,7 +661,7 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 						variant='outline'
 						onClick={() => setRest({ form: codeConfig.form })}>
 						<RotateCcw size={14} />
-						Code form
+						{IS_TENANT_PANEL ? 'Starting form' : 'Code form'}
 					</Button>
 				)
 			}>
@@ -672,42 +718,80 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 		</Flex>
 	);
 
+	const undo = () => {
+		setWorking(split(base));
+		setSettingsWorking(settingsBase);
+		setEditingUid(null);
+	};
+	// A project's model names carry the project's id (T<id>_Invoice); people know it as Invoice.
+	const modelName = data.builtModel?.name || String(data.model || '').replace(/^T[0-9a-f]{24}_/, '');
+	const previewFields: PreviewField[] = tableFields.map(f => ({
+		...f,
+		required: !!settingsWorking.find(x => x.key === f.key)?.required,
+	}));
+
 	return (
-		<Layout
-			title={title}
-			path='builder'>
+		<>
 			<Flex
 				direction='column'
 				gap={5}
-				pb={10}>
+				pb={isDirty ? 4 : 10}>
 				<PageHeader
 					breadcrumbs={[
 						{ href: HOME, title: 'Home' },
-						{ href: '/builder', title: 'Routes' },
-						{ href: '#', title: route },
+						{ href: projectHref('/builder'), title: IS_TENANT_PANEL ? 'Pages' : 'Routes' },
+						{ href: '#', title: title },
 					]}
 					title={title}
 					badge={
-						<Flex gap={1.5}>
-							{hasDraft && (
-								<Badge
-									colorPalette='orange'
-									variant='subtle'>
-									Draft
-								</Badge>
+						<Flex
+							gap={3}
+							align='center'>
+							{hasDraft ? (
+								<StatusDot
+									tone='pending'
+									label='Draft not published yet'
+									title='People still see the published version'
+								/>
+							) : (
+								<StatusDot
+									tone='running'
+									label='Live'
+									title='What you see here is what people see'
+								/>
 							)}
 							{isDirty && (
 								<Badge
 									colorPalette='blue'
 									variant='subtle'>
-									Unsaved
+									Unsaved changes
 								</Badge>
 							)}
 						</Flex>
 					}
-					meta={`/${route} · ${data.model} · live: ${data.kind === 'custom' ? live : `${settingsLive}, ${live}`}${config?.draftUpdatedAt ? ` · draft saved ${when(config.draftUpdatedAt)}` : ''}`}
+					meta={[
+						modelName && `${modelName} records`,
+						`/${route}`,
+						IS_TENANT_PANEL
+							? config?.version
+								? `published version ${config.version}`
+								: 'using its starting setup'
+							: `live: ${data.kind === 'custom' ? live : `${settingsLive}, ${live}`}`,
+						config?.draftUpdatedAt && `draft saved ${when(config.draftUpdatedAt)}`,
+					]
+						.filter(Boolean)
+						.join(' · ')}
 					actions={
 						<>
+							{isGeneric && (
+								<Button
+									size='sm'
+									variant='outline'
+									onClick={() => openPreview(PREVIEW_FOR[tab as AreaKey] || 'table')}>
+									<Eye size={14} />
+									Preview
+								</Button>
+							)}
 							{(config?.draft || settingsDoc?.draft) && !isDirty && (
 								<Button
 									size='sm'
@@ -717,37 +801,94 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 									Discard draft
 								</Button>
 							)}
-							{isDirty && (
-								<Button
-									size='sm'
-									variant='outline'
-									disabled={busy}
-									onClick={() => {
-										const next = split(base);
-										setWorking(next);
-										setSettingsWorking(settingsBase);
-										setEditingUid(null);
-									}}>
-									Undo changes
-								</Button>
-							)}
 							<Button
 								size='sm'
 								variant='outline'
 								disabled={!isDirty || busy}
 								loading={saving && !publishStep}
+								title='Keep your changes without making them live'
 								onClick={onSaveDraft}>
+								<Save size={14} />
 								Save draft
 							</Button>
 							<Button
 								size='sm'
 								disabled={(!isDirty && !hasDraft) || busy}
+								title='Make your changes live for everyone'
 								onClick={() => setConfirm('publish')}>
+								<Rocket size={14} />
 								Publish
 							</Button>
 						</>
 					}
 				/>
+
+				{intro && (
+					<Flex
+						gap={4}
+						align={{ base: 'flex-start', md: 'center' }}
+						direction={{ base: 'column', md: 'row' }}
+						p={4}
+						borderWidth='1px'
+						borderColor='border'
+						borderRadius='lg'
+						bg='bg.subtle'>
+						<Box flex='1'>
+							<Text
+								fontSize='sm'
+								fontWeight='600'
+								mb={2}>
+								How changes go live
+							</Text>
+							<Flex
+								gap={{ base: 2, md: 5 }}
+								direction={{ base: 'column', md: 'row' }}>
+								{[
+									{ n: 1, palette: 'blue', title: 'Change', text: 'Pick a part below and edit it. Preview shows the result.' },
+									{ n: 2, palette: 'orange', title: 'Save draft', text: 'Keeps your work. People still see the live version.' },
+									{ n: 3, palette: 'teal', title: 'Publish', text: 'Makes it live for everyone. Old versions are kept.' },
+								].map(step => (
+									<Flex
+										key={step.n}
+										gap={2.5}
+										align='flex-start'
+										flex='1'>
+										<Flex
+											align='center'
+											justify='center'
+											flexShrink={0}
+											w='22px'
+											h='22px'
+											borderRadius='full'
+											bg={`${step.palette}.solid`}
+											color={`${step.palette}.contrast`}
+											fontSize='11px'
+											fontWeight='700'>
+											{step.n}
+										</Flex>
+										<Box>
+											<Text
+												fontSize='13px'
+												fontWeight='600'>
+												{step.title}
+											</Text>
+											<Text
+												fontSize='xs'
+												color='fg.muted'>
+												{step.text}
+											</Text>
+										</Box>
+									</Flex>
+								))}
+							</Flex>
+						</Box>
+						<CloseButton
+							size='xs'
+							aria-label='Hide this note'
+							onClick={hideIntro}
+						/>
+					</Flex>
+				)}
 
 				{data.builtModel && (
 					<Flex
@@ -759,25 +900,45 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 						py={3}
 						borderWidth='1px'
 						borderColor='border'
-						borderRadius='md'
-						bg='bg.subtle'>
-						<Text
-							fontSize='sm'
-							color='fg.muted'>
-							Built in the model builder as <strong>{data.builtModel.name}</strong>. Add, remove or change its
-							fields there; here you shape its table, filters, form and view.
-						</Text>
+						borderRadius='lg'
+						bg='bg.panel'>
+						<Flex
+							align='center'
+							gap={3}>
+							<Flex
+								align='center'
+								justify='center'
+								w='32px'
+								h='32px'
+								borderRadius='lg'
+								bg='blue.subtle'
+								color='blue.fg'>
+								<Boxes
+									size={16}
+									strokeWidth={1.75}
+								/>
+							</Flex>
+							<Text
+								fontSize='sm'
+								color='fg.muted'>
+								The fields come from the <strong>{data.builtModel.name}</strong> model. Add, remove or change fields
+								there; here you arrange how its pages look.
+							</Text>
+						</Flex>
 						<Button
 							size='xs'
 							variant='outline'
-							onClick={() => router.push(`/model-builder/${data.builtModel._id}`)}>
-							Edit model
+							onClick={() => router.push(projectHref(`/model-builder/${data.builtModel._id}`))}>
+							Edit fields in the model
 						</Button>
 					</Flex>
 				)}
 
 				<ConsoleTabs
-					tabs={TABS.filter(t => t.value !== 'settings' || hasSettings)}
+					tabs={TABS.filter(t => t.value !== 'settings' || hasSettings).map(t => ({
+						value: t.value,
+						label: <AreaTabLabel area={t.value} label={t.label} />,
+					}))}
 					value={tab}
 					onChange={goTo}>
 					{tab === 'overview' && overview}
@@ -785,6 +946,7 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 					<Flex
 						direction='column'
 						gap={5}>
+						<AreaIntro area='settings' onPreview={isGeneric ? () => openPreview('form') : undefined} />
 				{data.protected && (
 					<Text
 						fontSize='xs'
@@ -796,7 +958,13 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 
 				{hasSettings && (
 					<Panel
-						title='Settings'
+						title={
+							<ToneTitle
+								icon={ListChecks}
+								palette='blue'>
+								Fields and their rules
+							</ToneTitle>
+						}
 						subtitle={
 							settingsReadOnly
 								? 'Read-only: this route controls access, so its settings stay as in code.'
@@ -810,7 +978,7 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 									variant='outline'
 									onClick={() => setSettingsWorking(codeSettingsFields)}>
 									<RotateCcw size={14} />
-									Settings file
+									{IS_TENANT_PANEL ? 'Starting setup' : 'Settings file'}
 								</Button>
 							)
 						}>
@@ -830,6 +998,7 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 					<Flex
 						direction='column'
 						gap={5}>
+						<AreaIntro area='table' onPreview={isGeneric ? () => openPreview('table') : undefined} />
 				{!isGeneric && data.kind !== 'custom' && (
 					<Panel
 						title='Table page'
@@ -868,8 +1037,14 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 
 				{isGeneric && (
 					<Panel
-						title='Table columns'
-						subtitle='The columns the table has, in order. Drag to reorder; each admin can still hide columns in Preferences.'
+						title={
+							<ToneTitle
+								icon={Columns3}
+								palette='teal'>
+								Columns
+							</ToneTitle>
+						}
+						subtitle='The columns the table shows, left to right. Drag to reorder; each person can still hide columns for themselves.'
 						actions={
 							!columnsAreCode && (
 								<Button
@@ -877,7 +1052,7 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 									variant='outline'
 									onClick={() => setRest({ table: codeConfig.table || [] })}>
 									<RotateCcw size={14} />
-									Code columns
+									{IS_TENANT_PANEL ? 'Starting columns' : 'Code columns'}
 								</Button>
 							)
 						}>
@@ -915,6 +1090,7 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 					<Flex
 						direction='column'
 						gap={5}>
+						<AreaIntro area='filters' onPreview={isGeneric ? () => openPreview('table') : undefined} />
 				<FiltersPanel
 					filters={working.filters}
 					onChange={filters => setFilters(() => filters)}
@@ -932,15 +1108,27 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 						<Flex
 							direction='column'
 							gap={5}>
+						<AreaIntro area='form' onPreview={isGeneric ? () => openPreview('form') : undefined} />
 							{formPanel}
 							{rulesPanel}
 						</Flex>
 					)}
-					{tab === 'view' && viewPanel}
+					{tab === 'view' && (
+						<Flex
+							direction='column'
+							gap={5}>
+							<AreaIntro
+								area='view'
+								onPreview={hasSettings ? () => openPreview('view') : undefined}
+							/>
+							{viewPanel}
+						</Flex>
+					)}
 					{tab === 'source' && (
 					<Flex
 						direction='column'
 						gap={5}>
+						<AreaIntro area='source' />
 				{/* Projects have no code files to switch to (multi-tenancy). */}
 				{!IS_TENANT_PANEL && (
 					<Panel
@@ -1041,8 +1229,14 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 				)}
 
 				<Panel
-					title='Versions'
-					subtitle='Every publish is kept. Loading one makes it the draft; it goes live when published.'
+					title={
+						<ToneTitle
+							icon={History}
+							palette='cyan'>
+							Published versions
+						</ToneTitle>
+					}
+					subtitle='Every publish is kept. Loading one makes it the draft; it goes live when you publish.'
 					actions={
 						<>
 							{hasSettings && (
@@ -1130,7 +1324,91 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 					</Flex>
 					)}
 				</ConsoleTabs>
+
+				{isDirty && (
+					<Flex
+						position='sticky'
+						bottom={4}
+						zIndex={5}
+						align='center'
+						justify='space-between'
+						gap={3}
+						flexWrap='wrap'
+						px={4}
+						py={2.5}
+						borderWidth='1px'
+						borderColor='border'
+						borderRadius='lg'
+						bg='bg.panel'
+						boxShadow='lg'>
+						<Flex
+							align='center'
+							gap={2}>
+							<Box
+								w='8px'
+								h='8px'
+								borderRadius='full'
+								bg='blue.solid'
+							/>
+							<Text fontSize='sm'>You have unsaved changes</Text>
+						</Flex>
+						<Flex
+							gap={2}
+							flexWrap='wrap'>
+							<Button
+								size='sm'
+								variant='ghost'
+								disabled={busy}
+								onClick={undo}>
+								<Undo2 size={14} />
+								Undo all
+							</Button>
+							{isGeneric && (
+								<Button
+									size='sm'
+									variant='ghost'
+									onClick={() => openPreview(PREVIEW_FOR[tab as AreaKey] || 'table')}>
+									<Eye size={14} />
+									Preview
+								</Button>
+							)}
+							<Button
+								size='sm'
+								variant='outline'
+								disabled={busy}
+								loading={saving && !publishStep}
+								onClick={onSaveDraft}>
+								<Save size={14} />
+								Save draft
+							</Button>
+							<Button
+								size='sm'
+								disabled={busy}
+								onClick={() => setConfirm('publish')}>
+								<Rocket size={14} />
+								Publish
+							</Button>
+						</Flex>
+					</Flex>
+				)}
 			</Flex>
+
+			<PagePreview
+				isOpen={!!preview}
+				onClose={() => setPreview(null)}
+				tab={previewTab}
+				onTabChange={setPreviewTab}
+				page={pageConfig}
+				columns={working.rest.table || []}
+				fields={previewFields}
+				filters={working.filters}
+				form={formSections}
+				formRules={working.rest.formRules}
+				view={viewSections}
+				viewTabs={viewTabs}
+				records={sample?.doc || []}
+				loading={sampleLoading}
+			/>
 
 			<PublishDialog
 				isOpen={confirm === 'publish'}
@@ -1177,6 +1455,41 @@ const RouteEditor: FC<{ route: string }> = ({ route }) => {
 				consequence={`The ${working.filters.length} filters here are replaced by the ${codeFilters.length} the settings file declares. Nothing is saved until you save or publish.`}
 				confirmLabel='Replace'
 				destructive
+			/>
+		</>
+	);
+};
+
+/** The page: loads the route and hands it to the editor. */
+const RouteEditor: FC<{ route: string }> = ({ route }) => {
+	const { data, isLoading, isError, error, refetch } = useGetBuilderRouteQuery(route);
+	if (isLoading)
+		return (
+			<Layout
+				title='Loading…'
+				path='builder'>
+				<DetailSkeleton />
+			</Layout>
+		);
+	if (isError || !data)
+		return (
+			<Layout
+				title='Routes'
+				path='builder'>
+				<ErrorState
+					error={error}
+					onRetry={refetch}
+				/>
+			</Layout>
+		);
+	const config = data.config?.draft ?? data.config?.data ?? data.code?.config;
+	return (
+		<Layout
+			title={config?.route?.title || route}
+			path='builder'>
+			<RouteEditorView
+				route={route}
+				data={data}
 			/>
 		</Layout>
 	);
