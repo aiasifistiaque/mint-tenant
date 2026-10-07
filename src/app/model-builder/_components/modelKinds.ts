@@ -45,18 +45,18 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 		hint: 'A login or key kept for someone — shown as dots, click the eye to see it',
 		group: 'Text',
 	},
-	{ value: 'number', label: 'Number', hint: 'Sortable; can have a minimum and maximum', group: 'Values' },
+	{ value: 'number', label: 'Number', hint: 'An amount, a quantity, a price — can have a lowest and highest value', group: 'Values' },
 	{
 		value: 'formula',
 		label: 'Formula',
 		hint: 'A number calculated from other number fields — e.g. due = total - paid. Read-only',
 		group: 'Values',
 	},
-	{ value: 'boolean', label: 'Yes / No', hint: 'A checkbox, with a Yes/No filter', group: 'Values' },
-	{ value: 'date', label: 'Date', hint: 'With a date filter', group: 'Values' },
+	{ value: 'boolean', label: 'Yes / No', hint: 'A switch, on or off — like “Paid” or “Featured”', group: 'Values' },
+	{ value: 'date', label: 'Date', hint: 'A day, like a due date or a birthday — the table can filter by it', group: 'Values' },
 	// One entry in the kind picker: "Options". Whether one or several can be
 	// picked is a switch beside it — multiselect is the "several" form.
-	{ value: 'select', label: 'Options', hint: 'One of a list of options you type in, with a filter', group: 'Choices' },
+	{ value: 'select', label: 'Options', hint: 'A choice from a list you type in, like Draft / Sent / Paid', group: 'Choices' },
 	{
 		value: 'multiselect',
 		label: 'Options (several)',
@@ -298,15 +298,17 @@ export const validateFields = (
 	const seen = new Map<string, string>();
 	const fail = (uid: string, on: FieldErrorOn, message: string) => (errors[uid] = { on, message });
 	fields.forEach(f => {
-		if (!f.key) return fail(f.uid, 'key', 'Needs a key');
-		if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(f.key)) return fail(f.uid, 'key', 'Starts with a letter; letters, digits and _ only');
-		if (RESERVED_KEYS.includes(f.key)) return fail(f.uid, 'key', `“${f.key}” is reserved`);
+		// The key is shown as the field's "API name" under its label.
+		if (!f.key) return fail(f.uid, 'key', 'Give the field a name');
+		if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(f.key))
+			return fail(f.uid, 'key', 'The API name starts with a letter; letters, digits and _ only');
+		if (RESERVED_KEYS.includes(f.key)) return fail(f.uid, 'key', `“${f.key}” is reserved as an API name`);
 		if (accessEnabled && ACCESS_KEYS.includes(f.key))
-			return fail(f.uid, 'key', `“${f.key}” is used by access control — pick another key`);
+			return fail(f.uid, 'key', `“${f.key}” is used by record privacy — pick another API name`);
 		if (SENSITIVE.test(f.key) && !SECRET_KINDS.includes(f.kind))
 			return fail(f.uid, 'key', 'A password, token or other secret needs the Password kind — it’s shown as dots until clicked');
 		const lower = f.key.toLowerCase();
-		if (seen.has(lower)) return fail(f.uid, 'key', 'Another field has this key');
+		if (seen.has(lower)) return fail(f.uid, 'key', `Another field already has the API name “${f.key}”`);
 		seen.set(lower, f.uid);
 		if (REFERENCE_KINDS.includes(f.kind) && !f.ref) return fail(f.uid, 'ref', 'Pick the model it links to');
 		const values = (f.options || []).map(o => o.value?.trim()).filter(Boolean);

@@ -136,13 +136,23 @@ type Props = {
 	/** The sidebar picker; the wizard asks about it in a step of its own. */
 	showSidebar?: boolean;
 	name?: ReturnType<typeof useNameAvailability>;
+	/**
+	 * Which panels to draw — all by default. The model page spreads them over
+	 * tabs (fields on one, the rest under Settings); the wizard shows them all.
+	 */
+	only?: ModelPanelName[];
+	/** The model page shows the name, address and collection on its Advanced tab instead. */
+	hideIdentity?: boolean;
 };
+
+export type ModelPanelName = 'basics' | 'numbers' | 'privacy' | 'fields';
 
 export const useFieldErrors = (fields: EditableField[], accessEnabled = false) =>
 	useMemo(() => validateFields(fields, { accessEnabled }), [fields, accessEnabled]);
 
-const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name }) => {
+const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity }) => {
 	const isNew = mode === 'create';
+	const show = (panel: ModelPanelName) => !only || only.includes(panel);
 	const set = (patch: Partial<ModelWorking>) => onChange({ ...working, ...patch });
 	const setCode = (patch: Partial<ModelWorking['code']>) => onChange({ ...working, code: { ...working.code, ...patch } });
 	const setAccess = (patch: Partial<ModelWorking['access']>) => onChange({ ...working, access: { ...working.access, ...patch } });
@@ -157,9 +167,10 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 
 	return (
 		<>
+			{show('basics') && (
 			<Panel
-				title='Model'
-				subtitle='What it’s called, and where it lives.'
+				title='Basics'
+				subtitle='What it’s called, and where people find it.'
 				actions={<DocLink section='models' />}>
 				<Grid
 					templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
@@ -173,6 +184,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							onChange={e => set({ title: e.target.value })}
 						/>
 					</Box>
+					{!(hideIdentity && !isNew) && (
 					<Box>
 						<Label hint='Other models link to it by this name. Fixed once created.'>Model name</Label>
 						{isNew ? (
@@ -217,6 +229,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							</Text>
 						)}
 					</Box>
+					)}
 					{isNew && (
 						<Box>
 							<Label hint='Leave empty to use the plural of the name.'>Route (optional)</Label>
@@ -230,8 +243,8 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 						</Box>
 					)}
 					<Box>
-						<Label hint='How a record is named wherever it’s linked from — menus, tables, the view page.'>
-							Display field
+						<Label hint='The field that names a record wherever it’s linked from — pickers, tables, its own page.'>
+							Record name (display field)
 						</Label>
 						<Dropdown
 							value={working.displayField}
@@ -249,7 +262,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					</Box>
 					{showSidebar && (
 						<Box>
-							<Label hint='Where it appears in the sidebar, for roles allowed to view it.'>Sidebar</Label>
+							<Label hint='The sidebar group it’s listed under, for roles allowed to view it.'>Sidebar</Label>
 							<Dropdown
 								value={working.sidebarCategory}
 								onChange={v => set({ sidebarCategory: v })}>
@@ -276,10 +289,12 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					</Box>
 				</Grid>
 			</Panel>
+			)}
 
+			{show('numbers') && (
 			<Panel
-				title='Record code'
-				subtitle='A readable, sequential code on every record — like INV-0001. Assigned when a record is created and never reused.'
+				title='Record numbers'
+				subtitle='A readable number on every record, like INV-0001 — given when a record is created and never reused.'
 				actions={<DocLink section='models-code' />}>
 				<Flex
 					direction='column'
@@ -295,7 +310,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 						<Switch.Control>
 							<Switch.Thumb />
 						</Switch.Control>
-						<Switch.Label fontSize='sm'>Give every record a code</Switch.Label>
+						<Switch.Label fontSize='sm'>Give every record a number (code)</Switch.Label>
 					</Switch.Root>
 					{working.code.enabled && (
 						<Flex
@@ -338,7 +353,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 								<Text
 									fontSize='xs'
 									color='fg.muted'>
-									First code
+									Next record gets
 								</Text>
 								<Text
 									fontFamily='mono'
@@ -364,14 +379,16 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					)}
 				</Flex>
 			</Panel>
+			)}
 
 			{/* Per-record access: admins in the super-admin panel, the organization's people in a project (multi-tenancy D19). */}
+			{show('privacy') && (
 			<Panel
-					title='Access'
+					title='Who sees each record'
 					subtitle={
 						IS_TENANT_PANEL
-							? 'Whether every record decides who can see it. The role’s Records permissions still come first: without View, no record shows.'
-							: 'Whether every record decides who can see it. The page permission still comes first: without it, no record shows.'
+							? 'Whether every record decides who can see it (access). The role’s Records permissions still come first: without View, no record shows.'
+							: 'Whether every record decides who can see it (access). The page permission still comes first: without it, no record shows.'
 					}
 					actions={<DocLink section='models-access' />}>
 					<Flex
@@ -385,7 +402,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							<Switch.Control>
 								<Switch.Thumb />
 							</Switch.Control>
-							<Switch.Label fontSize='sm'>Restrict access to each record</Switch.Label>
+							<Switch.Label fontSize='sm'>Let each record choose who can see it</Switch.Label>
 						</Switch.Root>
 						{working.access.enabled && (
 							<>
@@ -421,10 +438,12 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 						)}
 					</Flex>
 				</Panel>
+			)}
 
+			{show('fields') && (
 			<Panel
 				title='Fields'
-				subtitle='In the order the form, table and detail page show them. Drag to reorder; the chevron opens more options.'
+				subtitle='What every record holds, in the order the form, table and record page show them. Drag ⋮⋮ to reorder; More opens a field’s other settings.'
 				actions={<DocLink section='models-fields' />}>
 				<FieldsEditor
 					fields={working.fields}
@@ -445,6 +464,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					</Text>
 				)}
 			</Panel>
+			)}
 		</>
 	);
 };

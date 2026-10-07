@@ -2,7 +2,7 @@
 
 import { DragEvent, FC, ReactNode, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text } from '@chakra-ui/react';
-import { AlertTriangle, Calculator, ChevronDown, ListTree, ChevronRight, GripVertical, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Calculator, ChevronUp, ListTree, GripVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { radius } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import {
@@ -27,13 +27,17 @@ import {
 	toKey,
 } from './modelKinds';
 import SectionFieldsModal from './SectionFieldsModal';
+import KindIcon from './KindIcon';
+import KindPicker from './KindPicker';
 import FormulaModal from '@/app/builder/_components/FormulaModal';
 import { checkFormula } from '@/components/library/functions/formula';
+import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 
 /**
  * The model's fields, in order — the order they take in the generated form,
- * table and detail page. Each row is the essentials (label, key, kind, what
- * it links to, required); the chevron opens the rest.
+ * table and detail page. Each row is the essentials (the kind's picture, the
+ * label with its API name under it, the kind, what it links to, required);
+ * "More" opens the rest. "Add a field" asks for the kind first (KindPicker).
  *
  * On a model that already has records, a changed kind or a removed field is
  * flagged: the data stays in the records, but a new kind may not read it.
@@ -97,6 +101,25 @@ const Small: FC<{ children: ReactNode }> = ({ children }) => (
 		{children}
 	</Text>
 );
+
+/** A heading inside a field's details: what the settings under it are about. */
+const Group: FC<{ title: string; children: ReactNode }> = ({ title, children }) => (
+	<Box>
+		<Text
+			fontSize='xs'
+			fontWeight='600'
+			color='fg.muted'
+			textTransform='uppercase'
+			letterSpacing='0.06em'
+			mb={2.5}>
+			{title}
+		</Text>
+		{children}
+	</Box>
+);
+
+/** The column titles over the rows — the widths match the row's inputs. */
+const COLS = { label: '200px', kind: '150px' };
 
 const Check: FC<{ label: string; hint?: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }> = ({
 	label,
@@ -370,6 +393,8 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 	const formulaField = formulaFor ? fields.find(f => f.uid === formulaFor) : undefined;
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
+	// "Add a field" asks for the kind first.
+	const [picking, setPicking] = useState(false);
 
 	const set = (uid: string, patch: Partial<EditableField>) =>
 		onChange(fields.map(f => (f.uid === uid ? { ...f, ...patch } : f)));
@@ -426,19 +451,38 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 		if (toOptions) setTimeout(() => document.getElementById(`options-${f.uid}`)?.focus(), 0);
 	};
 
-	const add = () => {
+	const add = (kind: FieldKind = 'text') => {
 		const uid = newUid();
-		onChange([...fields, { uid, key: '', label: '', kind: 'text', showInTable: true }]);
+		const isSection = SECTION_KINDS.includes(kind);
+		onChange([
+			...fields,
+			{
+				uid,
+				key: '',
+				label: '',
+				kind,
+				// The same starting point changeKind gives a row switched to the kind.
+				showInTable: kind !== 'section',
+				...(isSection && { fields: sectionPreset(kind) }),
+			},
+		]);
 		setOpen(null);
-		// Focus lands on the new row's label once it renders.
-		setTimeout(() => document.getElementById(`label-${uid}`)?.focus(), 0);
+		setPicking(false);
+		// Focus lands on the new row's label once it renders; a formula or a section opens its own window.
+		if (kind === 'formula') setFormulaFor(uid);
+		else if (isSection) setSectionFor(uid);
+		else setTimeout(() => document.getElementById(`label-${uid}`)?.focus(), 0);
 	};
 
 	const linkOptions = [
 		...(selfName !== undefined ? [{ value: SELF, label: `This model${selfName ? ` (${selfName})` : ''}` }] : []),
 		...targets
 			.filter(t => t.name !== selfName)
-			.map(t => ({ value: t.name, label: `${t.title || t.name} · ${t.name}${t.built ? ' (built)' : ''}` })),
+			// A project only has built models: their titles are enough there.
+			.map(t => ({
+				value: t.name,
+				label: IS_TENANT_PANEL ? t.title || t.name : `${t.title || t.name} · ${t.name}${t.built ? ' (built)' : ''}`,
+			})),
 	];
 
 	return (
@@ -449,8 +493,23 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				<Text
 					fontSize='sm'
 					color='fg.muted'>
-					No fields yet. A model needs at least one.
+					No fields yet. Add the first one below — a name or a title is a good start.
 				</Text>
+			)}
+
+			{fields.length > 0 && (
+				<Flex
+					display={{ base: 'none', md: 'flex' }}
+					gap={2}
+					px={2.5}
+					fontSize='xs'
+					color='fg.muted'>
+					{/* The grip and the kind's picture. */}
+					<Box w='50px' />
+					<Text w={COLS.label}>Field name</Text>
+					<Text w={COLS.kind}>Type</Text>
+					<Text>Settings</Text>
+				</Flex>
 			)}
 
 			{fields.map((f, i) => {
@@ -499,32 +558,68 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 								title='Drag to reorder'>
 								<GripVertical {...ICON} />
 							</Flex>
-							<Input
-								id={`label-${f.uid}`}
-								size='xs'
-								w='170px'
-								placeholder='Label, e.g. Due date'
-								value={f.label || ''}
-								onChange={e => {
-									const label = e.target.value;
-									set(f.uid, { label, ...(!f.keyTouched && { key: toKey(label) }) });
-								}}
-							/>
-							<Box w='140px'>
+							<Flex
+								{...CELL}
+								title={KINDS.find(k => k.value === f.kind)?.hint}>
+								<KindIcon kind={f.kind} />
+							</Flex>
+							<Box w={COLS.label}>
 								<Input
+									id={`label-${f.uid}`}
 									size='xs'
-									fontFamily='mono'
-									placeholder='key'
-									title='The field’s name in the database and the API'
-									value={f.key}
-									{...invalidCss(error?.on === 'key')}
-									onChange={e => set(f.uid, { key: e.target.value.replace(/\s/g, ''), keyTouched: true })}
+									placeholder='Name, e.g. Due date'
+									value={f.label || ''}
+									{...invalidCss(error?.on === 'key' && !f.key)}
+									onChange={e => {
+										const label = e.target.value;
+										set(f.uid, { label, ...(!f.keyTouched && { key: toKey(label) }) });
+									}}
 								/>
-								{error?.on === 'key' && <FieldMessage>{error.message}</FieldMessage>}
+								{/* The key, as the API knows it: shown, changed in the details. */}
+								{f.key && error?.on !== 'key' && (
+									<Text
+										as='button'
+										fontSize='11px'
+										color='fg.subtle'
+										fontFamily='mono'
+										mt={0.5}
+										px={0.5}
+										maxW='full'
+										truncate
+										display='block'
+										textAlign='left'
+										title='The field’s name in the API and in formulas — click to change it'
+										_hover={{ color: 'fg.muted' }}
+										onClick={() => {
+											setOpen(f.uid);
+											setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
+										}}>
+										{f.key}
+									</Text>
+								)}
+								{error?.on === 'key' && (
+									<FieldMessage>
+										{error.message}
+										{f.key && (
+											<>
+												{' — '}
+												<Box
+													as='button'
+													textDecoration='underline'
+													onClick={() => {
+														setOpen(f.uid);
+														setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
+													}}>
+													change the API name
+												</Box>
+											</>
+										)}
+									</FieldMessage>
+								)}
 							</Box>
 							<Dropdown
 								size='xs'
-								w='150px'
+								w={COLS.kind}
 								// Options for one and for several are one entry; the switch beside it picks.
 								value={f.kind === 'multiselect' ? 'select' : f.kind}
 								onChange={v => changeKind(f, v as FieldKind)}>
@@ -657,13 +752,15 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 								{...CELL}
 								ml='auto'
 								gap={1}>
-								<IconButton
+								<Button
 									size='xs'
-									variant='ghost'
-									aria-label={isOpen ? 'Fewer options' : 'More options'}
+									variant={isOpen ? 'subtle' : 'ghost'}
+									aria-expanded={isOpen}
+									title='Default, help text, API name, table and search'
 									onClick={() => setOpen(isOpen ? null : f.uid)}>
-									{isOpen ? <ChevronDown {...ICON} /> : <ChevronRight {...ICON} />}
-								</IconButton>
+									{isOpen ? <ChevronUp {...ICON} /> : <SlidersHorizontal {...ICON} />}
+									{isOpen ? 'Less' : 'More'}
+								</Button>
 								<IconButton
 									size='xs'
 									variant='ghost'
@@ -680,7 +777,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 							{NEEDS_OPTIONS.includes(f.kind) && (
 								<Box
 									w='full'
-									pl='22px'>
+									pl={{ base: 0, md: '58px' }}>
 									<OptionsInput
 										id={`options-${f.uid}`}
 										field={f}
@@ -701,7 +798,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 								color='red.fg'
 								px={2.5}
 								pb={2}
-								ml='32px'
+								ml={{ base: 0, md: '58px' }}
 								textAlign='left'
 								onClick={() => setOpen(f.uid)}>
 								{DETAIL_LABEL[error.on]}: {error.message} — <u>show</u>
@@ -709,108 +806,82 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 						)}
 
 						{isOpen && (
-							<Box
+							<Flex
+								direction='column'
+								gap={5}
 								px={4}
+								pl={{ md: '58px' }}
 								pb={4}
-								pt={2}
+								pt={3}
 								borderTopWidth='1px'
 								borderColor='border.muted'>
 								<Text
 									fontSize='xs'
-									color='fg.muted'
-									mb={3}>
+									color='fg.muted'>
 									{KINDS.find(k => k.value === f.kind)?.hint}
 								</Text>
-								{!sub && (
-								<Flex
-									gap={5}
-									flexWrap='wrap'
-									mb={4}>
-									<Check
-										label='Show in the table'
-										checked={f.showInTable !== false}
-										onChange={v => set(f.uid, { showInTable: v })}
-									/>
-									{canBeUnique(f.kind) && (
-										<Check
-											label='Unique'
-											hint='No two records can share a value'
-											checked={!!f.unique}
-											onChange={v => set(f.uid, { unique: v })}
-										/>
-									)}
-									{!f.unique && f.kind !== 'boolean' && f.kind !== 'password' && (
-										<Check
-											label='Index'
-											hint='Faster filtering and sorting on large collections'
-											checked={!!f.index}
-											onChange={v => set(f.uid, { index: v })}
-										/>
-									)}
-									{['text', 'textarea', 'editor', 'email', 'url', 'select', 'tags'].includes(f.kind) && (
-										<Check
-											label='Searchable'
-											hint='The table’s search box matches it'
-											checked={f.searchable ?? ['text', 'email', 'select', 'tags'].includes(f.kind)}
-											onChange={v => set(f.uid, { searchable: v })}
-										/>
-									)}
-								</Flex>
-								)}
 
-								<Grid
-									templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
-									gap={3}>
-									{(f.kind === 'number' || hasLength(f.kind)) && (
-										<>
+								<Group title='In the form'>
+									<Grid
+										templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
+										gap={3}>
+										{!NO_DEFAULT_KINDS.includes(f.kind) && (
+											<Box gridColumn={ARRAY_KINDS.includes(f.kind) ? { md: 'span 3' } : undefined}>
+												<Small>Starts with (default)</Small>
+												<DefaultInput
+													f={f}
+													invalid={error?.on === 'default'}
+													onChange={v => set(f.uid, { default: v })}
+												/>
+												{error?.on === 'default' && <FieldMessage>{error.message}</FieldMessage>}
+											</Box>
+										)}
+										<Box gridColumn={{ md: NO_DEFAULT_KINDS.includes(f.kind) || ARRAY_KINDS.includes(f.kind) ? 'span 3' : 'span 2' }}>
+											<Small>Help text</Small>
+											<Input
+												size='sm'
+												placeholder='A hint shown under the input, e.g. “As on the passport”'
+												value={f.helper || ''}
+												onChange={e => set(f.uid, { helper: e.target.value })}
+											/>
+										</Box>
+									</Grid>
+								</Group>
+
+								{(f.kind === 'number' || hasLength(f.kind)) && (
+									<Group title={f.kind === 'number' ? 'Limits' : 'Length'}>
+										<Grid
+											templateColumns={{ base: '1fr 1fr', md: 'repeat(3, minmax(0, 1fr))' }}
+											gap={3}>
 											<Box>
-												<Small>{f.kind === 'number' ? 'Minimum' : 'Minimum length'}</Small>
+												<Small>{f.kind === 'number' ? 'Lowest allowed' : 'Fewest characters'}</Small>
 												<Input
 													size='sm'
 													type='number'
+													placeholder='No limit'
 													value={f.min ?? ''}
 													{...invalidCss(error?.on === 'range')}
 													onChange={e => set(f.uid, { min: num(e.target.value) })}
 												/>
 											</Box>
 											<Box>
-												<Small>{f.kind === 'number' ? 'Maximum' : 'Maximum length'}</Small>
+												<Small>{f.kind === 'number' ? 'Highest allowed' : 'Most characters'}</Small>
 												<Input
 													size='sm'
 													type='number'
+													placeholder='No limit'
 													value={f.max ?? ''}
 													{...invalidCss(error?.on === 'range')}
 													onChange={e => set(f.uid, { max: num(e.target.value) })}
 												/>
 												{error?.on === 'range' && <FieldMessage>{error.message}</FieldMessage>}
 											</Box>
-										</>
-									)}
-									{!NO_DEFAULT_KINDS.includes(f.kind) && (
-										<Box gridColumn={ARRAY_KINDS.includes(f.kind) ? { md: 'span 3' } : undefined}>
-											<Small>Default</Small>
-											<DefaultInput
-												f={f}
-												invalid={error?.on === 'default'}
-												onChange={v => set(f.uid, { default: v })}
-											/>
-											{error?.on === 'default' && <FieldMessage>{error.message}</FieldMessage>}
-										</Box>
-									)}
-									<Box gridColumn={{ md: 'span 3' }}>
-										<Small>Help text</Small>
-										<Input
-											size='sm'
-											placeholder='Shown under the input in the form'
-											value={f.helper || ''}
-											onChange={e => set(f.uid, { helper: e.target.value })}
-										/>
-									</Box>
-								</Grid>
+										</Grid>
+									</Group>
+								)}
 
 								{ENUM_KINDS.includes(f.kind) && (
-									<Box mt={4}>
-										<Small>{NEEDS_OPTIONS.includes(f.kind) ? 'Options and their labels' : 'Allowed values (enum)'}</Small>
+									<Group title={NEEDS_OPTIONS.includes(f.kind) ? 'Options and their labels' : 'Allowed values'}>
 										<Text
 											fontSize='xs'
 											color='fg.muted'
@@ -874,23 +945,94 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 											</Box>
 										</Flex>
 										{error?.on === 'options' && !NEEDS_OPTIONS.includes(f.kind) && <FieldMessage>{error.message}</FieldMessage>}
-									</Box>
+									</Group>
 								)}
-							</Box>
+
+								{!sub && (
+									<Group title='Table and search'>
+										<Flex
+											gap={5}
+											rowGap={3}
+											flexWrap='wrap'>
+											<Check
+												label='Show as a column in the table'
+												checked={f.showInTable !== false}
+												onChange={v => set(f.uid, { showInTable: v })}
+											/>
+											{['text', 'textarea', 'editor', 'email', 'url', 'select', 'tags'].includes(f.kind) && (
+												<Check
+													label='Found by the search box'
+													hint='The table’s search box matches it'
+													checked={f.searchable ?? ['text', 'email', 'select', 'tags'].includes(f.kind)}
+													onChange={v => set(f.uid, { searchable: v })}
+												/>
+											)}
+											{canBeUnique(f.kind) && (
+												<Check
+													label='No duplicates'
+													hint='Unique: no two records can share a value'
+													checked={!!f.unique}
+													onChange={v => set(f.uid, { unique: v })}
+												/>
+											)}
+											{!f.unique && f.kind !== 'boolean' && f.kind !== 'password' && (
+												<Check
+													label='Faster sorting and filtering'
+													hint='An index: worth it on large tables sorted or filtered by this field'
+													checked={!!f.index}
+													onChange={v => set(f.uid, { index: v })}
+												/>
+											)}
+										</Flex>
+									</Group>
+								)}
+
+								<Group title='API name'>
+									<Box maxW='320px'>
+										<Input
+											id={`key-${f.uid}`}
+											size='sm'
+											fontFamily='mono'
+											placeholder='dueDate'
+											value={f.key}
+											{...invalidCss(error?.on === 'key')}
+											onChange={e => set(f.uid, { key: e.target.value.replace(/\s/g, ''), keyTouched: true })}
+										/>
+										{error?.on === 'key' && <FieldMessage>{error.message}</FieldMessage>}
+										<Text
+											fontSize='xs'
+											color='fg.muted'
+											mt={1.5}>
+											How the API, imports and formulas refer to this field.
+											{hasRecords && ' Changing it on a model with records starts an empty field: the old values stay under the old name.'}
+										</Text>
+									</Box>
+								</Group>
+							</Flex>
 						)}
 					</Box>
 				);
 			})}
 
-			<Box display={fixed ? 'none' : undefined}>
-				<Button
-					size='xs'
-					variant='outline'
-					onClick={add}>
-					<Plus {...ICON} />
-					Add field
-				</Button>
-			</Box>
+			<Button
+				display={fixed ? 'none' : undefined}
+				size='sm'
+				variant='outline'
+				borderStyle='dashed'
+				w='full'
+				color='fg.muted'
+				_hover={{ color: 'fg', borderColor: 'fg.muted', bg: 'bg.subtle' }}
+				onClick={() => setPicking(true)}>
+				<Plus {...ICON} />
+				Add a field
+			</Button>
+
+			<KindPicker
+				isOpen={picking}
+				onClose={() => setPicking(false)}
+				onPick={kind => add(kind)}
+				kinds={kinds}
+			/>
 
 			<SectionFieldsModal
 				isOpen={!!sectionField}
