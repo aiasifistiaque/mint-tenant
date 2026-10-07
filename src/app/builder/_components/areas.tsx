@@ -3,6 +3,7 @@
 import { FC, ReactNode } from 'react';
 import { Box, Button, Flex, Text } from '@chakra-ui/react';
 import {
+	ArrowRight,
 	ClipboardList,
 	Eye,
 	Filter,
@@ -259,6 +260,92 @@ export const AreaIntro: FC<{ area: AreaKey; onPreview?: () => void; children?: R
 						bg='bg.panel'
 						onClick={onPreview}>
 						<Eye size={14} />
+						Preview
+					</Button>
+				)}
+			</Flex>
+		</Flex>
+	);
+};
+
+/** One part of the page on the overview: its colour, what it is, where it stands, and the way in. */
+export const AreaCard: FC<{
+	area: AreaKey;
+	title?: string;
+	lines: string[];
+	onOpen: () => void;
+	onPreview?: () => void;
+	tone?: 'warn';
+}> = ({ area, title, lines, onOpen, onPreview, tone }) => {
+	const a = AREAS[area];
+	return (
+		<Flex
+			direction='column'
+			justify='space-between'
+			gap={3}
+			p={4}
+			borderWidth='1px'
+			borderTopWidth='3px'
+			borderColor={tone === 'warn' ? 'orange.muted' : 'border'}
+			borderTopColor={`${a.palette}.solid`}
+			borderRadius='lg'
+			bg='bg.panel'
+			cursor='pointer'
+			transition='box-shadow 0.12s'
+			_hover={{ boxShadow: 'sm' }}
+			onClick={onOpen}>
+			<Box>
+				<Flex
+					align='center'
+					gap={2.5}
+					mb={2}>
+					<AreaIcon area={area} />
+					<Text
+						fontSize='sm'
+						fontWeight='600'>
+						{title || a.label}
+					</Text>
+				</Flex>
+				<Text
+					fontSize='xs'
+					color='fg.muted'
+					mb={2.5}>
+					{a.description}
+				</Text>
+				{lines.map((l, i) => (
+					<Text
+						key={i}
+						fontSize='xs'
+						color={i === 0 ? 'fg' : 'fg.muted'}
+						fontWeight={i === 0 ? '500' : undefined}>
+						{l}
+					</Text>
+				))}
+			</Box>
+			<Flex
+				align='center'
+				gap={2}
+				flexWrap='wrap'>
+				<Button
+					size='xs'
+					variant='outline'
+					onClick={e => {
+						e.stopPropagation();
+						onOpen();
+					}}>
+					Change it
+					<ArrowRight size={12} />
+				</Button>
+				{onPreview && (
+					<Button
+						size='xs'
+						variant='ghost'
+						color={`${a.palette}.fg`}
+						onClick={e => {
+							e.stopPropagation();
+							onPreview();
+						}}>
+						<Eye size={12} />
 						Preview
 					</Button>
 				)}

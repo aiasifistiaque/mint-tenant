@@ -59,6 +59,7 @@ export const projectPagePath = (segments: string[]): string => {
 	const [first, ...more] = segments;
 	if (!first) return '/dashboard';
 	if (PROJECT_PAGES.has(first)) return `/${segments.join('/')}`;
+	if (more.length === 1 && more[0] === 'create') return `/t/${first}/create`;
 	if (more.length === 1) return `/view/${first}/${more[0]}`;
 	return `/t/${segments.join('/')}`;
 };
@@ -78,6 +79,7 @@ export const projectHref = (href: string, slug: string | null = getProjectSlug()
 	if (!first || !PROJECT_PAGES.has(first)) return href;
 	if (first === 'dashboard' && !more.length) return `/${slug}${rest}`;
 	if (first === 't' && more.length === 1) return `/${slug}/${more[0]}${rest}`;
+	if (first === 't' && more.length === 2 && more[1] === 'create') return `/${slug}/${more.join('/')}${rest}`;
 	if (first === 'view' && more.length === 2) return `/${slug}/${more.join('/')}${rest}`;
 	return `/${slug}/${segments.join('/')}${rest}`;
 };
@@ -142,6 +144,23 @@ export const homeHref = (href: string): string => projectHref(href === '/' ? HOM
 export const pagePath = (route = ''): string => {
 	const r = String(route).replace(/^\/+/, '');
 	return IS_TENANT_PANEL ? projectHref(`/t/${r}`) : `/${r}`;
+};
+
+/** A model's "add a record" page (CreateRecordPage): /<route>/create, in a project /<project>/<route>/create. */
+export const createPath = (route = ''): string => {
+	const r = String(route).replace(/^\/+/, '');
+	return IS_TENANT_PANEL ? projectHref(`/t/${r}/create`) : `/${r}/create`;
+};
+
+/**
+ * Where a table's add button set to open a page goes. The route builder saves
+ * `/<route>/create`, which is the built-in add page; any other address is
+ * taken as it's written (inside the project, in the tenant panel).
+ */
+export const addButtonHref = (href: string, route = ''): string => {
+	const r = String(route).replace(/^\/+/, '');
+	if (!href || href.replace(/^\/+/, '') === `${r}/create`) return createPath(r);
+	return projectHref(href);
 };
 
 /* ------------------------------------------------------------- guides */

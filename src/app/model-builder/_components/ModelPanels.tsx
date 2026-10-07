@@ -6,7 +6,7 @@ import { useCheckModelNameQuery } from '@/components/library';
 import { Dropdown, Panel } from '@/components/library/cl';
 import { DocLink } from '@/app/builder/_components/ui';
 import { ToneTitle } from '@/app/builder/_components/areas';
-import { Hash, ListChecks, Lock, NotebookPen } from 'lucide-react';
+import { Hash, ListChecks, Lock, NotebookPen, Tag } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import FieldsEditor, { LinkTarget } from './FieldsEditor';
 import {
@@ -145,14 +145,20 @@ type Props = {
 	only?: ModelPanelName[];
 	/** The model page shows the name, address and collection on its Advanced tab instead. */
 	hideIdentity?: boolean;
+	/**
+	 * Basics shows only the title and description, and the model name, route
+	 * and record name get a panel of their own ('names') — the new-model
+	 * wizard keeps them under More options.
+	 */
+	namesApart?: boolean;
 };
 
-export type ModelPanelName = 'basics' | 'numbers' | 'privacy' | 'fields';
+export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'fields';
 
 export const useFieldErrors = (fields: EditableField[], accessEnabled = false) =>
 	useMemo(() => validateFields(fields, { accessEnabled }), [fields, accessEnabled]);
 
-const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity }) => {
+const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity, namesApart }) => {
 	const isNew = mode === 'create';
 	const show = (panel: ModelPanelName) => !only || only.includes(panel);
 	const set = (patch: Partial<ModelWorking>) => onChange({ ...working, ...patch });
@@ -167,31 +173,8 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 	const records = doc?.records || 0;
 	const removedWithData = !isNew && records > 0 ? (doc.fields || []).filter((f: any) => !working.fields.some(w => w.key === f.key)) : [];
 
-	return (
+	const nameFields = (
 		<>
-			{show('basics') && (
-			<Panel
-				title={
-					<ToneTitle
-						icon={NotebookPen}
-						palette='blue'>
-						Basics
-					</ToneTitle>
-				}
-				subtitle='What it’s called, and where people find it.'
-				actions={<DocLink section='models' />}>
-				<Grid
-					templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
-					gap={4}>
-					<Box>
-						<Label hint='The page heading and the sidebar entry, e.g. “Invoices”.'>Title</Label>
-						<Input
-							size='sm'
-							value={working.title}
-							placeholder='Invoices'
-							onChange={e => set({ title: e.target.value })}
-						/>
-					</Box>
 					{!(hideIdentity && !isNew) && (
 					<Box>
 						<Label hint='Other models link to it by this name. Fixed once created.'>Model name</Label>
@@ -268,6 +251,49 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							{working.code.enabled && <option value='code'>The code</option>}
 						</Dropdown>
 					</Box>
+		</>
+	);
+
+	return (
+		<>
+			{show('basics') && (
+			<Panel
+				title={
+					<ToneTitle
+						icon={NotebookPen}
+						palette='blue'>
+						Basics
+					</ToneTitle>
+				}
+				subtitle='What it’s called, and where people find it.'
+				actions={<DocLink section='models' />}>
+				<Grid
+					templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
+					gap={4}>
+					<Box>
+						<Label hint='The page heading and the sidebar entry, e.g. “Invoices”.'>Title</Label>
+						<Input
+							size='sm'
+							value={working.title}
+							placeholder='Invoices'
+							onChange={e => set({ title: e.target.value })}
+						/>
+						{namesApart && isNew && requestedName(working) && (
+							<Text
+								fontSize='xs'
+								mt={1.5}
+								color={name?.error ? 'red.fg' : 'fg.muted'}>
+								{name?.checking
+									? 'Checking…'
+									: name?.error
+									? (name.error as any)?.data?.message || 'Not a usable name'
+									: availability
+									? `Its table page will be at /${availability.route}`
+									: ''}
+							</Text>
+						)}
+					</Box>
+					{!namesApart && nameFields}
 					{showSidebar && (
 						<Box>
 							<Label hint='The sidebar group it’s listed under, for roles allowed to view it.'>Sidebar</Label>
@@ -295,6 +321,25 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							onChange={e => set({ description: e.target.value })}
 						/>
 					</Box>
+				</Grid>
+			</Panel>
+			)}
+
+			{namesApart && show('names') && (
+			<Panel
+				title={
+					<ToneTitle
+						icon={Tag}
+						palette='cyan'>
+						Names and address
+					</ToneTitle>
+				}
+				subtitle='Filled in for you from the title — change them only if you need to.'
+				actions={<DocLink section='models' />}>
+				<Grid
+					templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
+					gap={4}>
+					{nameFields}
 				</Grid>
 			</Panel>
 			)}

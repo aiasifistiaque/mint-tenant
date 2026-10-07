@@ -13,7 +13,7 @@ import { BackendCreateModal } from '../../modals';
 import { Icon } from '../../icon';
 import { useIsMobile } from '../../hooks';
 import { radius, sizes } from '../../config';
-import { HOME, pagePath } from '../../config/lib/constants/panel';
+import { HOME, addButtonHref, pagePath } from '../../config/lib/constants/panel';
 
 type PageHeadingProps = FlexProps & {
 	title: string;
@@ -113,7 +113,7 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					prompt={table?.button?.prompt}
 				/>
 			);
-		else if (href) return <Link href={href}>{btn}</Link>;
+		else if (href) return <Link href={addButtonHref(href, path)}>{btn}</Link>;
 		else return btn;
 	};
 

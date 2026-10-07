@@ -108,8 +108,8 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 									const { path, isModal, ...rest } = page.button || {};
 									set({ button: v === 'page' ? { ...rest, path: `/${route}/create` } : { ...rest, isModal: true } });
 								}}>
-								<option value='modal'>A modal with the form</option>
-								<option value='page'>A page</option>
+								<option value='modal'>A pop-up over the table</option>
+								<option value='page'>Its own page</option>
 							</Dropdown>
 						</Box>
 						{page.button?.path !== undefined && (
@@ -118,8 +118,17 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 								<Input
 									size='sm'
 									value={page.button?.path || ''}
+									placeholder={`/${route}/create`}
 									onChange={e => set({ button: { ...page.button, path: e.target.value } })}
 								/>
+								<Text
+									fontSize='xs'
+									color='fg.muted'
+									mt={1}>
+									{page.button?.path && page.button.path.replace(/^\/+/, '') !== `${route}/create`
+										? 'Opens this address instead of the built-in page.'
+										: 'The built-in page with the same form. Change it only to send people to a page of your own.'}
+								</Text>
 							</Box>
 						)}
 					</Grid>

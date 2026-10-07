@@ -41,7 +41,7 @@ import SettingsEditor, { SettingsField } from './SettingsEditor';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
-import { AREAS, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
+import { AREAS, AreaCard, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
 import { BULK_MENU_TYPES, DEFAULT_ROW_MENU, ROW_MENU_TYPES, validateMenu } from './menuTypes';
 import { HOME, IS_TENANT_PANEL, projectHref } from '@/components/library/config/lib/constants/panel';
 
@@ -62,92 +62,6 @@ const PREVIEW_FOR: Partial<Record<AreaKey, PreviewTab>> = { table: 'table', filt
 
 /** The one-time "how changes go live" note, hidden for good once closed (this browser only). */
 const INTRO_KEY = 'route-editor-intro-hidden';
-
-/** One part of the page on the overview: its colour, what it is, where it stands, and the way in. */
-const Summary: FC<{
-	area: AreaKey;
-	title?: string;
-	lines: string[];
-	onOpen: () => void;
-	onPreview?: () => void;
-	tone?: 'warn';
-}> = ({ area, title, lines, onOpen, onPreview, tone }) => {
-	const a = AREAS[area];
-	return (
-		<Flex
-			direction='column'
-			justify='space-between'
-			gap={3}
-			p={4}
-			borderWidth='1px'
-			borderTopWidth='3px'
-			borderColor={tone === 'warn' ? 'orange.muted' : 'border'}
-			borderTopColor={`${a.palette}.solid`}
-			borderRadius='lg'
-			bg='bg.panel'
-			cursor='pointer'
-			transition='box-shadow 0.12s'
-			_hover={{ boxShadow: 'sm' }}
-			onClick={onOpen}>
-			<Box>
-				<Flex
-					align='center'
-					gap={2.5}
-					mb={2}>
-					<AreaIcon area={area} />
-					<Text
-						fontSize='sm'
-						fontWeight='600'>
-						{title || a.label}
-					</Text>
-				</Flex>
-				<Text
-					fontSize='xs'
-					color='fg.muted'
-					mb={2.5}>
-					{a.description}
-				</Text>
-				{lines.map((l, i) => (
-					<Text
-						key={i}
-						fontSize='xs'
-						color={i === 0 ? 'fg' : 'fg.muted'}
-						fontWeight={i === 0 ? '500' : undefined}>
-						{l}
-					</Text>
-				))}
-			</Box>
-			<Flex
-				align='center'
-				gap={2}
-				flexWrap='wrap'>
-				<Button
-					size='xs'
-					variant='outline'
-					onClick={e => {
-						e.stopPropagation();
-						onOpen();
-					}}>
-					Change it
-					<ArrowRight size={12} />
-				</Button>
-				{onPreview && (
-					<Button
-						size='xs'
-						variant='ghost'
-						color={`${a.palette}.fg`}
-						onClick={e => {
-							e.stopPropagation();
-							onPreview();
-						}}>
-						<Eye size={12} />
-						Preview
-					</Button>
-				)}
-			</Flex>
-		</Flex>
-	);
-};
 
 /**
  * The config the editor works on, minus filters (held separately as cards so
@@ -527,7 +441,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 		<Grid
 			templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }}
 			gap={3}>
-			<Summary
+			<AreaCard
 				area='table'
 				tone={isGeneric ? undefined : 'warn'}
 				onPreview={isGeneric ? () => openPreview('table') : undefined}
@@ -549,7 +463,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				}
 				onOpen={() => goTo('table')}
 			/>
-			<Summary
+			<AreaCard
 				area='form'
 				onPreview={formSections.length ? () => openPreview('form') : undefined}
 				lines={
@@ -564,7 +478,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				}
 				onOpen={() => goTo('form')}
 			/>
-			<Summary
+			<AreaCard
 				area='view'
 				onPreview={hasSettings ? () => openPreview('view') : undefined}
 				lines={[
@@ -578,7 +492,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				]}
 				onOpen={() => goTo('view')}
 			/>
-			<Summary
+			<AreaCard
 				area='filters'
 				lines={[
 					`${working.filters.length} ${working.filters.length === 1 ? 'filter' : 'filters'}`,
@@ -590,7 +504,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				onOpen={() => goTo('filters')}
 			/>
 			{hasSettings && (
-				<Summary
+				<AreaCard
 					area='settings'
 					lines={[
 						`${settingsWorking.length} fields · ${settingsWorking.filter(f => f.edit).length} editable · ${settingsWorking.filter(f => f.required).length} required`,
@@ -606,7 +520,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 					onOpen={() => goTo('settings')}
 				/>
 			)}
-			<Summary
+			<AreaCard
 				area='source'
 				title={IS_TENANT_PANEL ? undefined : 'Source & versions'}
 				lines={[
