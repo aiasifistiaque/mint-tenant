@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "target": "ES2017"
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "src/components/library/modals/upload-modal/iconNames.js",
+    "../../dd/dd-admin/src/components/library/utils/texts/JsonView.tsx",
+    ".next/dev/types/**/*.ts",
+    ".next-tenant/types/**/*.ts",
+    ".next-tenant/dev/types/**/*.ts",
+    ".next-tenantscratch/types/**/*.ts",
+    ".next-tenantscratch/dev/types/**/*.ts",
+    ".next-adminscratch/types/**/*.ts",
+    ".next-adminscratch/dev/types/**/*.ts",
+    ".next-tenant5021/types/**/*.ts",
+    ".next-tenant5021/dev/types/**/*.ts",
+    ".next-tenantsb/types/**/*.ts",
+    ".next-tenantsb/dev/types/**/*.ts",
+    ".next-sbcheck/types/**/*.ts",
+    ".next-sbcheck/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

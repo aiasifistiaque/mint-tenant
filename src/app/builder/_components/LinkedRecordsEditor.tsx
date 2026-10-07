@@ -1,0 +1,344 @@
+'use client';
+
+import { FC } from 'react';
+import { Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
+import { Plus, Trash2 } from 'lucide-react';
+import { useGetConfigQuery } from '@/components/library';
+import { Dropdown } from '@/components/library/cl';
+import { OptionFilter, OptionFilterOp } from '@/components/library/functions/optionFilters';
+import { DocLink, FieldLabel, Toggle } from './ui';
+import { mainRoute, modelLabel, useLinkModels } from './useLinkModels';
+
+/**
+ * A record picker's own options (Settings → a field's details, when its input
+ * picks records): the linked model — picked by name; what's stored is still
+ * the route it's served on (`schema.model`), as settings files have always
+ * had it, so existing fields keep working — a + beside the input that adds a record
+ * of it in a modal (`schema.addItem`), and which of its records are offered
+ * (`schema.optionFilters`) — compared with a fixed value (only active admins)
+ * or with another field of this form (only the projects of the client picked
+ * above). The picker in the form reads both; see optionFilters.ts.
+ */
+
+export const RECORD_INPUTS = ['data-menu', 'data-tag', 'nested-data-menu'];
+
+type FormField = { key: string; title?: string };
+
+type Props = {
+	schema: any;
+	/** This form's other fields — what a condition can be compared with. */
+	formFields: FormField[];
+	fieldKey: string;
+	disabled?: boolean;
+	onChange: (patch: any) => void;
+};
+
+const ICON = { size: 14, strokeWidth: 1.75 };
+const SENSITIVE = /pass(word)?|token|secret|api_?key|apikey|private|otp|salt|hash/i;
+const BOOL_INPUTS = ['checkbox', 'switch', 'boolean'];
+const OPS: { value: OptionFilterOp; label: string }[] = [
+	{ value: 'eq', label: 'is' },
+	{ value: 'ne', label: 'is not' },
+	{ value: 'in', label: 'is one of' },
+];
+
+type Target = { key: string; label: string; input?: string; options?: { value: any; label?: any }[] };
+
+/** A value not matched to a model: an old route, kept as it is. */
+const ROUTE_ONLY = 'route:';
+
+const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled, onChange }) => {
+	const model: string = schema?.model || '';
+	const filters: OptionFilter[] = Array.isArray(schema?.optionFilters) ? schema.optionFilters : [];
+	// The linked route's fields, as its form config has them — a filter on one
+	// of these is what the server matches (never a hidden field or a secret).
+	const { data, isFetching, isError } = useGetConfigQuery(model, { skip: !model });
+	const targets: Target[] = Object.entries<any>(data?.schema || {})
+		.filter(([key]) => key !== '_id' && !SENSITIVE.test(key))
+		.map(([key, s]) => ({ key, label: s?.label || key, input: s?.type, options: s?.options }));
+	const targetOf = (key: string) => targets.find(t => t.key === key);
+	const others = formFields.filter(f => f.key !== fieldKey);
+
+	const { models } = useLinkModels();
+	const linked = models.find(m => m.routes.includes(model));
+
+	/** A model picked: the route it's served on, and the field that names its records. */
+	const pickModel = (value: string) => {
+		const m = models.find(x => x.name === value);
+		if (!m) return;
+		const route = mainRoute(m);
+		const display = m.display && m.display !== '_id' ? m.display : undefined;
+		onChange({
+			model: route,
+			...(display && { menuKey: display, labelKey: display }),
+			// Conditions name fields of the old model.
+			...(m.name !== linked?.name && filters.length && { optionFilters: undefined }),
+		});
+	};
+
+	const setFilters = (next: OptionFilter[]) => onChange({ optionFilters: next.length ? next : undefined });
+	const setFilter = (i: number, patch: Partial<OptionFilter>) =>
+		setFilters(
+			filters.map((f, j) => {
+				if (j !== i) return f;
+				const merged: any = { ...f, ...patch };
+				for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
+				return merged;
+			})
+		);
+
+	return (
+		<Flex
+			direction='column'
+			gap={3}
+			p={3}
+			borderWidth='1px'
+			borderColor='border.muted'
+			borderRadius='md'
+			bg='bg.subtle'>
+			<Flex
+				align='center'
+				justify='space-between'
+				gap={3}>
+				<Text
+					fontSize='sm'
+					fontWeight='600'>
+					Linked records
+				</Text>
+				<DocLink section='settings-linked' />
+			</Flex>
+
+			<Flex
+				gap={3}
+				flexWrap='wrap'
+				align='flex-start'>
+				<Box
+					w='320px'
+					maxW='full'>
+					<FieldLabel>Linked model</FieldLabel>
+					<Dropdown
+						size='sm'
+						disabled={disabled || !models.length}
+						placeholder={models.length ? 'Pick a model' : 'Loading models…'}
+						value={linked?.name || (model ? `${ROUTE_ONLY}${model}` : '')}
+						onChange={pickModel}>
+						{models.map(m => (
+							<option
+								key={m.name}
+								value={m.name}>
+								{modelLabel(m)}
+							</option>
+						))}
+						{model && !linked && <option value={`${ROUTE_ONLY}${model}`}>{`Route “${model}” (no model found)`}</option>}
+					</Dropdown>
+				</Box>
+				{linked && linked.routes.length > 1 && (
+					<Box w='200px'>
+						<FieldLabel>Served on</FieldLabel>
+						<Dropdown
+							size='sm'
+							disabled={disabled}
+							value={model}
+							onChange={route => onChange({ model: route })}>
+							{linked.routes.map(r => (
+								<option
+									key={r}
+									value={r}>
+									/{r}
+								</option>
+							))}
+						</Dropdown>
+					</Box>
+				)}
+			</Flex>
+			{model && (
+				<Text
+					fontSize='xs'
+					color={isError || (models.length > 0 && !linked) ? 'red.fg' : 'fg.muted'}
+					mt={-1}>
+					{isError || (models.length > 0 && !linked)
+						? `No model is served on “${model}” — pick one above.`
+						: `Records come from /${model}${linked?.display ? `, named by their ${linked.display}` : ''}.`}
+				</Text>
+			)}
+
+			<Toggle
+				label='Add new from the form'
+				hint='A + beside the input opens a modal with the linked model’s form; the record added is picked straight away.'
+				checked={!!schema?.addItem}
+				onChange={v => !disabled && onChange({ addItem: v || undefined })}
+			/>
+
+			<Box>
+				<FieldLabel>Which records are offered</FieldLabel>
+				<Text
+					fontSize='xs'
+					color='fg.muted'
+					mb={2}>
+					{filters.length
+						? 'Only records matching every condition are offered. A choice that stops matching (another client picked) is cleared.'
+						: 'Every record of the linked model. Add a condition to narrow it — to a fixed value, or to another field of this form.'}
+				</Text>
+
+				<Flex
+					direction='column'
+					gap={2}>
+					{filters.map((f, i) => {
+						const target = targetOf(f.field);
+						const isBool = BOOL_INPUTS.includes(target?.input || '');
+						const source = f.from ? `from:${f.from}` : 'value';
+						const op = f.op || 'eq';
+						return (
+							<Flex
+								key={i}
+								gap={2}
+								align='center'
+								flexWrap='wrap'>
+								<Dropdown
+									size='xs'
+									w='170px'
+									disabled={disabled || isFetching}
+									placeholder='Field of the linked model'
+									value={f.field || ''}
+									onChange={v => setFilter(i, { field: v, value: undefined })}>
+									{targets.map(t => (
+										<option
+											key={t.key}
+											value={t.key}>
+											{t.label}
+										</option>
+									))}
+									{f.field && !target && <option value={f.field}>{f.field}</option>}
+								</Dropdown>
+								<Dropdown
+									size='xs'
+									w='110px'
+									disabled={disabled || isBool}
+									value={isBool ? 'eq' : op}
+									onChange={v => setFilter(i, { op: v === 'eq' ? undefined : (v as OptionFilterOp) })}>
+									{OPS.map(o => (
+										<option
+											key={o.value}
+											value={o.value}>
+											{o.label}
+										</option>
+									))}
+								</Dropdown>
+								<Dropdown
+									size='xs'
+									w='190px'
+									disabled={disabled}
+									value={source}
+									onChange={v =>
+										setFilter(
+											i,
+											v === 'value'
+												? { from: undefined, whenEmpty: undefined }
+												: { from: v.slice(5), value: undefined }
+										)
+									}>
+									<option value='value'>A fixed value</option>
+									<optgroup label='This form’s field'>
+										{others.map(o => (
+											<option
+												key={o.key}
+												value={`from:${o.key}`}>
+												{o.title || o.key}
+											</option>
+										))}
+									</optgroup>
+								</Dropdown>
+
+								{f.from ? (
+									<Dropdown
+										size='xs'
+										w='190px'
+										disabled={disabled}
+										title='While that field is empty'
+										value={f.whenEmpty || 'all'}
+										onChange={v => setFilter(i, { whenEmpty: v === 'none' ? 'none' : undefined })}>
+										<option value='all'>While empty: offer all</option>
+										<option value='none'>While empty: offer none</option>
+									</Dropdown>
+								) : isBool ? (
+									<Dropdown
+										size='xs'
+										w='110px'
+										disabled={disabled}
+										value={f.value === false ? 'false' : f.value === true ? 'true' : ''}
+										placeholder='Yes / no'
+										onChange={v => setFilter(i, { value: v === 'true' })}>
+										<option value='true'>Yes</option>
+										<option value='false'>No</option>
+									</Dropdown>
+								) : target?.options?.length && op !== 'in' ? (
+									<Dropdown
+										size='xs'
+										w='170px'
+										disabled={disabled}
+										value={f.value ?? ''}
+										placeholder='Value'
+										onChange={v => setFilter(i, { value: v })}>
+										{target.options.map((o: any) => (
+											<option
+												key={String(o.value)}
+												value={String(o.value)}>
+												{String(o.label ?? o.value)}
+											</option>
+										))}
+									</Dropdown>
+								) : (
+									<Input
+										size='xs'
+										w='190px'
+										disabled={disabled}
+										placeholder={op === 'in' ? 'Values, comma separated' : 'Value'}
+										value={Array.isArray(f.value) ? f.value.join(', ') : f.value ?? ''}
+										onChange={e =>
+											setFilter(i, {
+												value:
+													op === 'in'
+														? e.target.value
+																.split(',')
+																.map(x => x.trim())
+																.filter(Boolean)
+														: e.target.value,
+											})
+										}
+									/>
+								)}
+
+								{!disabled && (
+									<IconButton
+										size='xs'
+										variant='ghost'
+										aria-label='Remove condition'
+										color='red.500'
+										_dark={{ color: 'red.300' }}
+										onClick={() => setFilters(filters.filter((_, j) => j !== i))}>
+										<Trash2 {...ICON} />
+									</IconButton>
+								)}
+							</Flex>
+						);
+					})}
+				</Flex>
+
+				{!disabled && (
+					<Button
+						mt={2}
+						size='xs'
+						variant='outline'
+						disabled={!model}
+						title={model ? undefined : 'Set the linked model first'}
+						onClick={() => setFilters([...filters, { field: '' }])}>
+						<Plus {...ICON} />
+						Add condition
+					</Button>
+				)}
+			</Box>
+		</Flex>
+	);
+};
+
+export default LinkedRecordsEditor;
