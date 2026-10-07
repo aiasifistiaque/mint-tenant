@@ -17,8 +17,13 @@ type CreateModalProps = {
 	layout?: any;
 	/** Values the form starts with on open — set whether or not a field shows them (a view tab's link to its record). */
 	defaults?: Record<string, any>;
+	/** The header's title and the line under it, when the prompt doesn't set them ("New customer"). */
+	heading?: string;
+	description?: string;
 	prompt?: {
 		title?: string;
+		/** A line under the title — set in the page builder (Add button → Form description). */
+		description?: string;
 		body?: string;
 		btnText?: string;
 		successMsg?: string;

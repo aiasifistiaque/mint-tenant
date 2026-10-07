@@ -2,6 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { Button, Flex, useDisclosure } from '@chakra-ui/react';
+import { Plus } from 'lucide-react';
 
 import { useCustomToast, useIsMobile, useFormData } from '../../hooks';
 
@@ -20,6 +21,7 @@ import {
 } from '../..';
 
 import CreateModalProps from './types';
+import { nounOf } from './CreateModal';
 import { styles } from '../../config';
 
 const CreateModal = (props: CreateModalProps) => {
@@ -37,6 +39,8 @@ const CreateModal = (props: CreateModalProps) => {
 		populate,
 		layout,
 		defaults,
+		heading,
+		description,
 	} = props;
 
 	const { open: isOpen, onOpen, onClose } = useDisclosure();
@@ -124,7 +128,7 @@ const CreateModal = (props: CreateModalProps) => {
 				<DiscardButton
 					disabled={isLoading}
 					onClick={onModalClose}>
-					Discard
+					Cancel
 				</DiscardButton>
 			)}
 			<Button
@@ -134,7 +138,7 @@ const CreateModal = (props: CreateModalProps) => {
 				loading={isLoading}
 				loadingText='Processing'
 				spinnerPlacement='start'>
-				{prompt?.btnText || 'Confirm'}
+				{prompt?.btnText || (type === 'update' ? 'Save changes' : 'Create')}
 			</Button>
 		</>
 	);
@@ -149,12 +153,19 @@ const CreateModal = (props: CreateModalProps) => {
 				<form
 					onSubmit={handleSubmit}
 					onKeyDown={handleKeyDown}>
-					<DialogHeader>
-						{prompt?.title || title || `${type === 'update' ? 'Update' : 'Create'} ${path}`}
+					{/* The edit drawer's header: a tile, the record kind's name ("New customer" — not the
+					    route, which can be "projects2"), and a line under it when one is set. */}
+					<DialogHeader
+						divider
+						icon={<Plus size={18} strokeWidth={1.75} />}
+						description={prompt?.description || description || undefined}>
+						{prompt?.title || heading || title || `New ${nounOf(path)}`}
 					</DialogHeader>
-					<DialogCloseButton />
+					<DialogCloseButton top={{ base: 4, md: 5 }} />
 
-					<DialogBody px={{ base: 0, md: 6 }}>
+					<DialogBody
+						px={{ base: 0, md: 6 }}
+						pt={{ base: 4, md: 5 }}>
 						<ModalFormSection>
 							<FormMain
 								fields={data}

@@ -13,6 +13,7 @@ import StatusEditor from './StatusEditor';
 import { TableField } from './TableColumnsEditor';
 import { BULK_MENU_TYPES, ROW_MENU_TYPES } from './menuTypes';
 import { FieldLabel, Toggle } from './ui';
+import { singularOf } from '@/components/library/modals/CreateModal/CreateModal';
 
 /**
  * The table page's own config — the `route` block of a config file: its
@@ -37,6 +38,12 @@ const DEFAULT_ADD_BUTTON = { title: 'Add Item', isModal: true };
 export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code }) => {
 	const set = (patch: PageConfig) => onChange({ ...page, ...patch });
 	const hasAddButton = !!page.button || !!page.isModal;
+	// The form's heading and description live in the button's `prompt`; empty ones are dropped.
+	const setPrompt = (patch: Record<string, string>) => {
+		const prompt = Object.fromEntries(Object.entries({ ...page.button?.prompt, ...patch }).filter(([, v]) => v !== ''));
+		const { prompt: _old, ...button } = page.button || {};
+		set({ button: Object.keys(prompt).length ? { ...button, prompt } : button });
+	};
 	const toggleAddButton = (on: boolean) => {
 		if (on) set({ button: code?.button || DEFAULT_ADD_BUTTON, isModal: code?.isModal });
 		else {
@@ -131,6 +138,25 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 								</Text>
 							</Box>
 						)}
+						{/* The form's own header — in the pop-up and on the add page. */}
+						<Box gridColumn={{ md: 'span 1' }}>
+							<FieldLabel>Form heading</FieldLabel>
+							<Input
+								size='sm'
+								value={page.button?.prompt?.title || ''}
+								placeholder={`New ${singularOf(page.title || route)}`}
+								onChange={e => setPrompt({ title: e.target.value })}
+							/>
+						</Box>
+						<Box gridColumn={{ md: 'span 2' }}>
+							<FieldLabel>Form description</FieldLabel>
+							<Input
+								size='sm'
+								value={page.button?.prompt?.description || ''}
+								placeholder={page.subTitle || 'A short line under the heading — what to fill in, or why'}
+								onChange={e => setPrompt({ description: e.target.value })}
+							/>
+						</Box>
 					</Grid>
 				)}
 

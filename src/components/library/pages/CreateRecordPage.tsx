@@ -12,6 +12,7 @@ import { useCustomToast, useFormData } from '../hooks';
 import { useGetConfigQuery, useGetRouteQuery, usePostMutation } from '../store';
 import { EmptyState, PageHeader } from '../cl';
 import { HOME, pagePath } from '../config/lib/constants/panel';
+import { singularOf } from '../modals/CreateModal/CreateModal';
 
 /**
  * A table's "Add" button set to open a page (route builder → Table page →
@@ -129,7 +130,7 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 	const fields: any[] | undefined = Array.isArray(config?.form) ? config.form : undefined;
 
 	const tableTitle = table?.title || route;
-	const title = table?.button?.prompt?.title || table?.button?.title || 'Add a record';
+	const title = table?.button?.prompt?.title || (table?.title ? `New ${singularOf(table.title)}` : 'New record');
 
 	return (
 		<Wrap
@@ -166,7 +167,7 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 									{title}
 								</Flex>
 							}
-							meta={`Fill in the form and save — the new record is added to ${tableTitle}.`}
+							meta={table?.button?.prompt?.description || table?.subTitle || `Fill in the details and save — it’s added to ${tableTitle}.`}
 						/>
 					)}
 

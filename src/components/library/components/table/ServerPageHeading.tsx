@@ -10,6 +10,7 @@ import ImportDialog from './table-components/bulk/ImportRows';
 import { MenuContainer, MenuItem, MenuItemStyle } from '../../menu';
 import { buttonGroupCss, containerCss, headingCss, subHeadingCss, wrapperCss } from './style';
 import { BackendCreateModal } from '../../modals';
+import { singularOf } from '../../modals/CreateModal/CreateModal';
 import { Icon } from '../../icon';
 import { useIsMobile } from '../../hooks';
 import { radius, sizes } from '../../config';
@@ -111,6 +112,8 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					data={data}
 					invalidate={table?.invalidate}
 					prompt={table?.button?.prompt}
+					heading={title ? `New ${singularOf(title)}` : undefined}
+					description={table?.subTitle || (title ? `Fill in the details, then press Create — it’s added to ${title}.` : undefined)}
 				/>
 			);
 		else if (href) return <Link href={addButtonHref(href, path)}>{btn}</Link>;

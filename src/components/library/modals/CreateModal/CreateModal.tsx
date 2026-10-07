@@ -39,6 +39,14 @@ export const nounOf = (path?: string) => {
 	return words.replace(/s$/, '');
 };
 
+/** 'Customers' -> 'Customer', 'Categories' -> 'Category' — a page's title as one of its records, case kept. */
+export const singularOf = (title?: string) => {
+	const t = String(title || '').trim();
+	if (/ies$/i.test(t)) return t.replace(/ies$/i, m => (m === 'IES' ? 'Y' : 'y'));
+	if (/(ss|us|is)$/i.test(t)) return t;
+	return t.replace(/s$/i, '');
+};
+
 /** How a record is named in the header: its code and its name, when it has them. */
 export const recordLabel = (doc: any) => {
 	if (!doc || typeof doc !== 'object') return '';
@@ -409,7 +417,7 @@ const CreateModal = (props: CreateModalProps) => {
 						divider
 						icon={isUpdate ? <Pencil size={17} strokeWidth={1.75} /> : <Plus size={18} strokeWidth={1.75} />}
 						badge={isUpdate && <StatusPill value={record?.status} />}
-						description={subheading || undefined}>
+						description={subheading || prompt?.description || undefined}>
 						{heading}
 					</DialogHeader>
 					<DialogCloseButton top={{ base: 4, md: 5 }} />
