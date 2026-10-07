@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { Button, Flex, useDisclosure } from '@chakra-ui/react';
 import { Plus } from 'lucide-react';
 
@@ -22,6 +22,7 @@ import {
 
 import CreateModalProps from './types';
 import { nounOf } from './CreateModal';
+import { lockText, meets } from '../../functions/fieldLocks';
 import { styles } from '../../config';
 
 const CreateModal = (props: CreateModalProps) => {
@@ -70,6 +71,22 @@ const CreateModal = (props: CreateModalProps) => {
 			fetch({ path, id });
 		}
 	};
+
+	// Editing: a field the record's state has locked (settings `lockWhen` — a
+	// paid bill's status) shows read-only with the reason. The server refuses
+	// the change anyway; this says so before anyone tries.
+	const record = populate || prevData;
+	const fields = useMemo(
+		() =>
+			type === 'update' && record
+				? (data || []).map((f: any) =>
+						f?.lockWhen?.length && meets(record, f.lockWhen)
+							? { ...f, type: 'locked', helper: `Locked: can’t be changed once ${lockText(f.lockWhen)}` }
+							: f
+				  )
+				: data,
+		[data, record, type]
+	);
 
 	const { isSuccess, isLoading } = type === 'update' ? updateResult : result;
 
@@ -168,7 +185,7 @@ const CreateModal = (props: CreateModalProps) => {
 						pt={{ base: 4, md: 5 }}>
 						<ModalFormSection>
 							<FormMain
-								fields={data}
+								fields={fields}
 								formData={formData}
 								setFormData={setFormData}
 								setChangedData={setChangedData}

@@ -23,6 +23,7 @@ import { ModelField } from './filterTypes';
 import { Dropdown } from '@/components/library/cl';
 import { FieldInfo, checkFormula } from '@/components/library/functions/formula';
 import FormulaModal from './FormulaModal';
+import ConditionsEditor from './ConditionsEditor';
 import SectionFieldsModal from '@/app/model-builder/_components/SectionFieldsModal';
 import { dataModelOf, editableSection, isSectionInput, sectionFormulaInfo, withSection } from './sectionDataModel';
 import LinkedRecordsEditor, { RECORD_INPUTS } from './LinkedRecordsEditor';
@@ -227,6 +228,8 @@ type RowProps = {
 	schemaRev: number;
 	/** Every field's key and title — what a record picker's conditions can read. */
 	formFields: { key: string; title?: string }[];
+	/** The model's fields with their types and choices — what "Locked when" can test. */
+	lockFields: ModelField[];
 	actions: RowActions;
 };
 
@@ -312,6 +315,7 @@ const FieldRow = memo(function FieldRow({
 	formulaOk,
 	schemaRev,
 	formFields,
+	lockFields,
 	actions,
 }: RowProps) {
 	const [advanced, setAdvanced] = useState(false);
@@ -621,6 +625,25 @@ const FieldRow = memo(function FieldRow({
 						</Grid>
 					</Group>
 
+					{!system && !formula && (
+						<Group
+							title='Locked when'
+							hint={
+								f.edit
+									? 'It can be changed until the record meets these — then it keeps its value. A bill’s status: locked when status is one of void, paid.'
+									: 'Only matters while “Can be changed later” is on — now it can’t be changed at all.'
+							}>
+							<ConditionsEditor
+								fields={lockFields}
+								where={f.lockWhen || []}
+								disabled={locked}
+								onChange={w => actions.set(f.key, { lockWhen: w.length ? w : undefined })}
+								hint='Checked against the record as it’s saved, so the change that sets it to paid goes through and every change after it is refused. The edit form shows it locked.'
+								emptyHint='Never locked: it can always be changed (while “Can be changed later” is on).'
+							/>
+						</Group>
+					)}
+
 					<Group title='How it looks'>
 						<Grid
 							templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
@@ -843,6 +866,11 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 		[formFieldsKey]
 	);
 	const modelByKey = new Map(modelFields.map(f => [f.key, f]));
+	// What a field's "Locked when" can test: the model's own fields (stable, for the memoized rows).
+	const lockFields = useMemo(
+		() => modelFields.filter(f => !['_id', '__v'].includes(f.key) && !f.key.includes('.')),
+		[modelFields]
+	);
 	const restricted = ACCESS_FIELD_KEYS.every(k => modelByKey.has(k));
 	/** Generated and read-only. */
 	const locked = new Set(
@@ -1077,6 +1105,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, modelFields, readOnly, 
 						formulaOk={check?.ok}
 						schemaRev={isOpen ? schemaRev : 0}
 						formFields={formFields}
+						lockFields={lockFields}
 						actions={actions}
 					/>
 				);

@@ -91,6 +91,35 @@ const ReadOnlyInput = ({ item, isRequired, type, ...props }: any) => (
 	/>
 );
 
+/** A value as words: an option's label, a linked record's name, a list joined. */
+const shown = (v: any, item: any): string => {
+	if (v === null || v === undefined || v === '') return '—';
+	if (Array.isArray(v)) return v.map(x => shown(x, item)).join(', ') || '—';
+	if (typeof v === 'object') return String(v.name || v.title || v.label || v.code || v._id || '—');
+	if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+	const option = (item?.options || []).find((o: any) => String(o?.value ?? o) === String(v));
+	return String(option?.label ?? v);
+};
+
+/**
+ * A field the record's state has locked (settings: `lockWhen` — a paid bill's
+ * status). Its value, read-only, with the reason as the helper line.
+ */
+const LockedInput = ({ item, isRequired, label, value }: any) => (
+	<ViewOnly
+		label={label}
+		isRequired={isRequired}
+		helper={item?.helper}
+		value={shown(value, item)}
+		fontSize='sm'
+		px={3}
+		py={2}
+		borderRadius='md'
+		bg='bg.muted'
+		color='fg.muted'
+	/>
+);
+
 const PasswordInput = ({ item, isRequired, type: _type, ...props }: any) => (
 	<VPassword
 		isRequired={isRequired}
@@ -207,6 +236,18 @@ registerFieldType({
 	id: 'read-only',
 	family: 'text',
 	input: ReadOnlyInput,
+	changeMode: 'event',
+	emptyValue: () => '',
+	supportsInlineEdit: false,
+	table: { type: 'text', cell: NotYetImplementedCell },
+	view: { type: 'string', render: NotYetImplementedView, layout: 'inline' },
+	storage: 'string',
+});
+
+registerFieldType({
+	id: 'locked',
+	family: 'text',
+	input: LockedInput,
 	changeMode: 'event',
 	emptyValue: () => '',
 	supportsInlineEdit: false,
