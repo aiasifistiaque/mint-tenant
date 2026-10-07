@@ -8,6 +8,7 @@ import Panel from '../../../cl/Panel';
 import DataTable from '../../../cl/DataTable';
 import { DetailSkeleton } from '../../../cl/States';
 import ViewRow from './ViewRow';
+import { viewFieldsByKey } from './sections';
 import { cellNode } from './cells';
 import { pagePath, projectHref } from '../../../config/lib/constants/panel';
 
@@ -42,8 +43,7 @@ type Props = {
 const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) => {
 	if (!view) return <DetailSkeleton />;
 
-	const byKey: Record<string, any> = {};
-	(convertToViewFields({ schema }) || []).forEach((f: any) => (byKey[f.dataKey] = f));
+	const byKey = viewFieldsByKey(Object.keys(schema || {}), convertToViewFields({ schema }) || []);
 	const doc = view.doc;
 
 	const row = (field: any, key: string) => (

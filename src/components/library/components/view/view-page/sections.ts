@@ -78,3 +78,22 @@ export const formFieldsFromConfig = (form: any[]): { sectionTitle: string; field
 	});
 	return out;
 };
+
+/**
+ * View fields by the key a layout names them by. A layout says `project`, but
+ * a link field's view field reads `project.name` (its dataKey, from
+ * `tableKey`) — looking it up by dataKey alone found nothing, and the field
+ * silently vanished from the record page and drawer. `keys` are the schema
+ * keys `convertToViewFields` was given, in the same order; the dataKey is
+ * kept as a second way in.
+ */
+export const viewFieldsByKey = (keys: string[], viewFields: any[]): Record<string, any> => {
+	const out: Record<string, any> = {};
+	viewFields.forEach((field, i) => {
+		if (keys[i]) out[keys[i]] = field;
+	});
+	viewFields.forEach(field => {
+		if (field?.dataKey && !out[field.dataKey]) out[field.dataKey] = field;
+	});
+	return out;
+};

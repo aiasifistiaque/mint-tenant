@@ -3,7 +3,7 @@ import { Flex } from '@chakra-ui/react';
 import { useGetByIdQuery, convertToViewFields, getValue } from '../../../';
 import Panel from '../../../cl/Panel';
 import ViewRow from './ViewRow';
-import { buildViewSections, ViewSection } from './sections';
+import { buildViewSections, ViewSection, viewFieldsByKey } from './sections';
 
 type ViewPageBasicInfoProps = {
 	slug: string;
@@ -46,10 +46,11 @@ const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layou
 		? convertToViewFields({ schema, fields: module.fields })
 		: convertToViewFields({ schema });
 
-	const sections: ViewSection[] = buildViewSections(
-		module?.formFields,
-		viewFields.map((field: any) => field.dataKey)
-	);
+	// The schema keys the view fields came from, in the same order — what a
+	// form layout names them by (`project`, not its `project.name`).
+	const keys: string[] = module?.fields || Object.keys(schema || {});
+
+	const sections: ViewSection[] = buildViewSections(module?.formFields, keys);
 
 	const { data, isFetching } = useGetByIdQuery(
 		{
@@ -61,10 +62,7 @@ const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layou
 
 	// `convertToViewFields` has already resolved labels, types and lookups, so
 	// sections select from its output by key rather than re-deriving anything.
-	const byKey: Record<string, any> = {};
-	viewFields.forEach((field: any) => {
-		byKey[field.dataKey] = field;
-	});
+	const byKey = viewFieldsByKey(keys, viewFields);
 
 	const rows = (items: any[]) => (
 		<Flex
