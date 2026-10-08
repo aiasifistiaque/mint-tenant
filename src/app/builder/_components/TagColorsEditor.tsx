@@ -1,9 +1,9 @@
 'use client';
 
 import { FC } from 'react';
-import { Badge, Box, Button, Flex, Switch, Text } from '@chakra-ui/react';
+import { Box, Button, Flex, Switch, Text } from '@chakra-ui/react';
 import { RotateCcw } from 'lucide-react';
-import { TAG_PALETTES, choicesOf, defaultTagColor } from '@/components/library/functions/optionColors';
+import { StatusTag, TAG_PALETTES, choicesOf, defaultTagColor } from '@/components/library/functions/optionColors';
 
 /**
  * A choice field's coloured tags (settings `schema.colorTags`,
@@ -66,14 +66,8 @@ const TagColorsEditor: FC<Props> = ({ schema, enumValues, isBoolean, disabled, o
 								align='center'
 								gap={3}
 								flexWrap='wrap'>
-								<Box w='140px'>
-									<Badge
-										size='sm'
-										variant='subtle'
-										colorPalette={color}
-										textTransform='none'>
-										{String(o.label)}
-									</Badge>
+								<Box w='160px'>
+									<StatusTag color={color}>{String(o.label)}</StatusTag>
 								</Box>
 								<Flex
 									gap={1}

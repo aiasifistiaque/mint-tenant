@@ -1,7 +1,7 @@
 'use client';
 
 import { FC } from 'react';
-import { Badge, Flex } from '@chakra-ui/react';
+import { Box, Flex, Text } from '@chakra-ui/react';
 
 /**
  * Coloured tags for a choice field — a status, active / inactive, yes / no —
@@ -65,6 +65,51 @@ const labelFor = (value: any, field: any) => {
 	return String(value);
 };
 
+/**
+ * One status tag: a rounded pill tinted in its colour, with a coloured border,
+ * coloured text and a dot in front that draws the eye. Colours are each
+ * palette's `.fg` / `.subtle` — the theme maps gray and green `.solid` onto
+ * the brand black, so those can't be used for a real colour.
+ */
+export const StatusTag: FC<{ color: string; children: any; size?: 'xs' | 'sm' | 'md' }> = ({ color, children, size = 'sm' }) => {
+	const fg = color === 'gray' ? 'fg.muted' : `${color}.fg`;
+	const dims = size === 'md' ? { px: 3, h: '28px', fs: '13px', dot: '8px' } : size === 'xs' ? { px: 2, h: '20px', fs: '11px', dot: '6px' } : { px: 2.5, h: '24px', fs: '12px', dot: '7px' };
+	return (
+		<Flex
+			as='span'
+			display='inline-flex'
+			align='center'
+			gap={1.5}
+			h={dims.h}
+			px={dims.px}
+			borderRadius='full'
+			borderWidth='1.5px'
+			borderColor={fg}
+			bg={color === 'gray' ? 'bg.muted' : `${color}.subtle`}
+			maxW='full'
+			flexShrink={0}>
+			<Box
+				as='span'
+				flexShrink={0}
+				w={dims.dot}
+				h={dims.dot}
+				borderRadius='full'
+				bg={fg}
+			/>
+			<Text
+				as='span'
+				fontSize={dims.fs}
+				fontWeight='600'
+				lineHeight='1'
+				color={fg}
+				whiteSpace='nowrap'
+				truncate>
+				{children}
+			</Text>
+		</Flex>
+	);
+};
+
 /** The value (or each value of a list) as a coloured tag. Nothing for an empty value. */
 export const OptionTags: FC<{ value: any; field: any; size?: 'xs' | 'sm' | 'md' }> = ({ value, field, size = 'sm' }) => {
 	const values = (Array.isArray(value) ? value : [value]).filter(v => v !== undefined && v !== null && v !== '' && v !== '--');
@@ -76,14 +121,12 @@ export const OptionTags: FC<{ value: any; field: any; size?: 'xs' | 'sm' | 'md' 
 			gap={1.5}
 			flexWrap='wrap'>
 			{values.map((v, i) => (
-				<Badge
+				<StatusTag
 					key={`${String(v)}-${i}`}
 					size={size}
-					variant='subtle'
-					colorPalette={tagColorOf(v, field)}
-					textTransform='none'>
+					color={tagColorOf(v, field)}>
 					{labelFor(v, field)}
-				</Badge>
+				</StatusTag>
 			))}
 		</Flex>
 	);
