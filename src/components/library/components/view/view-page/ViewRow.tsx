@@ -7,6 +7,7 @@ import { renderViewItem as renderContent } from '../';
 import { SkeletonContent } from '../view-item/utils';
 import DetailRow from '../../../cl/DetailRow';
 import { linkFor } from '../utils/record-link/linked';
+import { Affixed, affixOf } from '../../../functions/affix';
 
 type ViewRowProps = {
 	field: any;
@@ -44,16 +45,21 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 	// looks like a rendering failure.
 	const isEmpty = value === null || value === undefined || value === '';
 
-	const rendered = renderContent({
-		type,
-		children: value,
-		colorPalette,
-		path: model || path,
-		originalType,
-		id,
-		link: !field.noLink && linkFor(field, doc),
-		dataModel: field.dataModel,
-	});
+	// Words around the value from the settings ("BDT 1,200") — typed, or another field of this record.
+	const rendered = (
+		<Affixed {...(isEmpty ? {} : affixOf(field.affix, doc))}>
+			{renderContent({
+				type,
+				children: value,
+				colorPalette,
+				path: model || path,
+				originalType,
+				id,
+				link: !field.noLink && linkFor(field, doc),
+				dataModel: field.dataModel,
+			})}
+		</Affixed>
+	);
 
 	// A password brings its own copy button, one that copies without revealing.
 	const copyButton = copy && value !== 'n/a' && type !== 'password' && (

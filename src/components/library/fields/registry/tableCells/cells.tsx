@@ -16,10 +16,13 @@ import SecretValue from '@/components/library/cl/SecretValue';
 const dateCss: any = { fontSize: { base: '1rem', md: '.8rem' } };
 const badgeCss: BadgeProps = { fontSize: '12px', size: 'xs' };
 
+/** The settings' words around a value and the field under it — for cells that don't pass their props on. */
+const dressOf = ({ affixBefore, affixAfter, subtitle }: any) => ({ affixBefore, affixAfter, subtitle });
+
 export const CheckboxCell = ({ children, item, ...props }: any) => {
 	const { colorMode } = useColorMode();
 	return (
-		<CustomTd>
+		<CustomTd {...dressOf(props)}>
 			<Align gap={2}>
 				<Flex
 					borderRadius='full'
@@ -47,6 +50,7 @@ export const CheckboxCell = ({ children, item, ...props }: any) => {
 
 export const TagCell = ({ children, colorPalette, ...props }: any) => (
 	<CustomTd
+		{...dressOf(props)}
 		flexWrap='wrap'
 		gap={2}>
 		{Array.isArray(children)

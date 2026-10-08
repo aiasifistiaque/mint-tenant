@@ -33,6 +33,8 @@ const createViewField = ({ key, field }: { key: string; field: any }): any => {
 		...(field?.dataModel && { dataModel: field.dataModel }),
 		// A section list's row fields, for its table.
 		...(field?.section?.dataModel && { dataModel: field.section.dataModel }),
+		// Words or another field's value before/after the value ("BDT 1,200").
+		...(field?.affix && { affix: field.affix }),
 	};
 };
 

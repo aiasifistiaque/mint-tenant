@@ -39,6 +39,7 @@ import FormRulesPanel, { RuleField, formRuleProblems } from './FormRulesPanel';
 import { viewProblems } from './ui';
 import SettingsEditor, { SettingsField } from './SettingsEditor';
 import GuidelinesEditor from './GuidelinesEditor';
+import ValueDisplayPanel from './ValueDisplayPanel';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
@@ -916,6 +917,14 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 					/>
 				)}
 
+				{hasSettings && (
+					<ValueDisplayPanel
+						fields={settingsWorking}
+						readOnly={settingsReadOnly}
+						onChange={setSettingsWorking}
+					/>
+				)}
+
 					</Flex>
 					)}
 					{tab === 'table' && (
@@ -1005,6 +1014,14 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						route={route}
 						code={codeConfig.route}
 						fields={tableFields}
+					/>
+				)}
+
+				{isGeneric && hasSettings && (
+					<ValueDisplayPanel
+						fields={settingsWorking}
+						readOnly={settingsReadOnly}
+						onChange={setSettingsWorking}
 					/>
 				)}
 

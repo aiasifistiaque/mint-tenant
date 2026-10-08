@@ -15,6 +15,7 @@ import { useIsCardView } from '../../../../hooks';
 
 import { formatDataKey, formatFieldTitle } from '../../../../functions';
 import { Column } from '../../../../containers';
+import { affixOf, fieldText } from '../../../../functions/affix';
 
 type TableProps = StackProps &
 	TableRowProps & {
@@ -66,6 +67,8 @@ const TableRowComponent: FC<TableProps> = ({
 					colorTheme,
 					copy,
 					bold,
+					affix,
+					subtitle,
 				} = val;
 				// A column is keyed by its dataKey, but not every column has one —
 				// the menu column is defined by `type` alone, so `key={dataKey}`
@@ -81,6 +84,16 @@ const TableRowComponent: FC<TableProps> = ({
 					keys && keys?.length > 1
 						? keys?.reduce((o: any, k: any) => (o && o[k] ? o[k] : undefined), item)
 						: item[dataKey];
+
+				// Words around the value (settings `affix`) and a second field under it
+				// (`subtitle`), for this row. An empty value gets neither words.
+				const filled = value !== null && value !== undefined && value !== '';
+				const words = affix && filled ? affixOf(affix, item) : null;
+				const dress = {
+					...(words?.before && { affixBefore: words.before }),
+					...(words?.after && { affixAfter: words.after }),
+					...(subtitle && fieldText(item, subtitle) && { subtitle: fieldText(item, subtitle) }),
+				};
 
 				// If the type is 'menu', return a TableMenu component
 				if (type == 'menu')
@@ -171,7 +184,8 @@ const TableRowComponent: FC<TableProps> = ({
 							// history sentence) have to reach other fields on the same row.
 							doc={item}
 							tagType={tagType}
-							imageKey={item[imageKey]}>
+							imageKey={item[imageKey]}
+							{...dress}>
 							{value}
 						</TableData>
 					</Container>

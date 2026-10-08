@@ -12,6 +12,7 @@ import {
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 
 import { useIsCardView, Column, PLACEHOLDER_IMAGE, TableDataProps, theme } from '../../../..';
+import { Affixed } from '../../../../functions/affix';
 
 const { TABLE } = theme;
 
@@ -39,7 +40,18 @@ const External = ({ children, text, type }: any) => {
 	return <>{children}</>;
 };
 
-const CustomTd: FC<TableDataProps> = ({ children, src, type, heading, editable, ...props }) => {
+const CustomTd: FC<TableDataProps & { affixBefore?: string; affixAfter?: string; subtitle?: string }> = ({
+	children,
+	src,
+	type,
+	heading,
+	editable,
+	// Settings `affix` / `subtitle`, as words for this row (TableRowComponent).
+	affixBefore,
+	affixAfter,
+	subtitle,
+	...props
+}) => {
 	const isCardView = useIsCardView();
 
 	const text = children;
@@ -83,6 +95,10 @@ const CustomTd: FC<TableDataProps> = ({ children, src, type, heading, editable, 
 				)}
 
 				{isCardView && heading && <Heading size='xs'>{heading}</Heading>}
+				<Affixed
+					before={affixBefore}
+					after={affixAfter}
+					below={subtitle}>
 				<External
 					text={text}
 					type={type}>
@@ -109,6 +125,7 @@ const CustomTd: FC<TableDataProps> = ({ children, src, type, heading, editable, 
 						</TextContainer>
 					)}
 				</External>
+				</Affixed>
 			</Container>
 		</>
 	);

@@ -40,6 +40,9 @@ const createTableField = ({ key, field }: { key: string; field: any }): any => {
 		// `??`, not `||`: an explicit `bold: false` has to survive, and that is
 		// the documented way for a model to opt its name column out.
 		...((field?.bold ?? key === 'name') && { bold: true }),
+		// Words around the value, and a second field in small type under it.
+		...(field?.affix && { affix: field.affix }),
+		...(field?.subtitle && { subtitle: field.subtitle }),
 	};
 };
 
