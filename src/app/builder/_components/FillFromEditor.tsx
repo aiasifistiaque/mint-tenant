@@ -1,7 +1,7 @@
 'use client';
 
-import { FC } from 'react';
-import { Box, Flex, Grid, Input, Text } from '@chakra-ui/react';
+import { FC, useState } from 'react';
+import { Box, Flex, Grid, Input, Switch, Text } from '@chakra-ui/react';
 import { useGetConfigQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { FieldInfo, checkFormula } from '@/components/library/functions/formula';
@@ -11,7 +11,8 @@ import { FieldInfo, checkFormula } from '@/components/library/functions/formula'
  * amount from the bill picked on the same form — one of the bill's fields, or
  * a formula over them (`total - paid`). The form fills it when a bill is
  * picked and it stays editable; on create the server fills it when it was
- * left empty (linkedFill.function).
+ * left empty (linkedFill.function). Off until its switch is turned on — most
+ * fields are just typed in.
  */
 
 export type PickerField = { key: string; title?: string; picker?: string };
@@ -29,6 +30,8 @@ const FORMULA = '__formula__';
 const SENSITIVE = /pass(word)?|token|secret|api_?key|apikey|private|otp|salt|hash/i;
 
 const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, onChange }) => {
+	const [open, setOpen] = useState(!!fillFrom);
+	const on = open || !!fillFrom;
 	const pickers = formFields.filter(f => f.picker && f.key !== fieldKey);
 	const from = fillFrom?.from || '';
 	const route = pickers.find(p => p.key === from)?.picker || '';
@@ -43,19 +46,44 @@ const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, o
 	const check = mode === FORMULA && formula.trim() ? checkFormula(formula, info) : null;
 	const fromLabel = pickers.find(p => p.key === from)?.title || from;
 
+	const toggle = (
+		<Switch.Root
+			size='sm'
+			checked={on}
+			disabled={disabled}
+			onCheckedChange={e => {
+				setOpen(e.checked);
+				if (!e.checked) onChange(undefined);
+			}}>
+			<Switch.HiddenInput />
+			<Switch.Control>
+				<Switch.Thumb />
+			</Switch.Control>
+			<Switch.Label fontSize='xs'>Fill this from a linked record</Switch.Label>
+		</Switch.Root>
+	);
+
+	if (!on) return toggle;
+
 	if (!pickers.length)
 		return (
-			<Text
-				fontSize='xs'
-				color='fg.muted'>
-				This record has no field that picks another record — add one (a bill, a client) to fill this from it.
-			</Text>
+			<Flex
+				direction='column'
+				gap={2}>
+				{toggle}
+				<Text
+					fontSize='xs'
+					color='fg.muted'>
+					This record has no field that picks another record — add one (a bill, a client) to fill this from it.
+				</Text>
+			</Flex>
 		);
 
 	return (
 		<Flex
 			direction='column'
 			gap={2}>
+			{toggle}
 			<Grid
 				templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
 				gap={3}>

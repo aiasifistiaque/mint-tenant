@@ -484,24 +484,33 @@ const FieldRow = memo(function FieldRow({
 							</Text>
 						</Button>
 					) : formula ? (
-						<Button
-							size='xs'
-							variant='outline'
-							w='full'
-							justifyContent='flex-start'
-							disabled={readOnly}
-							borderColor={formula.ok ? undefined : 'red.solid'}
-							color={formula.ok ? undefined : 'red.fg'}
-							title={formula.title}
-							onClick={() => actions.editFormula(f.key)}>
-							<Calculator size={12} />
-							<Text
-								as='span'
-								fontFamily='mono'
-								truncate>
-								{formula.label}
-							</Text>
-						</Button>
+						// Still a dropdown, so another input can be picked; the button beside it edits the formula.
+						<Flex gap={1}>
+							<Box
+								flex='1'
+								minW={0}>
+								<Dropdown
+									size='xs'
+									disabled={locked}
+									title='Calculated — pick another input to type it in instead'
+									value='formula'
+									onChange={v => (v === 'formula' ? actions.editFormula(f.key) : actions.pickInput(f.key, v))}>
+									<option value=''>{`${inputLabel(inputOf({ type: f.type }))} (automatic)`}</option>
+									{inputOptions(f.schema?.type)}
+								</Dropdown>
+							</Box>
+							<IconButton
+								size='xs'
+								variant='outline'
+								disabled={readOnly}
+								borderColor={formula.ok ? undefined : 'red.solid'}
+								color={formula.ok ? undefined : 'red.fg'}
+								title={`${formula.title}: ${formula.label}`}
+								aria-label={formula.title}
+								onClick={() => actions.editFormula(f.key)}>
+								<Calculator size={12} />
+							</IconButton>
+						</Flex>
 					) : (
 						<Dropdown
 							size='xs'
@@ -992,6 +1001,8 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 		const data = INPUTS.find(i => i.value === input)?.data;
 		if (input === 'formula') {
 			// Calculated, never typed: a number, not editable, not required.
+			// Cancelling the formula window straight away puts the field back as it was.
+			if (f.schema?.type !== 'formula') setFormulaUndo({ key, type: f.type, edit: f.edit, required: f.required, schema: f.schema });
 			set(key, {
 				type: 'number',
 				edit: undefined,
@@ -1040,6 +1051,8 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 
 	// Formula fields: what a formula may use, and which field's formula is being edited.
 	const [formulaFor, setFormulaFor] = useState<string | null>(null);
+	// The field as it was before Formula was picked, until a formula is saved.
+	const [formulaUndo, setFormulaUndo] = useState<{ key: string; type?: string; edit?: any; required?: any; schema?: any } | null>(null);
 	const formulaInfo: FieldInfo[] = shown.flatMap((f): FieldInfo[] => {
 		// A list is used through sum() / avg() / count(); a section's values as `billing.fee`.
 		const inside = sectionFormulaInfo(f);
@@ -1307,13 +1320,22 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 
 			<FormulaModal
 				isOpen={!!formulaField}
-				onClose={() => setFormulaFor(null)}
+				onClose={() => {
+					if (formulaUndo && formulaUndo.key === formulaFor) {
+						const { key, ...was } = formulaUndo;
+						onChange(fields.map(f => (f.key === key ? clean({ ...f, ...was }) : f)));
+						setSchemaRev(r => r + 1);
+					}
+					setFormulaUndo(null);
+					setFormulaFor(null);
+				}}
 				fieldKey={formulaField?.key || ''}
 				fieldTitle={formulaField?.title}
 				formula={formulaField?.schema?.formula || ''}
 				fields={formulaInfo}
 				onSave={formula => {
 					if (formulaField) setSchema(formulaField.key, { formula });
+					setFormulaUndo(null);
 					setFormulaFor(null);
 				}}
 			/>
