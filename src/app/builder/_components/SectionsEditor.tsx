@@ -1,7 +1,7 @@
 'use client';
 
 import { DragEvent, FC, ReactNode, useState } from 'react';
-import { Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
+import { Box, Button, Flex, IconButton, Input, Switch, Text } from '@chakra-ui/react';
 import { GripVertical, Link2, List, Plus, Trash2, X } from 'lucide-react';
 import { radius, useGetBuilderModelFieldsQuery } from '@/components/library';
 import { TableField } from './TableColumnsEditor';
@@ -409,6 +409,25 @@ const SectionsEditor: FC<Props> = props => {
 									<option value='2'>2 columns</option>
 									<option value='3'>3 columns</option>
 								</Select>
+							)}
+							{!isForm && (
+								// A "Copy details" button on the section: its fields as "Title: value" lines.
+								<Switch.Root
+									size='sm'
+									checked={!!section.extra?.copy}
+									onCheckedChange={e => {
+										const { copy: _c, ...rest } = section.extra || {};
+										setSection(si, { extra: e.checked ? { ...rest, copy: true } : rest });
+									}}
+									title='Show a “Copy details” button on this section — its fields as text, one “Title: value” per line'>
+									<Switch.HiddenInput />
+									<Switch.Control />
+									<Switch.Label
+										fontSize='xs'
+										whiteSpace='nowrap'>
+										Copy button
+									</Switch.Label>
+								</Switch.Root>
 							)}
 							<IconButton
 								size='xs'

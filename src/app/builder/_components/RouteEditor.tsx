@@ -40,6 +40,7 @@ import { viewProblems } from './ui';
 import SettingsEditor, { SettingsField } from './SettingsEditor';
 import GuidelinesEditor from './GuidelinesEditor';
 import ValueDisplayPanel from './ValueDisplayPanel';
+import ViewSectionRulesPanel, { viewSectionProblems } from './ViewSectionRulesPanel';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
@@ -228,6 +229,18 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 	// The settings being edited, not the published ones — a field added in the
 	// Settings panel can be a column straight away.
 	const settingsFields: any[] = settingsWorking;
+	const ruleFieldOf = (f: SettingsField): RuleField => ({
+		key: f.key,
+		label: f.schema?.label || f.title,
+		input: f.schema?.type,
+		type: f.type,
+		options: Array.isArray(f.schema?.options) ? f.schema.options : undefined,
+		required: !!f.required,
+		// A record picker's linked route: its conditions pick records by name.
+		route: typeof f.schema?.model === 'string' ? f.schema.model : undefined,
+	});
+	// The record page's conditions can test any field the record has.
+	const viewRuleFields: RuleField[] = settingsWorking.filter(f => !f.exclude).map(ruleFieldOf);
 	const ruleFields: RuleField[] = (() => {
 		const inForm = new Set<string>(
 			(working.rest.form || []).flatMap((sec: any) => (sec.fields || []).flat()).filter((k: any) => typeof k === 'string')
@@ -304,7 +317,12 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 			toaster.create({ title: 'A conditional field is incomplete', description: fp.join(' · '), type: 'error' });
 			return false;
 		}
-		const vp = [...viewProblems(working.rest.view), ...tabProblems(working.rest.viewTabs)];
+		const vp = [
+			...viewProblems(working.rest.view),
+			...tabProblems(working.rest.viewTabs),
+			...viewSectionProblems(working.rest.view, viewRuleFields),
+			...formRuleProblems(working.rest.viewRules, viewRuleFields),
+		];
 		if (vp.length) {
 			goTo('view');
 			toaster.create({ title: 'The view is incomplete', description: vp.join(' · '), type: 'error' });
@@ -620,6 +638,27 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				routes={routeOptions}
 				model={data.model}
 			/>
+			{viewSections.length > 0 && (
+				<ViewSectionRulesPanel
+					sections={viewSections}
+					fields={viewRuleFields}
+					onChange={view => setRest({ view })}
+				/>
+			)}
+			{viewSections.length > 0 && (
+				<FormRulesPanel
+					forView
+					rules={working.rest.viewRules || {}}
+					fields={viewRuleFields}
+					onChange={viewRules => {
+						if (viewRules) setRest({ viewRules });
+						else {
+							const { viewRules: _removed, ...rest } = working.rest;
+							setWorking(w => ({ ...w, rest }));
+						}
+					}}
+				/>
+			)}
 			<ViewTabsEditor
 				tabs={viewTabs}
 				onChange={tabs => {

@@ -10,6 +10,7 @@ import { DetailSkeleton } from '../../../cl/States';
 import ViewRow from './ViewRow';
 import { viewFieldsByKey } from './sections';
 import { cellNode } from './cells';
+import CopyDetails, { DetailLine, detailLine } from './CopyDetails';
 import { pagePath, projectHref } from '../../../config/lib/constants/panel';
 
 /**
@@ -68,11 +69,16 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 				const inline: ReactElement[] = [];
 				const blocks: ReactElement[] = [];
 				const tables: ReactElement[] = [];
+				// The section's own fields as "Title: value" lines, for its Copy details button.
+				const lines: (DetailLine | null)[] = [];
+				const valueOf = (field: any) => doc && getValue({ dataKey: field.dataKey, type: field.type, data: doc });
 
 				section.items.forEach((item: any, ii: number) => {
 					if (item.kind === 'field') {
 						const field = byKey[item.key];
 						if (!field) return;
+						if (section.copy && !['editor', 'file', 'file-array'].includes(field.type))
+							lines.push(detailLine(field, valueOf(field), doc));
 						if (BLOCK_TYPES.includes(field.type))
 							blocks.push(
 								<Panel
@@ -94,19 +100,16 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 					if (item.kind === 'ref') {
 						// The first field names the record, as a link to it ("Owner: Jane");
 						// the rest read as plain rows ("Owner · Email").
-						item.fields.forEach((f: any, fi: number) =>
-							inline.push(
-								row(
-									{
-										title: fi ? `${item.label} · ${f.label}` : item.label,
-										dataKey: f.key,
-										type: typeFromInstance(f.instance),
-										...(fi ? { noLink: true } : { model: item.route }),
-									},
-									`r-${ii}-${fi}`
-								)
-							)
-						);
+						item.fields.forEach((f: any, fi: number) => {
+							const field = {
+								title: fi ? `${item.label} · ${f.label}` : item.label,
+								dataKey: f.key,
+								type: typeFromInstance(f.instance),
+								...(fi ? { noLink: true } : { model: item.route }),
+							};
+							if (section.copy) lines.push(detailLine(field, valueOf(field), doc));
+							inline.push(row(field, `r-${ii}-${fi}`));
+						});
 						return;
 					}
 
@@ -165,7 +168,8 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 						{!!inline.length && (
 							<Panel
 								title={section.title || undefined}
-								subtitle={section.description || undefined}>
+								subtitle={section.description || undefined}
+								actions={section.copy && !isLoading ? <CopyDetails lines={lines} /> : undefined}>
 								<Grid
 									templateColumns={
 										compact ? '1fr' : { base: '1fr', md: `repeat(${section.columns || 1}, minmax(0, 1fr))` }

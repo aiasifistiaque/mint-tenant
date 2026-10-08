@@ -42,6 +42,8 @@ type Props = {
 	fields: RuleField[];
 	/** Rules from the settings' renderIf, shown until replaced here. */
 	inherited?: Rules;
+	/** The record page's rules (config viewRules) rather than the form's: its own words, no "required". */
+	forView?: boolean;
 };
 
 const ICON = { size: 14, strokeWidth: 1.75 };
@@ -51,7 +53,7 @@ const BOOL_INPUTS = ['switch', 'checkbox'];
 const NUMBER_INPUTS = ['number', 'formula', 'slider'];
 const RECORD_INPUTS = ['data-menu', 'data-select', 'data-tag', 'nested-data-menu'];
 
-const kindOf = (f?: RuleField): Kind => {
+export const kindOf = (f?: RuleField): Kind => {
 	if (!f) return 'text';
 	if (BOOL_INPUTS.includes(f.input || '') || f.type === 'boolean') return 'bool';
 	if (f.options?.length) return 'choice';
@@ -74,7 +76,7 @@ const OP_LABEL: Record<Operator, string> = {
 	true: 'is on',
 	false: 'is off',
 };
-const OPS_BY_KIND: Record<Kind, Operator[]> = {
+export const OPS_BY_KIND: Record<Kind, Operator[]> = {
 	bool: ['true', 'false'],
 	choice: ['eq', 'neq', 'in', 'notIn', 'empty', 'notEmpty'],
 	number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'empty', 'notEmpty'],
@@ -86,7 +88,7 @@ const LIST_VALUE: Operator[] = ['in', 'notIn'];
 
 /** The editable shape of a rule: all/any of a flat list of conditions — or not editable here (nested groups). */
 type UiRule = { mode: 'all' | 'any'; conditions: Condition[] } | null;
-const toUi = (rule: Rule): UiRule => {
+export const toUi = (rule: Rule): UiRule => {
 	if ('all' in rule || 'any' in rule) {
 		const list = 'all' in rule ? rule.all : (rule as any).any;
 		if (list.every((r: Rule) => !('all' in r) && !('any' in r))) return { mode: 'all' in rule ? 'all' : 'any', conditions: list as Condition[] };
@@ -94,10 +96,10 @@ const toUi = (rule: Rule): UiRule => {
 	}
 	return { mode: 'all', conditions: [rule as Condition] };
 };
-const fromUi = (ui: { mode: 'all' | 'any'; conditions: Condition[] }): Rule =>
+export const fromUi = (ui: { mode: 'all' | 'any'; conditions: Condition[] }): Rule =>
 	ui.conditions.length === 1 ? ui.conditions[0] : ui.mode === 'all' ? { all: ui.conditions } : { any: ui.conditions };
 
-const conditionProblem = (c: Condition, byKey: Map<string, RuleField>) => {
+export const conditionProblem = (c: Condition, byKey: Map<string, RuleField>) => {
 	if (!c.field) return 'Pick a field';
 	if (!byKey.has(c.field)) return `“${c.field}” isn't in the form`;
 	if (NO_VALUE.includes(c.operator)) return '';
@@ -308,7 +310,7 @@ export const RuleConditions: FC<{
 		</Flex>
 );
 
-const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {} }) => {
+const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {}, forView }) => {
 	const byKey = new Map(fields.map(f => [f.key, f]));
 	const labelOf = (k: string) => byKey.get(k)?.label || k;
 	const optionLabel = (k: string, v: any) => {
@@ -341,11 +343,15 @@ const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {} }) 
 				<ToneTitle
 					icon={Split}
 					palette='orange'>
-					Fields that show only when needed
+					{forView ? 'Fields shown only when needed' : 'Fields that show only when needed'}
 				</ToneTitle>
 			}
-			subtitle='Show a field only when others hold certain values — e.g. “Reason” only when Status is Cancelled. A hidden field counts as empty, so anything that depends on it hides too.'
-			actions={<DocLink section='form' />}>
+			subtitle={
+				forView
+					? 'On the record page and quick view, show a field only when the record holds certain values — “Bank name” only when Method is Bank transfer, “Refund note” only when Status is Refunded. It’s only hidden from view; the value stays.'
+					: 'Show a field only when others hold certain values — e.g. “Reason” only when Status is Cancelled. A hidden field counts as empty, so anything that depends on it hides too.'
+			}
+			actions={<DocLink section={forView ? 'view-visibility' : 'form'} />}>
 			<Flex
 				direction='column'
 				gap={3}>
@@ -394,7 +400,7 @@ const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {} }) 
 										from settings
 									</Badge>
 								)}
-								{field?.required && (
+								{field?.required && !forView && (
 									<Badge
 										size='sm'
 										variant='subtle'
