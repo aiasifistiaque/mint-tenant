@@ -67,7 +67,7 @@ const labelFor = (value: any, field: any) => {
 
 /**
  * One status tag: a rounded pill tinted in its colour, with a coloured border,
- * coloured text and a dot in front that draws the eye. Colours are each
+ * coloured text in capitals and a dot in front that draws the eye. Colours are each
  * palette's `.fg` / `.subtle` — the theme maps gray and green `.solid` onto
  * the brand black, so those can't be used for a real colour.
  */
@@ -101,6 +101,8 @@ export const StatusTag: FC<{ color: string; children: any; size?: 'xs' | 'sm' | 
 				fontSize={dims.fs}
 				fontWeight='600'
 				lineHeight='1'
+				textTransform='uppercase'
+				letterSpacing='0.04em'
 				color={fg}
 				whiteSpace='nowrap'
 				truncate>
