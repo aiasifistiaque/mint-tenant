@@ -28,6 +28,8 @@ import { styles } from '../../config';
 import CreateModalProps from './types';
 import { withoutHidden } from '../../functions/formRules';
 import { mutedForUpdate } from '../../functions/fieldLocks';
+import { useGetRouteQuery } from '../../store/services/commonApi';
+import { GuidelinesDialog, GuidelinesLink } from '../../components/guidelines/Guidelines';
 
 /** 'invoice-items' -> 'invoice item', for "Edit invoice item". */
 export const nounOf = (path?: string) => {
@@ -232,6 +234,9 @@ const CreateModal = (props: CreateModalProps) => {
 	const [updateApi, updateResult] = useUpdateByIdMutation();
 
 	const [schema, setSchema] = useState<any>([]);
+	// The page's user guidelines ("a void invoice can't be reversed"), a link above the form.
+	const { data: pageRoute } = useGetRouteQuery(path, { skip: !isOpen || !path });
+	const [showGuidelines, setShowGuidelines] = useState(false);
 
 	const { data: schemaData, isFetching: schemaLoading } = useGetSchemaQuery(path, {
 		skip: !layout,
@@ -427,6 +432,19 @@ const CreateModal = (props: CreateModalProps) => {
 					<DialogCloseButton top={{ base: 4, md: 5 }} />
 
 					<DialogBody pt={{ base: 4, md: 5 }}>
+						{pageRoute?.guidelines && (
+							<Flex mb={4}>
+								<GuidelinesLink
+									guidelines={pageRoute.guidelines}
+									onOpen={() => setShowGuidelines(true)}
+								/>
+							</Flex>
+						)}
+						<GuidelinesDialog
+							open={showGuidelines}
+							onClose={() => setShowGuidelines(false)}
+							guidelines={pageRoute?.guidelines}
+						/>
 						<ModalFormSection>
 							{loadingRecord ? (
 								<FormSkeleton />

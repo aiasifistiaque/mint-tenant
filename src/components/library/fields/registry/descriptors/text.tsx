@@ -13,6 +13,7 @@ import {
 	VEditor,
 } from '@/components/library/utils/inputs';
 import { registerFieldType } from '../registry';
+import { useGetAllQuery, useGetByIdQuery } from '@/components/library/store/services/commonApi';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
 
 const StringInput = ({ item, isRequired, ...props }: any) => (
@@ -82,37 +83,56 @@ const SlugInput = ({ item, isRequired, type, ...props }: any) => (
 );
 
 /** A value as words: an option's label, a linked record's name, a list joined. */
-const shown = (v: any, item: any): string => {
+const shown = (v: any, item: any, names: Record<string, string> = {}): string => {
 	if (v === null || v === undefined || v === '') return '—';
-	if (Array.isArray(v)) return v.map(x => shown(x, item)).join(', ') || '—';
+	if (Array.isArray(v)) return v.map(x => shown(x, item, names)).join(', ') || '—';
 	if (typeof v === 'object') return String(v.name || v.title || v.label || v.code || v._id || '—');
 	if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+	if (names[String(v)]) return names[String(v)];
 	const option = (item?.options || []).find((o: any) => String(o?.value ?? o) === String(v));
 	return String(option?.label ?? v);
 };
 
+const ID = /^[a-f\d]{24}$/i;
+const nameOf = (doc: any) => doc && String(doc.name || doc.title || doc.label || doc.code || doc._id);
+
+/**
+ * A linked field's value is the record's id in the form; the muted box shows
+ * its name instead — from the record as loaded (when it came populated), else
+ * looked up: one record by id, several from the linked list.
+ */
+const useLinkedNames = (value: any, item: any, model?: string): Record<string, string> => {
+	const path = model || item?.model || '';
+	const ids: string[] = (Array.isArray(value) ? value : [value]).filter((v: any) => typeof v === 'string' && ID.test(v));
+	const known: Record<string, string> = {};
+	for (const r of [].concat(item?.recordValue ?? [])) if (r && typeof r === 'object' && (r as any)._id) known[String((r as any)._id)] = nameOf(r);
+	const missing = ids.filter(id => !known[id]);
+	const single = !Array.isArray(value) && missing.length === 1;
+	const { data: doc } = useGetByIdQuery({ path, id: missing[0] }, { skip: !path || !single });
+	const { data: list } = useGetAllQuery({ path, limit: '999', sort: 'name' }, { skip: !path || !missing.length || single });
+	if (single && doc?._id) known[String(doc._id)] = nameOf(doc);
+	for (const r of list?.doc || []) if (missing.includes(String(r?._id))) known[String(r._id)] = nameOf(r);
+	return known;
+};
+
 // Muted like every field that can't be typed in (VMuted).
-const ReadOnlyInput = ({ item, isRequired, label, value }: any) => (
-	<VMuted
-		label={label}
-		isRequired={isRequired}
-		helper={item?.helper}
-		value={shown(value, item)}
-	/>
-);
+const ReadOnlyInput = ({ item, isRequired, label, value, model }: any) => {
+	const names = useLinkedNames(value, item, model);
+	return (
+		<VMuted
+			label={label}
+			isRequired={isRequired}
+			helper={item?.helper}
+			value={shown(value, item, names)}
+		/>
+	);
+};
 
 /**
  * A field the record's state has locked (settings: `lockWhen` — a paid bill's
  * status). Its value, read-only, with the reason as the helper line.
  */
-const LockedInput = ({ item, isRequired, label, value }: any) => (
-	<VMuted
-		label={label}
-		isRequired={isRequired}
-		helper={item?.helper}
-		value={shown(value, item)}
-	/>
-);
+const LockedInput = ReadOnlyInput;
 
 const PasswordInput = ({ item, isRequired, type: _type, ...props }: any) => (
 	<VPassword

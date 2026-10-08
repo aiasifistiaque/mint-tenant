@@ -13,6 +13,7 @@ import { useGetConfigQuery, useGetRouteQuery, usePostMutation } from '../store';
 import { EmptyState, PageHeader } from '../cl';
 import { HOME, pagePath } from '../config/lib/constants/panel';
 import { singularOf } from '../modals/CreateModal/CreateModal';
+import { GuidelinesDialog, GuidelinesLink } from '../components/guidelines/Guidelines';
 
 /**
  * A table's "Add" button set to open a page (route builder → Table page →
@@ -129,6 +130,7 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 	const loading = tableLoading || configLoading;
 	const fields: any[] | undefined = Array.isArray(config?.form) ? config.form : undefined;
 
+	const [showGuidelines, setShowGuidelines] = useState(false);
 	const tableTitle = table?.title || route;
 	const title = table?.button?.prompt?.title || (table?.title ? `New ${singularOf(table.title)}` : 'New record');
 
@@ -170,6 +172,19 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 							meta={table?.button?.prompt?.description || table?.subTitle || `Fill in the details and save — it’s added to ${tableTitle}.`}
 						/>
 					)}
+					{!loading && table?.guidelines && (
+						<Flex mt={-2}>
+							<GuidelinesLink
+								guidelines={table.guidelines}
+								onOpen={() => setShowGuidelines(true)}
+							/>
+						</Flex>
+					)}
+					<GuidelinesDialog
+						open={showGuidelines}
+						onClose={() => setShowGuidelines(false)}
+						guidelines={table?.guidelines}
+					/>
 
 					{loading ? (
 						<Skeleton

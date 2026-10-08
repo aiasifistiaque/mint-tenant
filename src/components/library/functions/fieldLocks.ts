@@ -159,9 +159,18 @@ const SHOWN_MUTED = new Set(['formula', 'rollup', 'read-only', 'locked', 'view-o
 export const mutedForUpdate = (fields: any[] = [], record: any): any[] =>
 	(fields || []).map((f: any) => {
 		if (!f || !record || SHOWN_MUTED.has(f.type)) return f;
-		if (f.lockWhen?.length && meets(record, f.lockWhen, f.lockMatch))
-			return { ...f, type: 'locked', helper: `Locked: can’t be changed once ${lockText(f.lockWhen, f.lockMatch)}` };
-		if (f.noEdit && PLAIN.has(f.type)) return { ...f, type: 'locked', helper: f.helper || 'Can’t be changed after it’s created.' };
+		// The record as loaded: a linked field may come populated, so the box can show its name.
+		const recordValue = get(record, f.name);
+		const helper =
+			f.lockWhen?.length && meets(record, f.lockWhen, f.lockMatch)
+				? `Locked: can’t be changed once ${lockText(f.lockWhen, f.lockMatch)}`
+				: f.noEdit
+				? f.helper || 'Can’t be changed after it’s created.'
+				: '';
+		if (!helper) return f;
+		if (PLAIN.has(f.type)) return { ...f, type: 'locked', recordValue, helper };
+		// A richer input (a section list, a section) keeps its look, without add, edit or delete.
+		return { ...f, locked: true, helper };
 		return f;
 	});
 

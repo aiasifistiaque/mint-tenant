@@ -21,9 +21,11 @@ type Props = {
 	isRequired?: boolean;
 	helper?: string;
 	dataModel?: any[];
+	/** Can't be changed (locked, or not after it's created): its fields show muted. */
+	locked?: boolean;
 };
 
-const VSectionObject: FC<Props> = ({ name, label, value, onChange, isRequired, helper, dataModel = [] }) => {
+const VSectionObject: FC<Props> = ({ name, label, value, onChange, isRequired, helper, dataModel = [], locked }) => {
 	// The latest object, so two changes in one tick both land.
 	const latest = useRef<any>(value || {});
 	latest.current = value && typeof value === 'object' ? value : {};
@@ -73,7 +75,7 @@ const VSectionObject: FC<Props> = ({ name, label, value, onChange, isRequired, h
 								isRequired={item.isRequired || false}
 								name={item.name}
 								label={item.label}
-								type={item.type}
+								type={locked ? 'read-only' : item.type}
 								value={latest.current?.[item.name] ?? (item.type === 'checkbox' ? false : '')}
 								onChange={getOnChangeHandler({
 									type: item.type,
@@ -83,7 +85,7 @@ const VSectionObject: FC<Props> = ({ name, label, value, onChange, isRequired, h
 									setChangedData,
 								})}
 								options={item.options}
-								item={item}
+								item={locked ? { ...item, helper: undefined } : item}
 							/>
 						</Box>
 					))}

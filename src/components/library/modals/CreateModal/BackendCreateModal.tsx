@@ -24,6 +24,8 @@ import CreateModalProps from './types';
 import { nounOf } from './CreateModal';
 import { mutedForUpdate } from '../../functions/fieldLocks';
 import { styles } from '../../config';
+import { useGetRouteQuery } from '../../store/services/commonApi';
+import { GuidelinesDialog, GuidelinesLink } from '../../components/guidelines/Guidelines';
 
 const CreateModal = (props: CreateModalProps) => {
 	const {
@@ -45,6 +47,9 @@ const CreateModal = (props: CreateModalProps) => {
 	} = props;
 
 	const { open: isOpen, onOpen, onClose } = useDisclosure();
+	// The page's user guidelines, a link above the form.
+	const { data: pageRoute } = useGetRouteQuery(path, { skip: !isOpen || !path });
+	const [showGuidelines, setShowGuidelines] = useState(false);
 
 	const [fetch, { data: prevData, isFetching, isUninitialized }] = useLazyGetByIdToEditQuery();
 	const [formData, setFormData] = useFormData<any>(data, populate || prevData);
@@ -173,6 +178,21 @@ const CreateModal = (props: CreateModalProps) => {
 					<DialogBody
 						px={{ base: 0, md: 6 }}
 						pt={{ base: 4, md: 5 }}>
+						{pageRoute?.guidelines && (
+							<Flex
+								mb={4}
+								px={{ base: 4, md: 0 }}>
+								<GuidelinesLink
+									guidelines={pageRoute.guidelines}
+									onOpen={() => setShowGuidelines(true)}
+								/>
+							</Flex>
+						)}
+						<GuidelinesDialog
+							open={showGuidelines}
+							onClose={() => setShowGuidelines(false)}
+							guidelines={pageRoute?.guidelines}
+						/>
 						<ModalFormSection>
 							<FormMain
 								fields={fields}

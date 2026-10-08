@@ -2,7 +2,8 @@ import { Box, Flex, FlexProps, Heading, Button, Text, Skeleton, IconButton, Menu
 import Crumbs from '../../cl/Crumbs';
 import Link from 'next/link';
 import React, { useState } from 'react';
-import { Download, EllipsisVertical, Upload } from 'lucide-react';
+import { BookOpen, Download, EllipsisVertical, Upload } from 'lucide-react';
+import { GuidelinesDialog, guidelinesOf, viewLabel } from '../guidelines/Guidelines';
 // import { BackendCreateModal, Icon } from '../..';
 
 import { ExportButton, ExportDialog } from './table-components/bulk/ExportRows';
@@ -53,11 +54,14 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 
 	const exportButton = <ExportButton path={path} />;
 
-	// With bulk upload on, the header's other actions move into one ⋯ menu
-	// beside the add button: Bulk upload, and Export when that's on too. The
-	// dialogs are siblings of the menu, which unmounts its content on close.
+	// With bulk upload on, or user guidelines written, the header's other
+	// actions move into one ⋯ menu beside the add button: the guidelines, Bulk
+	// upload, and Export when that's on too. The dialogs are siblings of the
+	// menu, which unmounts its content on close.
 	const bulkUpload = !!table?.bulkUpload;
-	const [dialog, setDialog] = useState<'import' | 'export' | null>(null);
+	const guidelines = guidelinesOf(table?.guidelines);
+	const useMenu = bulkUpload || !!guidelines;
+	const [dialog, setDialog] = useState<'import' | 'export' | 'guidelines' | null>(null);
 	const moreMenu = (
 		<>
 			<Menu.Root positioning={{ placement: 'bottom-end', gutter: 4 }}>
@@ -74,11 +78,20 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					gap={0}
 					minW='200px'
 					boxShadow='lg'>
-					<MenuItemStyle
-						compact
-						icon={<Upload size={16} strokeWidth={1.75} />}>
-						<MenuItem onClick={() => setDialog('import')}>{table?.bulkUpload?.title || 'Bulk upload'}</MenuItem>
-					</MenuItemStyle>
+					{guidelines && (
+						<MenuItemStyle
+							compact
+							icon={<BookOpen size={16} strokeWidth={1.75} />}>
+							<MenuItem onClick={() => setDialog('guidelines')}>{viewLabel(guidelines.title)}</MenuItem>
+						</MenuItemStyle>
+					)}
+					{bulkUpload && (
+						<MenuItemStyle
+							compact
+							icon={<Upload size={16} strokeWidth={1.75} />}>
+							<MenuItem onClick={() => setDialog('import')}>{table?.bulkUpload?.title || 'Bulk upload'}</MenuItem>
+						</MenuItemStyle>
+					)}
 					{Boolean(exportData) && (
 						<MenuItemStyle
 							compact
@@ -88,6 +101,11 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					)}
 				</MenuContainer>
 			</Menu.Root>
+			<GuidelinesDialog
+				open={dialog === 'guidelines'}
+				onClose={() => setDialog(null)}
+				guidelines={table?.guidelines}
+			/>
 			<ImportDialog
 				open={dialog === 'import'}
 				onClose={() => setDialog(null)}
@@ -163,9 +181,9 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					/>
 				) : (
 					<Flex {...buttonGroupCss}>
-						<>{!bulkUpload && Boolean(exportData) && exportButton}</>
+						<>{!useMenu && Boolean(exportData) && exportButton}</>
 						<>{(Boolean(button) || isModal) && renderButton()}</>
-						{bulkUpload && moreMenu}
+						{useMenu && moreMenu}
 					</Flex>
 				)}
 			</Flex>

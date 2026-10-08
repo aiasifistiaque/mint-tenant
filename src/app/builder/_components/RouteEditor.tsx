@@ -38,6 +38,7 @@ import ViewTabsEditor, { tabProblems } from './ViewTabsEditor';
 import FormRulesPanel, { RuleField, formRuleProblems } from './FormRulesPanel';
 import { viewProblems } from './ui';
 import SettingsEditor, { SettingsField } from './SettingsEditor';
+import GuidelinesEditor from './GuidelinesEditor';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
@@ -905,6 +906,14 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 							onChange={setSettingsWorking}
 						/>
 					</Panel>
+				)}
+
+				{data.kind !== 'custom' && (
+					<GuidelinesEditor
+						value={pageConfig?.guidelines}
+						disabled={!isGeneric}
+						onChange={guidelines => setRouteConfig({ guidelines })}
+					/>
 				)}
 
 					</Flex>

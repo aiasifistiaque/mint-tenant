@@ -23,6 +23,7 @@ const CustomSectionArrayInput = ({ item, isRequired, ...props }: any) => (
 		limit={item?.limit}
 		section={item?.section}
 		{...props}
+		isDisabled={!!item?.locked || (props as any).isDisabled}
 	/>
 );
 
@@ -36,6 +37,7 @@ const SectionDataArrayInput = ({ item, isRequired, ...props }: any) => (
 		limit={item?.limit}
 		section={item?.section}
 		{...props}
+		isDisabled={!!item?.locked || (props as any).isDisabled}
 	/>
 );
 
@@ -48,6 +50,7 @@ const SectionObjectInput = ({ item, isRequired, formData, ...props }: any) => (
 		isRequired={isRequired}
 		helper={item?.helper}
 		dataModel={item?.dataModel}
+		locked={!!item?.locked}
 	/>
 );
 
