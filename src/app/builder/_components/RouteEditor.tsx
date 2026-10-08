@@ -40,6 +40,7 @@ import { viewProblems } from './ui';
 import SettingsEditor, { SettingsField } from './SettingsEditor';
 import GuidelinesEditor from './GuidelinesEditor';
 import ValueDisplayPanel from './ValueDisplayPanel';
+import PickerFiltersPanel from './PickerFiltersPanel';
 import ViewSectionRulesPanel, { viewSectionProblems } from './ViewSectionRulesPanel';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
@@ -1093,6 +1094,14 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						<AreaIntro area='form' onPreview={isGeneric ? () => openPreview('form') : undefined} />
 							{formPanel}
 							{rulesPanel}
+							{hasSettings && (
+								<PickerFiltersPanel
+									fields={settingsWorking}
+									formKeys={formSections.flatMap((sec: any) => (sec.fields || []).flat()).filter((k: any) => typeof k === 'string')}
+									readOnly={settingsReadOnly}
+									onChange={setSettingsWorking}
+								/>
+							)}
 							{isGeneric && hasSettings && (
 								<SectionRulesPanel
 									sections={formSections}

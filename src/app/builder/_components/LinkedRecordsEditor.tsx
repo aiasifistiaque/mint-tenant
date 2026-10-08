@@ -50,14 +50,9 @@ const ROUTE_ONLY = 'route:';
 const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled, onChange }) => {
 	const model: string = schema?.model || '';
 	const filters: OptionFilter[] = Array.isArray(schema?.optionFilters) ? schema.optionFilters : [];
-	// The linked route's fields, as its form config has them — a filter on one
-	// of these is what the server matches (never a hidden field or a secret).
-	const { data, isFetching, isError } = useGetConfigQuery(model, { skip: !model });
-	const targets: Target[] = Object.entries<any>(data?.schema || {})
-		.filter(([key]) => key !== '_id' && !SENSITIVE.test(key))
-		.map(([key, s]) => ({ key, label: s?.label || key, input: s?.type, options: s?.options }));
-	const targetOf = (key: string) => targets.find(t => t.key === key);
 	const others = formFields.filter(f => f.key !== fieldKey);
+	// The linked route's form config: whether it's served at all (the conditions read its fields too).
+	const { isError } = useGetConfigQuery(model, { skip: !model });
 
 	const { models } = useLinkModels();
 	const linked = models.find(m => m.routes.includes(model));
@@ -77,15 +72,6 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 	};
 
 	const setFilters = (next: OptionFilter[]) => onChange({ optionFilters: next.length ? next : undefined });
-	const setFilter = (i: number, patch: Partial<OptionFilter>) =>
-		setFilters(
-			filters.map((f, j) => {
-				if (j !== i) return f;
-				const merged: any = { ...f, ...patch };
-				for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
-				return merged;
-			})
-		);
 
 	return (
 		<Flex
@@ -180,6 +166,49 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 						: 'Every record of the linked model. Add a condition to narrow it — to a fixed value, or to another field of this form.'}
 				</Text>
 
+				<OptionFiltersEditor
+					model={model}
+					filters={filters}
+					others={others}
+					disabled={disabled}
+					onChange={setFilters}
+				/>
+			</Box>
+		</Flex>
+	);
+};
+
+/**
+ * A record picker's "Which records are offered" conditions (`schema.optionFilters`):
+ * a field of the linked model, is / is not / is one of, and a fixed value or
+ * another field of this form. Shared by the field's settings and the Form
+ * tab's "Pickers that depend on other fields".
+ */
+export const OptionFiltersEditor: FC<{
+	/** The linked route (`schema.model`). */
+	model: string;
+	filters: OptionFilter[];
+	/** This form's other fields — what a condition can be compared with. */
+	others: FormField[];
+	disabled?: boolean;
+	onChange: (filters: OptionFilter[]) => void;
+}> = ({ model, filters, others, disabled, onChange: setFilters }) => {
+	const { data, isFetching } = useGetConfigQuery(model, { skip: !model });
+	const targets: Target[] = Object.entries<any>(data?.schema || {})
+		.filter(([key]) => key !== '_id' && !SENSITIVE.test(key))
+		.map(([key, s]) => ({ key, label: s?.label || key, input: s?.type, options: s?.options }));
+	const targetOf = (key: string) => targets.find(t => t.key === key);
+	const setFilter = (i: number, patch: Partial<OptionFilter>) =>
+		setFilters(
+			filters.map((f, j) => {
+				if (j !== i) return f;
+				const merged: any = { ...f, ...patch };
+				for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
+				return merged;
+			})
+		);
+	return (
+		<>
 				<Flex
 					direction='column'
 					gap={2}>
@@ -336,8 +365,7 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 						Add condition
 					</Button>
 				)}
-			</Box>
-		</Flex>
+		</>
 	);
 };
 
