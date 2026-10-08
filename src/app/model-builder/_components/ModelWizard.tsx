@@ -319,7 +319,7 @@ const Fact: FC<{ icon: LucideIcon; palette: string; children: ReactNode }> = ({ 
 );
 
 /** What the wizard sits in: the panel's Layout, or a plain box on a mock page (no sign-in). */
-type Frame = FC<{ title: string; path: string; children: ReactNode }>;
+type Frame = FC<{ title: string; path: string; showFooter?: boolean; children: ReactNode }>;
 
 const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) => {
 	const router = useRouter();
@@ -1262,9 +1262,11 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 	};
 
 	return (
+		// No page footer: the steps' sticky Back / Next bar sits at the bottom instead.
 		<Wrap
 			title='New model'
-			path='model-builder'>
+			path='model-builder'
+			showFooter={false}>
 			<Flex
 				direction='column'
 				gap={5}
