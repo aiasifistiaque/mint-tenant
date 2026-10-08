@@ -6,6 +6,7 @@ import { SkeletonContent, ViewItemProps } from './utils';
 import { useColorMode } from '@/components/ui/color-mode';
 import { linkFor } from '../utils/record-link/linked';
 import { Affixed, affixOf } from '../../../functions/affix';
+import { OptionTags } from '../../../functions/optionColors';
 
 const ViewItem: FC<ViewItemProps> = ({
 	title,
@@ -52,7 +53,14 @@ const ViewItem: FC<ViewItemProps> = ({
 					align='center'>
 					{!isLoading && children && (
 						<Affixed {...affixOf(field?.affix, doc)}>
-							{renderContent({ type, children, colorPalette, path, isLoading, link, dataModel: field?.dataModel })}
+							{field?.colorTags ? (
+								<OptionTags
+									value={children}
+									field={field}
+								/>
+							) : (
+								renderContent({ type, children, colorPalette, path, isLoading, link, dataModel: field?.dataModel })
+							)}
 						</Affixed>
 					)}
 					{copy && children && children != 'n/a' && (

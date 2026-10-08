@@ -16,6 +16,7 @@ import { useIsCardView } from '../../../../hooks';
 import { formatDataKey, formatFieldTitle } from '../../../../functions';
 import { Column } from '../../../../containers';
 import { affixOf, fieldText } from '../../../../functions/affix';
+import { OptionTags } from '../../../../functions/optionColors';
 
 type TableProps = StackProps &
 	TableRowProps & {
@@ -150,6 +151,30 @@ const TableRowComponent: FC<TableProps> = ({
 								options={options}
 								style={style}
 							/>
+						</Container>
+					);
+
+				// A choice shown as coloured tags (settings colorTags): each option in its colour.
+				if (val.colorTags)
+					return (
+						<Container
+							key={columnKey}
+							type={type}
+							isCardView={isCardView}
+							value={value}>
+							{isCardView && (
+								<Heading {...cardLabelCss}>{formatFieldTitle({ field: dataKey, schema: data })}</Heading>
+							)}
+							<CustomTd
+								type='option-tag'
+								{...dress}>
+								{value === undefined || value === null || value === '' ? undefined : (
+									<OptionTags
+										value={value}
+										field={val}
+									/>
+								)}
+							</CustomTd>
 						</Container>
 					);
 

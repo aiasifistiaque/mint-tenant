@@ -8,6 +8,7 @@ import { SkeletonContent } from '../view-item/utils';
 import DetailRow from '../../../cl/DetailRow';
 import { linkFor } from '../utils/record-link/linked';
 import { Affixed, affixOf } from '../../../functions/affix';
+import { OptionTags } from '../../../functions/optionColors';
 
 type ViewRowProps = {
 	field: any;
@@ -48,7 +49,12 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 	// Words around the value from the settings ("BDT 1,200") — typed, or another field of this record.
 	const rendered = (
 		<Affixed {...(isEmpty ? {} : affixOf(field.affix, doc))}>
-			{renderContent({
+			{field.colorTags ? (
+				<OptionTags
+					value={value}
+					field={field}
+				/>
+			) : renderContent({
 				type,
 				children: value,
 				colorPalette,

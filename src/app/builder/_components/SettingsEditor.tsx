@@ -25,6 +25,7 @@ import { Dropdown } from '@/components/library/cl';
 import { FieldInfo, checkFormula } from '@/components/library/functions/formula';
 import FormulaModal from './FormulaModal';
 import ConditionsEditor from './ConditionsEditor';
+import TagColorsEditor, { hasChoices } from './TagColorsEditor';
 import RollupEditor, { rollupText } from './RollupEditor';
 import SectionFieldsModal from '@/app/model-builder/_components/SectionFieldsModal';
 import { dataModelOf, editableSection, isSectionInput, sectionFormulaInfo, withSection } from './sectionDataModel';
@@ -744,6 +745,18 @@ const FieldRow = memo(function FieldRow({
 								/>
 							</Box>
 						</Grid>
+						{hasChoices(f.schema, lockFields.find(m => m.key === f.key)?.enum, f.type === 'boolean') && (
+							<Box mt={4}>
+								<Small>Colours</Small>
+								<TagColorsEditor
+									schema={f.schema}
+									enumValues={lockFields.find(m => m.key === f.key)?.enum}
+									isBoolean={f.type === 'boolean'}
+									disabled={locked}
+									onChange={patch => actions.setSchema(f.key, patch)}
+								/>
+							</Box>
+						)}
 					</Group>
 
 					{hasLimits && (
