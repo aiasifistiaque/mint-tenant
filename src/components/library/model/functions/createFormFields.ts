@@ -50,6 +50,8 @@ const OPTIONAL_FIELD_PROPS = [
 	// Record pickers: a + to add a linked record, and which records are offered.
 	'addItem',
 	'optionFilters',
+	// Filled from a linked record when one is picked (settings schema.fillFrom).
+	'fillFrom',
 ] as const;
 
 const createResolvedField = ({

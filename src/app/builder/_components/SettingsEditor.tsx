@@ -26,6 +26,7 @@ import { FieldInfo, checkFormula } from '@/components/library/functions/formula'
 import FormulaModal from './FormulaModal';
 import ConditionsEditor from './ConditionsEditor';
 import TagColorsEditor, { hasChoices } from './TagColorsEditor';
+import FillFromEditor from './FillFromEditor';
 import RollupEditor, { rollupText } from './RollupEditor';
 import SectionFieldsModal from '@/app/model-builder/_components/SectionFieldsModal';
 import { dataModelOf, editableSection, isSectionInput, sectionFormulaInfo, withSection } from './sectionDataModel';
@@ -235,7 +236,7 @@ type RowProps = {
 	/** Remounts the JSON editor when a control changes `schema`. */
 	schemaRev: number;
 	/** Every field's key and title — what a record picker's conditions can read. */
-	formFields: { key: string; title?: string }[];
+	formFields: { key: string; title?: string; picker?: string }[];
 	/** The model's fields with their types and choices — what "Locked when" can test. */
 	lockFields: ModelField[];
 	/** This route's model — a rollup's records are the ones linking to it. */
@@ -792,6 +793,20 @@ const FieldRow = memo(function FieldRow({
 						</Group>
 					)}
 
+					{!RECORD_INPUTS.includes(f.schema?.type) && !formula && !f.rollup && !system && (
+						<Group
+							title='Filled in from a linked record'
+							hint='Picking a record on the form fills this in — a payment’s amount from the bill it pays: the bill’s total, or a formula like total - paid.'>
+							<FillFromEditor
+								fieldKey={f.key}
+								fillFrom={f.schema?.fillFrom}
+								formFields={formFields}
+								disabled={locked}
+								onChange={fillFrom => actions.setSchema(f.key, { fillFrom })}
+							/>
+						</Group>
+					)}
+
 					{RECORD_INPUTS.includes(f.schema?.type) && (
 						<Group title='Picking a linked record'>
 							<LinkedRecordsEditor
@@ -924,9 +939,17 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 
 	const codeByKey = new Map(codeFields.map(f => [f.key, f]));
 	// Stable while keys and titles don't change, so memoized rows don't re-render.
-	const formFieldsKey = fields.map(f => `${f.key}\u0000${f.title || ''}`).join('\u0001');
+	const formFieldsKey = fields
+		.map(f => `${f.key}\u0000${f.title || ''}\u0000${RECORD_INPUTS.includes(f.schema?.type) ? f.schema?.model || '' : ''}`)
+		.join('\u0001');
 	const formFields = useMemo(
-		() => fields.map(f => ({ key: f.key, title: f.title })),
+		() =>
+			fields.map(f => ({
+				key: f.key,
+				title: f.schema?.label || f.title,
+				// A record picker's linked route: what "Filled in from a linked record" reads.
+				...(RECORD_INPUTS.includes(f.schema?.type) && typeof f.schema?.model === 'string' && { picker: f.schema.model }),
+			})),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[formFieldsKey]
 	);

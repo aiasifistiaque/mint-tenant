@@ -10,6 +10,7 @@ import {
 import { Accordion, Text } from '@chakra-ui/react';
 import { hiddenFormFields } from '../../../functions/formRules';
 import { withFormulaValues } from '../../../functions/formula';
+import LinkedFiller from './LinkedFiller';
 
 type FormMainType = {
 	fields: any;
@@ -113,6 +114,14 @@ const FormMain: FC<FormMainType> = ({
 	const calculated = useMemo(() => withFormulaValues(formData, fields), [formData, fields]);
 
 	return (
+		<>
+		{/* Fields filled from a linked record when it's picked (settings fillFrom). */}
+		<LinkedFiller
+			fields={fields}
+			formData={formData}
+			setFormData={setFormData}
+			setChangedData={setChangedData}
+		/>
 		<Accordion.Root
 			display='flex'
 			flexDirection='column'
@@ -161,6 +170,7 @@ const FormMain: FC<FormMainType> = ({
 				);
 			})}
 		</Accordion.Root>
+		</>
 	);
 };
 
