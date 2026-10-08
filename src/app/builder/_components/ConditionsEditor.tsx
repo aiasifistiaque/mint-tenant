@@ -5,6 +5,7 @@ import { Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
 import { Plus, X } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
 import { ModelField } from './filterTypes';
+import RecordPicker from './RecordPicker';
 
 /**
  * Conditions on a model's fields — a field, a test that fits it, a value —
@@ -43,7 +44,7 @@ const opsFor = (f?: ModelField): { value: CondOp; label: string }[] => {
 			...blank,
 		];
 	if (f.enum?.length) return [...base, { value: 'in', label: 'is one of' }, ...blank];
-	if (f.ref) return [...base, ...blank];
+	if (f.ref) return [...base, { value: 'in', label: 'is one of' }, ...blank];
 	return [...base, { value: 'contains', label: 'contains' }, ...blank];
 };
 
@@ -107,6 +108,16 @@ const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v:
 			</Flex>
 		);
 	}
+	// A linked record: pick it by name (the id is what's stored and compared).
+	if (field?.ref)
+		return (
+			<RecordPicker
+				model={field.ref}
+				multiple={cond.op === 'in'}
+				value={cond.op === 'in' ? (Array.isArray(cond.value) ? cond.value : cond.value ? [String(cond.value)] : []) : Array.isArray(cond.value) ? cond.value[0] : cond.value}
+				onChange={onChange}
+			/>
+		);
 	if (field?.instance === 'Boolean')
 		return (
 			<Dropdown
@@ -141,7 +152,7 @@ const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v:
 			size='xs'
 			w='180px'
 			type={field?.instance === 'Date' ? 'date' : field?.instance === 'Number' ? 'number' : 'text'}
-			placeholder={cond.op === 'in' ? 'due, overdue' : field?.ref ? 'Record id' : 'Value'}
+			placeholder={cond.op === 'in' ? 'due, overdue' : 'Value'}
 			value={Array.isArray(cond.value) ? cond.value.join(', ') : cond.value || ''}
 			onChange={e => onChange(e.target.value)}
 		/>
@@ -242,7 +253,15 @@ const ConditionsEditor: FC<{
 							size='xs'
 							w='140px'
 							value={c.op}
-							onChange={(v: string) => set(i, { ...c, op: v as CondOp })}>
+							onChange={(v: string) => {
+									// Into "is one of" a value becomes a list; out of it, its first item.
+									const op = v as CondOp;
+									const value =
+										op === 'in'
+											? Array.isArray(c.value) || c.value === undefined ? c.value : [String(c.value)]
+											: Array.isArray(c.value) ? c.value[0] : c.value;
+									set(i, { ...c, op, value });
+								}}>
 							{ops.map(o => (
 								<option
 									key={o.value}

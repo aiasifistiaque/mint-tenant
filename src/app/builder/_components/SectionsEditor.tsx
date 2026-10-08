@@ -279,18 +279,20 @@ const SectionsEditor: FC<Props> = props => {
 	const known = (k: string) => fields.some(f => f.key === k);
 
 	// One normalised shape for both modes: title, description, columns, items.
-	const sections = (props.sections as any[]).map(s => ({
-		title: isForm ? s.sectionTitle : s.title,
-		description: s.description,
-		columns: s.columns,
-		items: s.fields || [],
+	// `extra` keeps what this editor doesn't edit (a form section's showIf) with its section.
+	const sections = (props.sections as any[]).map(({ sectionTitle, title, description, columns, fields: items, ...extra }) => ({
+		title: isForm ? sectionTitle : title,
+		description,
+		columns,
+		items: items || [],
+		extra,
 	}));
 	const emit = (next: typeof sections) =>
 		(props.onChange as any)(
 			next.map(s =>
 				isForm
-					? clean({ sectionTitle: s.title || '', description: s.description || undefined, fields: s.items })
-					: clean({ title: s.title || '', description: s.description || undefined, columns: s.columns, fields: s.items })
+					? clean({ ...s.extra, sectionTitle: s.title || '', description: s.description || undefined, fields: s.items })
+					: clean({ ...s.extra, title: s.title || '', description: s.description || undefined, columns: s.columns, fields: s.items })
 			)
 		);
 	const setSection = (i: number, patch: any) => emit(sections.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -592,7 +594,7 @@ const SectionsEditor: FC<Props> = props => {
 				<Button
 					size='xs'
 					variant='outline'
-					onClick={() => emit([...sections, { title: 'New section', description: '', columns: isForm ? undefined : 2, items: [] }])}>
+					onClick={() => emit([...sections, { title: 'New section', description: '', columns: isForm ? undefined : 2, items: [], extra: {} }])}>
 					<Plus {...ICON} />
 					Add section
 				</Button>

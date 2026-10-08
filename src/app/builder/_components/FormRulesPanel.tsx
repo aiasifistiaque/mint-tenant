@@ -4,10 +4,11 @@ import { Split } from 'lucide-react';
 import { ToneTitle } from './areas';
 import { FC } from 'react';
 import { Badge, Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
-import { GitBranch, Plus, Trash2, X } from 'lucide-react';
+import { GitBranch, LayoutList, Plus, Trash2, X } from 'lucide-react';
 import { Dropdown, Panel } from '@/components/library/cl';
 import { Condition, Operator, Rule, Rules, fieldsOfRule } from '@/components/library/functions/formRules';
 import { DocLink } from './ui';
+import RecordPicker from './RecordPicker';
 
 /**
  * Conditional form fields — the config's `formRules`. Each rule shows one
@@ -30,6 +31,8 @@ export type RuleField = {
 	type?: string;
 	options?: { value: any; label?: any }[];
 	required?: boolean;
+	/** A record picker's linked route (settings `schema.model`). */
+	route?: string;
 };
 
 type Props = {
@@ -75,7 +78,7 @@ const OPS_BY_KIND: Record<Kind, Operator[]> = {
 	bool: ['true', 'false'],
 	choice: ['eq', 'neq', 'in', 'notIn', 'empty', 'notEmpty'],
 	number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'empty', 'notEmpty'],
-	record: ['notEmpty', 'empty'],
+	record: ['eq', 'neq', 'in', 'notIn', 'notEmpty', 'empty'],
 	text: ['eq', 'neq', 'in', 'notIn', 'notEmpty', 'empty'],
 };
 const NO_VALUE: Operator[] = ['empty', 'notEmpty', 'true', 'false'];
@@ -144,6 +147,16 @@ const ValueInput: FC<{ c: Condition; field?: RuleField; onChange: (v: any) => vo
 				))}
 			</Dropdown>
 		);
+	// A linked record: picked by name, stored as its id.
+	if (kind === 'record' && field?.route)
+		return (
+			<RecordPicker
+				route={field.route}
+				multiple={LIST_VALUE.includes(c.operator)}
+				value={c.value}
+				onChange={onChange}
+			/>
+		);
 	if (LIST_VALUE.includes(c.operator))
 		return (
 			<Input
@@ -186,10 +199,120 @@ export const describeRule = (rule: Rule, labelOf: (k: string) => string, optionL
 	return `${labelOf(c.field)} ${OP_LABEL[c.operator] || c.operator}${value}`;
 };
 
+/** A rule's conditions, each a field, a test and a value — a field's rule or a section's. */
+export const RuleConditions: FC<{
+	ui: { mode: 'all' | 'any'; conditions: Condition[] };
+	onChange: (ui: { mode: 'all' | 'any'; conditions: Condition[] }) => void;
+	/** The fields a condition can test. */
+	choices: RuleField[];
+	byKey: Map<string, RuleField>;
+}> = ({ ui, onChange, choices, byKey }) => (
+		<Flex
+			direction='column'
+			gap={1.5}>
+			{ui.conditions.map((c, i) => {
+				const f = byKey.get(c.field);
+				const ops = OPS_BY_KIND[kindOf(f)];
+				const update = (patch: Partial<Condition>) =>
+					onChange({ ...ui, conditions: ui.conditions.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+				return (
+					<Flex
+						key={i}
+						gap={2}
+						align='center'
+						flexWrap='wrap'
+						pl={5}>
+						<Text
+							fontSize='xs'
+							color='fg.muted'
+							w='34px'>
+							{i === 0 ? '' : ui.mode === 'all' ? 'and' : 'or'}
+						</Text>
+						<Dropdown
+							size='xs'
+							w='180px'
+							value={c.field}
+							placeholder='Field'
+							onChange={(v: string) => {
+								const nk = kindOf(byKey.get(v));
+								update({ field: v, operator: OPS_BY_KIND[nk][0], value: undefined });
+							}}>
+							{choices
+								.map(o => (
+									<option
+										key={o.key}
+										value={o.key}>
+										{o.label && o.label !== o.key ? `${o.label} (${o.key})` : o.key}
+									</option>
+								))}
+						</Dropdown>
+						<Dropdown
+							size='xs'
+							w='140px'
+							value={c.operator}
+							onChange={(v: string) =>
+								update({
+									operator: v as Operator,
+									value: NO_VALUE.includes(v as Operator)
+										? undefined
+										: LIST_VALUE.includes(v as Operator)
+										? Array.isArray(c.value)
+											? c.value
+											: c.value !== undefined && c.value !== ''
+											? [c.value]
+											: []
+										: Array.isArray(c.value)
+										? c.value[0]
+										: c.value,
+								})
+							}>
+							{(ops.includes(c.operator) ? ops : [c.operator, ...ops]).map(o => (
+								<option
+									key={o}
+									value={o}>
+									{OP_LABEL[o] || o}
+								</option>
+							))}
+						</Dropdown>
+						<ValueInput
+							c={c}
+							field={f}
+							onChange={value => update({ value })}
+						/>
+						{ui.conditions.length > 1 && (
+							<IconButton
+								size='2xs'
+								variant='ghost'
+								aria-label='Remove this condition'
+								onClick={() => onChange({ ...ui, conditions: ui.conditions.filter((_, j) => j !== i) })}>
+								<X {...ICON} />
+							</IconButton>
+						)}
+					</Flex>
+				);
+			})}
+			<Box pl={5}>
+				<Button
+					size='2xs'
+					variant='ghost'
+					onClick={() =>
+						onChange({
+							...ui,
+							conditions: [...ui.conditions, { field: '', operator: 'eq' }],
+						})
+					}>
+					<Plus {...ICON} />
+					Add a condition
+				</Button>
+			</Box>
+		</Flex>
+);
+
 const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {} }) => {
 	const byKey = new Map(fields.map(f => [f.key, f]));
 	const labelOf = (k: string) => byKey.get(k)?.label || k;
 	const optionLabel = (k: string, v: any) => {
+		if (kindOf(byKey.get(k)) === 'record') return 'the picked record';
 		const o = byKey.get(k)?.options?.find(o => String(o.value) === String(v));
 		return String(o?.label ?? v ?? '');
 	};
@@ -305,106 +428,12 @@ const FormRulesPanel: FC<Props> = ({ rules, onChange, fields, inherited = {} }) 
 							</Flex>
 
 							{own && ui ? (
-								<Flex
-									direction='column'
-									gap={1.5}>
-									{ui.conditions.map((c, i) => {
-										const f = byKey.get(c.field);
-										const ops = OPS_BY_KIND[kindOf(f)];
-										const update = (patch: Partial<Condition>) =>
-											setRule(key, { ...ui, conditions: ui.conditions.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
-										return (
-											<Flex
-												key={i}
-												gap={2}
-												align='center'
-												flexWrap='wrap'
-												pl={5}>
-												<Text
-													fontSize='xs'
-													color='fg.muted'
-													w='34px'>
-													{i === 0 ? '' : ui.mode === 'all' ? 'and' : 'or'}
-												</Text>
-												<Dropdown
-													size='xs'
-													w='180px'
-													value={c.field}
-													placeholder='Field'
-													onChange={(v: string) => {
-														const nk = kindOf(byKey.get(v));
-														update({ field: v, operator: OPS_BY_KIND[nk][0], value: undefined });
-													}}>
-													{fields
-														.filter(o => o.key !== key)
-														.map(o => (
-															<option
-																key={o.key}
-																value={o.key}>
-																{o.label && o.label !== o.key ? `${o.label} (${o.key})` : o.key}
-															</option>
-														))}
-												</Dropdown>
-												<Dropdown
-													size='xs'
-													w='140px'
-													value={c.operator}
-													onChange={(v: string) =>
-														update({
-															operator: v as Operator,
-															value: NO_VALUE.includes(v as Operator)
-																? undefined
-																: LIST_VALUE.includes(v as Operator)
-																? Array.isArray(c.value)
-																	? c.value
-																	: c.value !== undefined && c.value !== ''
-																	? [c.value]
-																	: []
-																: Array.isArray(c.value)
-																? c.value[0]
-																: c.value,
-														})
-													}>
-													{(ops.includes(c.operator) ? ops : [c.operator, ...ops]).map(o => (
-														<option
-															key={o}
-															value={o}>
-															{OP_LABEL[o] || o}
-														</option>
-													))}
-												</Dropdown>
-												<ValueInput
-													c={c}
-													field={f}
-													onChange={value => update({ value })}
-												/>
-												{ui.conditions.length > 1 && (
-													<IconButton
-														size='2xs'
-														variant='ghost'
-														aria-label='Remove this condition'
-														onClick={() => setRule(key, { ...ui, conditions: ui.conditions.filter((_, j) => j !== i) })}>
-														<X {...ICON} />
-													</IconButton>
-												)}
-											</Flex>
-										);
-									})}
-									<Box pl={5}>
-										<Button
-											size='2xs'
-											variant='ghost'
-											onClick={() =>
-												setRule(key, {
-													...ui,
-													conditions: [...ui.conditions, { field: '', operator: 'eq' }],
-												})
-											}>
-											<Plus {...ICON} />
-											Add a condition
-										</Button>
-									</Box>
-								</Flex>
+								<RuleConditions
+									ui={ui}
+									onChange={next => setRule(key, next)}
+									choices={fields.filter(o => o.key !== key)}
+									byKey={byKey}
+								/>
 							) : null}
 
 							<Text
@@ -494,6 +523,180 @@ export const formRuleProblems = (rules: Rules | undefined, fields: RuleField[], 
 		const bad = ui.conditions.map(c => conditionProblem(c, byKey)).filter(Boolean);
 		if (bad.length) out.push(`${byKey.get(key)?.label || key}: ${bad[0]}`);
 	}
+	return out;
+};
+
+/** A form section as the config stores it; `showIf` hides all of it. */
+type FormSection = { sectionTitle?: string; description?: string; fields?: (string | string[])[]; showIf?: Rule };
+const keysOf = (sec: FormSection) => (sec.fields || []).flat().filter((k): k is string => typeof k === 'string');
+const sectionName = (sec: FormSection, i: number) => sec.sectionTitle?.trim() || `Section ${i + 1}`;
+
+/**
+ * Sections that show only when needed — a form section's `showIf`. The
+ * server gives the rule to every field in the section (rulesOf), so a hidden
+ * section's values are dropped and its fields aren't required, and the form
+ * hides the section, heading and all. Its conditions test fields outside it.
+ */
+export const SectionRulesPanel: FC<{
+	sections: FormSection[];
+	onChange: (sections: FormSection[]) => void;
+	fields: RuleField[];
+}> = ({ sections, onChange, fields }) => {
+	const byKey = new Map(fields.map(f => [f.key, f]));
+	const labelOf = (k: string) => byKey.get(k)?.label || k;
+	const optionLabel = (k: string, v: any) => {
+		const f = byKey.get(k);
+		if (kindOf(f) === 'record') return 'the picked record';
+		const o = f?.options?.find(o => String(o.value) === String(v));
+		return String(o?.label ?? v ?? '');
+	};
+	const setRule = (i: number, rule: Rule | undefined) =>
+		onChange(
+			sections.map((sec, j) => {
+				if (j !== i) return sec;
+				const { showIf: _old, ...rest } = sec;
+				return rule ? { ...rest, showIf: rule } : rest;
+			})
+		);
+	const outside = (i: number) => {
+		const own = new Set(keysOf(sections[i] || {}));
+		return fields.filter(f => !own.has(f.key));
+	};
+	const ruled = sections.map((s, i) => ({ s, i })).filter(x => x.s.showIf);
+	const addable = sections.map((s, i) => ({ s, i })).filter(x => !x.s.showIf && keysOf(x.s).length && outside(x.i).length);
+
+	return (
+		<Panel
+			title={
+				<ToneTitle
+					icon={LayoutList}
+					palette='orange'>
+					Sections that show only when needed
+				</ToneTitle>
+			}
+			subtitle='Hide a whole section of the form until it applies — “Bank details” only when Method is Bank transfer. While it’s hidden its fields count as empty: their values aren’t saved and they aren’t required.'
+			actions={<DocLink section='form-sections' />}>
+			<Flex
+				direction='column'
+				gap={3}>
+				{ruled.map(({ s: sec, i }) => {
+					const ui = toUi(sec.showIf as Rule);
+					const problems = ui ? ui.conditions.map(c => conditionProblem(c, byKey)).filter(Boolean) : [];
+					const inside = ui ? ui.conditions.filter(c => keysOf(sec).includes(c.field)) : [];
+					return (
+						<Box
+							key={i}
+							borderWidth='1px'
+							borderColor={problems.length || inside.length ? 'red.muted' : 'border'}
+							borderRadius='md'
+							p={3}>
+							<Flex
+								align='center'
+								gap={2}
+								mb={ui ? 2.5 : 0}
+								flexWrap='wrap'>
+								<LayoutList size={13} />
+								<Text fontSize='sm'>
+									Show the section <b>{sectionName(sec, i)}</b> only when
+								</Text>
+								{ui && ui.conditions.length > 1 && (
+									<Flex gap={1}>
+										{(['all', 'any'] as const).map(m => (
+											<Button
+												key={m}
+												size='2xs'
+												variant={ui.mode === m ? 'solid' : 'outline'}
+												onClick={() => setRule(i, fromUi({ ...ui, mode: m }))}>
+												{m === 'all' ? 'all of these' : 'any of these'}
+											</Button>
+										))}
+									</Flex>
+								)}
+								<IconButton
+									ml='auto'
+									size='2xs'
+									variant='ghost'
+									color='red.fg'
+									aria-label={`Remove the condition on ${sectionName(sec, i)}`}
+									title='Remove — the section is always shown'
+									onClick={() => setRule(i, undefined)}>
+									<Trash2 {...ICON} />
+								</IconButton>
+							</Flex>
+							{ui ? (
+								<RuleConditions
+									ui={ui}
+									onChange={next => setRule(i, fromUi(next))}
+									choices={outside(i)}
+									byKey={byKey}
+								/>
+							) : (
+								<Text
+									fontSize='xs'
+									color='fg.muted'>
+									Nested conditions — edit them in the source.
+								</Text>
+							)}
+							<Text
+								mt={2}
+								fontSize='xs'
+								color={problems.length || inside.length ? 'red.fg' : 'fg.muted'}>
+								{inside.length
+									? `A section can’t depend on its own fields (${inside.map(c => labelOf(c.field)).join(', ')}) — pick a field from another section.`
+									: problems.length
+									? problems.join(' · ')
+									: `Shown when ${describeRule(sec.showIf as Rule, labelOf, optionLabel)}. Its ${keysOf(sec).length} field${
+											keysOf(sec).length === 1 ? '' : 's'
+									  } hide with it.`}
+							</Text>
+						</Box>
+					);
+				})}
+
+				{!ruled.length && (
+					<Text
+						fontSize='sm'
+						color='fg.muted'>
+						Every section is always shown.
+					</Text>
+				)}
+
+				<Dropdown
+					size='xs'
+					w='260px'
+					value=''
+					placeholder={addable.length ? 'Make a section conditional…' : sections.length > 1 ? 'Every section has a condition' : 'Add a second section first'}
+					disabled={!addable.length}
+					onChange={(v: string) => {
+						if (v === '') return;
+						const i = Number(v);
+						const first = outside(i)[0];
+						setRule(i, { field: first?.key || '', operator: OPS_BY_KIND[kindOf(first)][0] });
+					}}>
+					{addable.map(({ s: sec, i }) => (
+						<option
+							key={i}
+							value={String(i)}>
+							{sectionName(sec, i)}
+						</option>
+					))}
+				</Dropdown>
+			</Flex>
+		</Panel>
+	);
+};
+
+/** Section conditions that should stop a save. */
+export const sectionRuleProblems = (sections: FormSection[] | undefined, fields: RuleField[]) => {
+	const byKey = new Map(fields.map(f => [f.key, f]));
+	const out: string[] = [];
+	(sections || []).forEach((sec, i) => {
+		const ui = sec.showIf ? toUi(sec.showIf) : null;
+		if (!ui) return;
+		const bad = ui.conditions.map(c => conditionProblem(c, byKey)).filter(Boolean);
+		if (bad.length) out.push(`${sectionName(sec, i)}: ${bad[0]}`);
+		if (ui.conditions.some(c => keysOf(sec).includes(c.field))) out.push(`${sectionName(sec, i)}: depends on its own fields`);
+	});
 	return out;
 };
 

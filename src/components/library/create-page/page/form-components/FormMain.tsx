@@ -119,7 +119,12 @@ const FormMain: FC<FormMainType> = ({
 			gap={isModal ? 0 : 4}
 			multiple
 			defaultValue={sections.map((_, i) => String(i))}>
-			{sections.map((section: any, i: number) => (
+			{sections.map((section: any, i: number) => {
+				// Every field hidden — by its own condition or its section's (form[].showIf,
+				// set on each field as renderIf) — hides the section, heading and all.
+				const isHidden = (item: any) => hidden.has(item?.name) || (item?.renderCondition && !item?.renderCondition(formData));
+				if (section?.length && section.every(isHidden)) return null;
+				return (
 				<FormDivisionAccordion
 					title={section?.[0]?.sectionTitle || (sections.length > 1 ? `Section ${i + 1}` : 'Details')}
 					description={section?.[0]?.sectionTitle ? section?.[0]?.description : undefined}
@@ -129,10 +134,7 @@ const FormMain: FC<FormMainType> = ({
 					{section?.map((item: any, i: number) => (
 						<FormItemAccordion
 							collapsible={true}
-							isHidden={
-								hidden.has(item?.name) ||
-								(item?.renderCondition && !item?.renderCondition(formData))
-							}
+							isHidden={isHidden(item)}
 							item={item}
 							key={i}>
 							<>
@@ -156,7 +158,8 @@ const FormMain: FC<FormMainType> = ({
 						</FormItemAccordion>
 					))}
 				</FormDivisionAccordion>
-			))}
+				);
+			})}
 		</Accordion.Root>
 	);
 };

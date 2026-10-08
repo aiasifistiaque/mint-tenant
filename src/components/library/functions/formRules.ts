@@ -7,7 +7,8 @@
  * A route's rules come from its config's `formRules` ({ field: rule }, set in
  * the builder's Form tab) over its settings' `schema.renderIf` (the older,
  * single-condition form — still honoured). The admin shows and hides inputs by
- * them; the server applies the same rules on save: a hidden field's value is
+ * them, and a form section's `showIf` applies to every field in it; the
+ * server applies the same rules on save: a hidden field's value is
  * dropped, and a hidden field isn't required.
  *
  * The admin's copy of the backend's library/functions/formRules.function.ts
@@ -113,6 +114,15 @@ export const rulesOf = (settings: Record<string, any> | undefined, config: any):
 	}
 	const extra = config?.formRules;
 	if (extra && typeof extra === 'object') for (const [key, r] of Object.entries(extra)) if (r) out[key] = r as Rule;
+	// Sections that show only when needed (`form[].showIf`): each field of the
+	// section gets the section's rule too, so a hidden section's values are
+	// dropped and its fields aren't required, the same as a hidden field.
+	for (const sec of Array.isArray(config?.form) ? config.form : []) {
+		const r = sec?.showIf;
+		if (!r || typeof r !== 'object') continue;
+		for (const k of (Array.isArray(sec.fields) ? sec.fields : []).flat())
+			if (typeof k === 'string') out[k] = out[k] ? ({ all: [out[k], r] } as Rule) : (r as Rule);
+	}
 	return out;
 };
 

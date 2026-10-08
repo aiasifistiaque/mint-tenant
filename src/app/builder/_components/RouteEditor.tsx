@@ -35,7 +35,7 @@ import { BulkActionsPanel, PageOptionsPanel, RowMenuPanel } from './PagePanels';
 import FiltersPanel, { VISIBLE_BEFORE_MORE } from './FiltersPanel';
 import ViewLayoutPanel from './ViewLayoutPanel';
 import ViewTabsEditor, { tabProblems } from './ViewTabsEditor';
-import FormRulesPanel, { RuleField, formRuleProblems } from './FormRulesPanel';
+import FormRulesPanel, { RuleField, SectionRulesPanel, formRuleProblems, sectionRuleProblems } from './FormRulesPanel';
 import { viewProblems } from './ui';
 import SettingsEditor, { SettingsField } from './SettingsEditor';
 import GuidelinesEditor from './GuidelinesEditor';
@@ -241,6 +241,8 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				type: f.type,
 				options: Array.isArray(f.schema?.options) ? f.schema.options : undefined,
 				required: !!f.required,
+				// A record picker's linked route: its conditions pick records by name.
+				route: typeof f.schema?.model === 'string' ? f.schema.model : undefined,
 			}));
 	})();
 	const tableFields: TableField[] = settingsFields.map((f: any) => ({
@@ -296,7 +298,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 			setEditingUid(Object.keys(errors)[0]);
 			return false;
 		}
-		const fp = formRuleProblems(working.rest.formRules, ruleFields);
+		const fp = [...formRuleProblems(working.rest.formRules, ruleFields), ...sectionRuleProblems(working.rest.form, ruleFields)];
 		if (fp.length) {
 			goTo('form');
 			toaster.create({ title: 'A conditional field is incomplete', description: fp.join(' · '), type: 'error' });
@@ -1052,6 +1054,13 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						<AreaIntro area='form' onPreview={isGeneric ? () => openPreview('form') : undefined} />
 							{formPanel}
 							{rulesPanel}
+							{isGeneric && hasSettings && (
+								<SectionRulesPanel
+									sections={formSections}
+									fields={ruleFields}
+									onChange={form => setRest({ form })}
+								/>
+							)}
 						</Flex>
 					)}
 					{tab === 'view' && (
