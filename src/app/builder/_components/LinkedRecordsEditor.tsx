@@ -2,7 +2,7 @@
 
 import { FC } from 'react';
 import { Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { useGetConfigQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { OptionFilter, OptionFilterOp } from '@/components/library/functions/optionFilters';
@@ -17,7 +17,9 @@ import { mainRoute, modelLabel, useLinkModels } from './useLinkModels';
  * of it in a modal (`schema.addItem`), and which of its records are offered
  * (`schema.optionFilters`) — compared with a fixed value (only active admins)
  * or with another field of this form (only the projects of the client picked
- * above). The picker in the form reads both; see optionFilters.ts.
+ * above). The picker in the form reads both; see optionFilters.ts. And which
+ * of the linked record's fields show in small type under its name in the
+ * list (`schema.pickerDetails`) — a bill's total and due date.
  */
 
 export const RECORD_INPUTS = ['data-menu', 'data-tag', 'nested-data-menu'];
@@ -52,7 +54,7 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 	const filters: OptionFilter[] = Array.isArray(schema?.optionFilters) ? schema.optionFilters : [];
 	const others = formFields.filter(f => f.key !== fieldKey);
 	// The linked route's form config: whether it's served at all (the conditions read its fields too).
-	const { isError } = useGetConfigQuery(model, { skip: !model });
+	const { data: linkedConfig, isError } = useGetConfigQuery(model, { skip: !model });
 
 	const { models } = useLinkModels();
 	const linked = models.find(m => m.routes.includes(model));
@@ -148,6 +150,16 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 				</Text>
 			)}
 
+			{model && !isError && (
+				<PickerDetailsEditor
+					schema={linkedConfig?.schema}
+					nameKey={schema?.menuKey}
+					value={schema?.pickerDetails}
+					disabled={disabled}
+					onChange={next => onChange({ pickerDetails: next.length ? next : undefined })}
+				/>
+			)}
+
 			<Toggle
 				label='Add new from the form'
 				hint='A + beside the input opens a modal with the linked model’s form; the record added is picked straight away.'
@@ -175,6 +187,92 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 				/>
 			</Box>
 		</Flex>
+	);
+};
+
+const MAX_DETAILS = 4;
+
+/**
+ * "Shown under the name in the list" (`schema.pickerDetails`): fields of the
+ * linked model, in small type under each record in the picker — so two bills
+ * named alike can be told apart by their total and due date.
+ */
+const PickerDetailsEditor: FC<{
+	/** The linked page's config schema: its fields and their labels. */
+	schema?: Record<string, any>;
+	/** The field that already names the records — not offered again. */
+	nameKey?: string;
+	value?: string[];
+	disabled?: boolean;
+	onChange: (keys: string[]) => void;
+}> = ({ schema, nameKey, value, disabled, onChange }) => {
+	const chosen: string[] = Array.isArray(value) ? value : [];
+	const fields = Object.entries<any>(schema || {})
+		.filter(([key]) => key !== '_id' && key !== (nameKey || 'name') && !SENSITIVE.test(key))
+		.map(([key, s]) => ({ key, label: String(s?.label || key) }));
+	const labelOf = (key: string) => fields.find(f => f.key === key)?.label || key;
+	const left = fields.filter(f => !chosen.includes(f.key));
+
+	return (
+		<Box>
+			<FieldLabel>Shown under the name in the list</FieldLabel>
+			<Text
+				fontSize='xs'
+				color='fg.muted'
+				mb={2}>
+				{chosen.length
+					? `Each record in the picker shows its ${chosen.map(k => labelOf(k).toLowerCase()).join(', ')} in small type under its name.`
+					: 'Just the name. Add fields — a total, a date, a status — to tell records apart before picking one.'}
+			</Text>
+			<Flex
+				gap={2}
+				flexWrap='wrap'
+				align='center'>
+				{chosen.map(key => (
+					<Flex
+						key={key}
+						align='center'
+						gap={1}
+						h='28px'
+						pl={2.5}
+						pr={1}
+						borderWidth='1px'
+						borderRadius='full'
+						bg='bg'
+						fontSize='xs'>
+						{labelOf(key)}
+						<IconButton
+							size='2xs'
+							variant='ghost'
+							borderRadius='full'
+							disabled={disabled}
+							aria-label={`Stop showing ${labelOf(key)}`}
+							title={`Stop showing ${labelOf(key)}`}
+							onClick={() => onChange(chosen.filter(k => k !== key))}>
+							<X size={12} />
+						</IconButton>
+					</Flex>
+				))}
+				{chosen.length < MAX_DETAILS && left.length > 0 && (
+					<Box w='200px'>
+						<Dropdown
+							size='sm'
+							disabled={disabled}
+							value=''
+							placeholder='Add a field…'
+							onChange={(key: string) => key && onChange([...chosen, key])}>
+							{left.map(f => (
+								<option
+									key={f.key}
+									value={f.key}>
+									{f.label}
+								</option>
+							))}
+						</Dropdown>
+					</Box>
+				)}
+			</Flex>
+		</Box>
 	);
 };
 

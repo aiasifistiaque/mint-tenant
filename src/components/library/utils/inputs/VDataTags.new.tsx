@@ -5,6 +5,7 @@ import { MdClose } from 'react-icons/md';
 import { FormControl, Icon, useGetAllQuery } from '../..';
 import { humanizeKey, optionPrefill, optionQuery } from '../../functions/optionFilters';
 import QuickAdd from './QuickAdd';
+import { usePickerDetails } from '../../functions/pickerDetails';
 
 const EMPTY: any[] = [];
 
@@ -47,6 +48,8 @@ const VDataTags: FC<InputContainerProps> = ({
 }: any) => {
 	const [search, setSearch] = useState('');
 	const { params, waitingFor } = optionQuery(item?.optionFilters, formData);
+	// Fields of each record shown under its name in the list (schema.pickerDetails).
+	const detailsOf = usePickerDetails(model, item?.pickerDetails);
 	const { data, currentData, isFetching } = useGetAllQuery(
 		{ path: model, limit: '1000', sort: 'name', filters: params },
 		{ skip: !model || !!waitingFor }
@@ -154,7 +157,12 @@ const VDataTags: FC<InputContainerProps> = ({
 										<Combobox.Item
 											item={doc}
 											key={doc?.[valueKey]}>
-											<Combobox.ItemText>{displayLabel(doc)}</Combobox.ItemText>
+											<Box
+												flex='1'
+												minW={0}>
+												<Combobox.ItemText>{displayLabel(doc)}</Combobox.ItemText>
+												{detailsOf(doc)}
+											</Box>
 											<Combobox.ItemIndicator />
 										</Combobox.Item>
 									))}

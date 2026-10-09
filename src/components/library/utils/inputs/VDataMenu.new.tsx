@@ -6,6 +6,7 @@ import { CreateModal, FormControl, Icon, useGetAllQuery } from '../..';
 import { VDataMenuProps } from './VDataMenu/types';
 import { humanizeKey, optionPrefill, optionQuery } from '../../functions/optionFilters';
 import QuickAdd from './QuickAdd';
+import { usePickerDetails } from '../../functions/pickerDetails';
 
 const EMPTY: any[] = [];
 
@@ -55,6 +56,8 @@ const VDataMenu: FC<VDataMenuProps> = ({
 		{ skip: !model || !!waitingFor }
 	);
 	const docs: any[] = (!waitingFor && data?.doc) || EMPTY;
+	// Fields of each record shown under its name in the list (schema.pickerDetails).
+	const detailsOf = usePickerDetails(model, item?.pickerDetails);
 	const current = value && typeof value === 'object' ? value?.[dataKey] : value;
 
 	// When what's offered changes because the form changed (another client
@@ -192,9 +195,14 @@ const VDataMenu: FC<VDataMenuProps> = ({
 											<Combobox.Item
 												item={doc}
 												key={doc?.[dataKey]}>
-												<Combobox.ItemText>
-													{doc?.[menuKey]} {menuAddOnKey && `(${doc?.[menuAddOnKey]})`}
-												</Combobox.ItemText>
+												<Box
+													flex='1'
+													minW={0}>
+													<Combobox.ItemText>
+														{doc?.[menuKey]} {menuAddOnKey && `(${doc?.[menuAddOnKey]})`}
+													</Combobox.ItemText>
+													{detailsOf(doc)}
+												</Box>
 												<Combobox.ItemIndicator />
 											</Combobox.Item>
 										))}

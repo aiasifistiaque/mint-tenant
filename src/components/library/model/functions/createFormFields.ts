@@ -52,6 +52,8 @@ const OPTIONAL_FIELD_PROPS = [
 	'optionFilters',
 	// Filled from a linked record when one is picked (settings schema.fillFrom).
 	'fillFrom',
+	// Fields of each linked record shown under its name in a picker (functions/pickerDetails).
+	'pickerDetails',
 ] as const;
 
 const createResolvedField = ({
