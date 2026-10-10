@@ -76,6 +76,17 @@ const CustomTable: FC<CustomTableProps> = ({
 	const viewingArchived = useAppSelector((s: any) => s.table?.filters?.archived === 'only');
 	const toggleArchived = () => dispatch(applyFilters({ key: 'archived', value: viewingArchived ? '' : 'only' }));
 
+	// Empty is read off the rows themselves, not just the response's
+	// `docsInPage` count — a list that came back without that count used to
+	// leave a bare header with nothing under it.
+	const rows = data?.doc;
+	const isEmpty =
+		!isLoading && !isError && !!data && (data.docsInPage == 0 || (Array.isArray(rows) && rows.length === 0));
+	const isFiltered = useAppSelector((s: any) => {
+		const { search: q, filters: f } = s.table || {};
+		return !!q || Object.entries(f || {}).some(([k, v]) => k !== 'archived' && v !== '' && v != null && !(Array.isArray(v) && !v.length));
+	});
+
 	useEffect(() => {
 		dispatch(setCurrentPath(path));
 	}, [path]);
@@ -194,13 +205,19 @@ const CustomTable: FC<CustomTableProps> = ({
 					</Table.Header>
 					<Table.Body css={isCardGrid ? cardGridCss : undefined}>{tbody}</Table.Body>
 				</Table.Root>
-				{data?.docsInPage == 0 && (
-					<TableErrorMessage title='No results found.'>
-						There {`aren't`} any results for that query. Try using different filters.
+				{isEmpty && (
+					<TableErrorMessage title='No records found'>
+						{isFiltered
+							? 'Nothing matches this search or these filters. Try different ones, or clear them.'
+							: viewingArchived
+								? 'There are no archived records.'
+								: 'There are no records here yet.'}
 					</TableErrorMessage>
 				)}
 				{isError && (
-					<TableErrorMessage title='Error Fetching Data.'>
+					<TableErrorMessage
+						isError
+						title='Error Fetching Data.'>
 						{error?.data?.message ||
 							`There has been an error while fetching data. Please try refreshing the page.`}
 					</TableErrorMessage>

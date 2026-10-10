@@ -54,6 +54,8 @@ const OPTIONAL_FIELD_PROPS = [
 	'fillFrom',
 	// Fields of each linked record shown under its name in a picker (functions/pickerDetails).
 	'pickerDetails',
+	// Those fields on one dotted line or one per line (`inline` | `stacked`).
+	'pickerDetailsLayout',
 ] as const;
 
 const createResolvedField = ({

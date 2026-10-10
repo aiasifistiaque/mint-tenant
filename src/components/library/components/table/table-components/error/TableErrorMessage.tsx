@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Flex, Text, FlexProps, Center } from '@chakra-ui/react';
-import { SearchX } from 'lucide-react';
+import { SearchX, TriangleAlert, LucideIcon } from 'lucide-react';
 
 /**
  * Shown in place of rows when a query comes back empty or fails. It gets an
@@ -10,8 +10,11 @@ import { SearchX } from 'lucide-react';
 const TableErrorMessage = ({
 	title,
 	children,
+	isError = false,
 	...props
-}: FlexProps & { title: string; children: ReactNode }) => {
+}: FlexProps & { title: string; children: ReactNode; isError?: boolean }) => {
+	const Icon: LucideIcon = isError ? TriangleAlert : SearchX;
+
 	return (
 		<Flex
 			align='center'
@@ -26,9 +29,9 @@ const TableErrorMessage = ({
 				boxSize='40px'
 				mb={3}
 				borderRadius='full'
-				bg='bg.muted'
-				color='fg.subtle'>
-				<SearchX size={20} />
+				bg={isError ? 'red.subtle' : 'bg.muted'}
+				color={isError ? 'red.fg' : 'fg.subtle'}>
+				<Icon size={20} />
 			</Center>
 			<Text
 				fontSize='15px'

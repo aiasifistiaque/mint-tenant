@@ -82,6 +82,7 @@ const DataMenuInput = ({ item, isRequired, ...props }: any) => (
 
 const NestedDataMenuInput = ({ item, isRequired, ...props }: any) => (
 	<VDataMenu
+		item={item}
 		menuKey={item?.menuKey}
 		menuAddOnKey={item?.menuAddOnKey}
 		dataModel={item?.dataModel}

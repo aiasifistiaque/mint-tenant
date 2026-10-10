@@ -6,7 +6,7 @@ import { CreateModal, FormControl, Icon, useGetAllQuery } from '../..';
 import { VDataMenuProps } from './VDataMenu/types';
 import { humanizeKey, optionPrefill, optionQuery } from '../../functions/optionFilters';
 import QuickAdd from './QuickAdd';
-import { usePickerDetails } from '../../functions/pickerDetails';
+import { detailText, usePickerDetails } from '../../functions/pickerDetails';
 
 const EMPTY: any[] = [];
 
@@ -52,12 +52,15 @@ const VDataMenu: FC<VDataMenuProps> = ({
 	const pickedLabel = useRef('');
 	const typed = search && search !== pickedLabel.current ? search : '';
 	const { data, currentData, isFetching } = useGetAllQuery(
-		{ path: model, limit: '999', sort: 'name', search: typed, filters: params },
+		{ path: model, limit: '999', sort: menuKey, search: typed, filters: params },
 		{ skip: !model || !!waitingFor }
 	);
 	const docs: any[] = (!waitingFor && data?.doc) || EMPTY;
 	// Fields of each record shown under its name in the list (schema.pickerDetails).
-	const detailsOf = usePickerDetails(model, item?.pickerDetails);
+	const detailsOf = usePickerDetails(model, item?.pickerDetails, item?.pickerDetailsLayout);
+	// The record's name: its primary field (schema.menuKey, `name` unless the
+	// builder picked another), in words — a date or a number reads as one.
+	const nameOf = (doc: any) => detailText(doc, menuKey);
 	const current = value && typeof value === 'object' ? value?.[dataKey] : value;
 
 	// When what's offered changes because the form changed (another client
@@ -82,17 +85,17 @@ const VDataMenu: FC<VDataMenuProps> = ({
 			createListCollection({
 				items: docs,
 				itemToValue: (doc: any) => String(doc?.[dataKey]),
-				itemToString: (doc: any) => String(doc?.[menuKey] ?? ''),
+				itemToString: nameOf,
 			}),
 		[docs, dataKey, menuKey]
 	);
 
 	const selectedItem = docs.find((doc: any) => String(doc?.[dataKey]) === String(current));
-	if (selectedItem) pickedLabel.current = String(selectedItem?.[menuKey] ?? '');
+	if (selectedItem) pickedLabel.current = nameOf(selectedItem);
 	const selected = useMemo(() => (current ? [String(current)] : []), [current]);
 
 	const emitSelection = (doc: any) => {
-		pickedLabel.current = String(doc?.[menuKey] ?? '');
+		pickedLabel.current = nameOf(doc);
 		onChange?.({ target: { name, value: type === 'object' ? doc : doc?.[dataKey] } });
 		setSearch('');
 	};
@@ -199,7 +202,7 @@ const VDataMenu: FC<VDataMenuProps> = ({
 													flex='1'
 													minW={0}>
 													<Combobox.ItemText>
-														{doc?.[menuKey]} {menuAddOnKey && `(${doc?.[menuAddOnKey]})`}
+														{nameOf(doc)} {menuAddOnKey && `(${doc?.[menuAddOnKey]})`}
 													</Combobox.ItemText>
 													{detailsOf(doc)}
 												</Box>

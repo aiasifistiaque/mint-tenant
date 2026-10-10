@@ -1,16 +1,15 @@
 'use client';
 
-import { Fragment, ReactNode } from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import { ReactNode } from 'react';
+import { Text } from '@chakra-ui/react';
 import { useGetConfigQuery } from '../store/services/commonApi';
 import { choicesOf } from './optionColors';
-import { humanizeKey } from './optionFilters';
 
 /**
  * Details under each record in a picker's list (settings `schema.pickerDetails`:
  * keys of the linked model's fields) — a bill's total and due date under its
- * name, so the right one can be told apart before it's picked. Labels and
- * choice names come from the linked page's config.
+ * name, so the right one can be told apart before it's picked. Choice
+ * names come from the linked page's config.
  */
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
@@ -37,39 +36,36 @@ export const detailText = (doc: any, key: string, schema?: any): string => {
 	return words(valueAt(doc, key));
 };
 
-/** The picker's detail line for a record, or null when none is set or the record has none filled. */
-export const usePickerDetails = (model: string | undefined, keys: unknown) => {
+/**
+ * How a picker shows its details (settings `schema.pickerDetailsLayout`):
+ * `inline` puts them on one line under the name, separated by dots;
+ * `stacked` gives each its own line.
+ */
+export type PickerDetailsLayout = 'inline' | 'stacked';
+
+/** The picker's detail line(s) for a record, or null when none is set or the record has none filled. */
+export const usePickerDetails = (model: string | undefined, keys: unknown, layout?: PickerDetailsLayout) => {
 	const list: string[] = Array.isArray(keys) ? keys.filter(k => typeof k === 'string' && k) : [];
+	// The linked page's config turns stored values into words (choice names).
 	const { data } = useGetConfigQuery(model || '', { skip: !model || !list.length });
 	const schema = data?.schema || {};
+	const stacked = layout === 'stacked';
 
+	// Values only: the field's name would crowd a line meant to tell two
+	// records apart at a glance — "1,200 · 12 Oct 2026" reads on its own.
 	return (doc: any): ReactNode => {
 		if (!list.length) return null;
-		const parts = list
-			.map(key => ({ key, label: schema?.[key]?.label || humanizeKey(key), text: detailText(doc, key, schema?.[key]) }))
-			.filter(p => p.text);
+		const parts = list.map(key => ({ key, text: detailText(doc, key, schema?.[key]) })).filter(p => p.text);
 		if (!parts.length) return null;
-		return (
-			<Text
-				as='span'
-				display='block'
-				fontSize='11px'
-				lineHeight='1.4'
-				color='fg.muted'
-				fontWeight='400'
-				truncate>
-				{parts.map((p, i) => (
-					<Fragment key={p.key}>
-						{i > 0 && ' · '}
-						<Box
-							as='span'
-							color='fg.subtle'>
-							{p.label}
-						</Box>{' '}
-						{p.text}
-					</Fragment>
-				))}
-			</Text>
-		);
+		const line = { as: 'span' as const, display: 'block', fontSize: '11px', lineHeight: '1.4', color: 'fg.muted', fontWeight: '400', truncate: true };
+		if (stacked)
+			return parts.map(p => (
+				<Text
+					key={p.key}
+					{...line}>
+					{p.text}
+				</Text>
+			));
+		return <Text {...line}>{parts.map(p => p.text).join(' · ')}</Text>;
 	};
 };

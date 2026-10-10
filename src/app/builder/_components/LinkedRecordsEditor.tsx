@@ -1,11 +1,12 @@
 'use client';
 
 import { FC } from 'react';
-import { Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
+import { Box, Button, Flex, IconButton, Input, SegmentGroup, Text } from '@chakra-ui/react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { useGetConfigQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { OptionFilter, OptionFilterOp } from '@/components/library/functions/optionFilters';
+import { PickerDetailsLayout } from '@/components/library/functions/pickerDetails';
 import { DocLink, FieldLabel, Toggle } from './ui';
 import { mainRoute, modelLabel, useLinkModels } from './useLinkModels';
 
@@ -17,9 +18,11 @@ import { mainRoute, modelLabel, useLinkModels } from './useLinkModels';
  * of it in a modal (`schema.addItem`), and which of its records are offered
  * (`schema.optionFilters`) — compared with a fixed value (only active admins)
  * or with another field of this form (only the projects of the client picked
- * above). The picker in the form reads both; see optionFilters.ts. And which
- * of the linked record's fields show in small type under its name in the
- * list (`schema.pickerDetails`) — a bill's total and due date.
+ * above). The picker in the form reads both; see optionFilters.ts. And how
+ * each record reads in the list: the field that names it (`schema.menuKey` /
+ * `labelKey`, `name` unless picked), and which of its other fields show in
+ * small type under that name (`schema.pickerDetails`) — a bill's total and due
+ * date, on one dotted line or one per line (`schema.pickerDetailsLayout`).
  */
 
 export const RECORD_INPUTS = ['data-menu', 'data-tag', 'nested-data-menu'];
@@ -74,6 +77,10 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 	};
 
 	const setFilters = (next: OptionFilter[]) => onChange({ optionFilters: next.length ? next : undefined });
+
+	// The field that names each record in the picker (menuKey for one record, labelKey for several).
+	const nameKey: string = schema?.menuKey || schema?.labelKey || 'name';
+	const details: string[] = Array.isArray(schema?.pickerDetails) ? schema.pickerDetails : [];
 
 	return (
 		<Flex
@@ -146,17 +153,36 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 					mt={-1}>
 					{isError || (models.length > 0 && !linked)
 						? `No model is served on “${model}” — pick one above.`
-						: `Records come from /${model}${linked?.display ? `, named by their ${linked.display}` : ''}.`}
+						: `Records come from /${model}.`}
 				</Text>
+			)}
+
+			{model && !isError && (
+				<PickerNameEditor
+					schema={linkedConfig?.schema}
+					value={nameKey}
+					disabled={disabled}
+					onChange={key => {
+						// The new name isn't repeated under itself.
+						const rest = details.filter(k => k !== key);
+						onChange({
+							menuKey: key,
+							labelKey: key,
+							...(rest.length !== details.length && { pickerDetails: rest.length ? rest : undefined }),
+						});
+					}}
+				/>
 			)}
 
 			{model && !isError && (
 				<PickerDetailsEditor
 					schema={linkedConfig?.schema}
-					nameKey={schema?.menuKey}
-					value={schema?.pickerDetails}
+					nameKey={nameKey}
+					value={details}
+					layout={schema?.pickerDetailsLayout}
 					disabled={disabled}
 					onChange={next => onChange({ pickerDetails: next.length ? next : undefined })}
+					onLayoutChange={layout => onChange({ pickerDetailsLayout: layout === 'stacked' ? layout : undefined })}
 				/>
 			)}
 
@@ -192,26 +218,80 @@ const LinkedRecordsEditor: FC<Props> = ({ schema, formFields, fieldKey, disabled
 
 const MAX_DETAILS = 4;
 
+/** The linked model's fields a picker can show: no id, nothing secret. */
+const pickableFields = (schema?: Record<string, any>) =>
+	Object.entries<any>(schema || {})
+		.filter(([key]) => key !== '_id' && !SENSITIVE.test(key))
+		.map(([key, s]) => ({ key, label: String(s?.label || key) }));
+
+/**
+ * "Name shown in the picker" (`schema.menuKey` + `labelKey`): the field each
+ * record is listed by, and what the input shows once one is picked. Name
+ * unless the builder picks another — an invoice's number, a person's email.
+ */
+const PickerNameEditor: FC<{
+	/** The linked page's config schema: its fields and their labels. */
+	schema?: Record<string, any>;
+	value: string;
+	disabled?: boolean;
+	onChange: (key: string) => void;
+}> = ({ schema, value, disabled, onChange }) => {
+	const fields = pickableFields(schema);
+	// A name kept from before that the linked model no longer has still shows as picked.
+	const options = fields.some(f => f.key === value) ? fields : [{ key: value, label: value }, ...fields];
+	return (
+		<Box>
+			<FieldLabel>Name shown in the picker</FieldLabel>
+			<Text
+				fontSize='xs'
+				color='fg.muted'
+				mb={2}>
+				Each record is listed by this field, and the input shows it once a record is picked.
+			</Text>
+			<Box
+				w='320px'
+				maxW='full'>
+				<Dropdown
+					size='sm'
+					disabled={disabled || !fields.length}
+					value={value}
+					onChange={(key: string) => key && key !== value && onChange(key)}>
+					{options.map(f => (
+						<option
+							key={f.key}
+							value={f.key}>
+							{f.key === 'name' ? `${f.label} (default)` : f.label}
+						</option>
+					))}
+				</Dropdown>
+			</Box>
+		</Box>
+	);
+};
+
 /**
  * "Shown under the name in the list" (`schema.pickerDetails`): fields of the
  * linked model, in small type under each record in the picker — so two bills
- * named alike can be told apart by their total and due date.
+ * named alike can be told apart by their total and due date. Values only, no
+ * field names. With two or more, `schema.pickerDetailsLayout` puts them on one
+ * line separated by dots (the default) or each on its own line.
  */
 const PickerDetailsEditor: FC<{
 	/** The linked page's config schema: its fields and their labels. */
 	schema?: Record<string, any>;
 	/** The field that already names the records — not offered again. */
-	nameKey?: string;
-	value?: string[];
+	nameKey: string;
+	value: string[];
+	layout?: PickerDetailsLayout;
 	disabled?: boolean;
 	onChange: (keys: string[]) => void;
-}> = ({ schema, nameKey, value, disabled, onChange }) => {
-	const chosen: string[] = Array.isArray(value) ? value : [];
-	const fields = Object.entries<any>(schema || {})
-		.filter(([key]) => key !== '_id' && key !== (nameKey || 'name') && !SENSITIVE.test(key))
-		.map(([key, s]) => ({ key, label: String(s?.label || key) }));
+	onLayoutChange: (layout: PickerDetailsLayout) => void;
+}> = ({ schema, nameKey, value: chosen, layout, disabled, onChange, onLayoutChange }) => {
+	const fields = pickableFields(schema).filter(f => f.key !== nameKey);
 	const labelOf = (key: string) => fields.find(f => f.key === key)?.label || key;
 	const left = fields.filter(f => !chosen.includes(f.key));
+	const stacked = layout === 'stacked';
+	const list = chosen.map(k => labelOf(k).toLowerCase());
 
 	return (
 		<Box>
@@ -220,9 +300,13 @@ const PickerDetailsEditor: FC<{
 				fontSize='xs'
 				color='fg.muted'
 				mb={2}>
-				{chosen.length
-					? `Each record in the picker shows its ${chosen.map(k => labelOf(k).toLowerCase()).join(', ')} in small type under its name.`
-					: 'Just the name. Add fields — a total, a date, a status — to tell records apart before picking one.'}
+				{!chosen.length
+					? 'Just the name. Add fields — a total, a date, a status — to tell records apart before picking one.'
+					: chosen.length === 1
+						? `Each record shows its ${list[0]} in small type under its name — the value only.`
+						: stacked
+							? `Each record shows its ${list.join(', ')} under its name, one per line — values only.`
+							: `Each record shows its ${list.join(', ')} under its name on one line, separated by dots — values only.`}
 			</Text>
 			<Flex
 				gap={2}
@@ -272,6 +356,32 @@ const PickerDetailsEditor: FC<{
 					</Box>
 				)}
 			</Flex>
+			{chosen.length > 1 && (
+				<Flex
+					mt={3}
+					gap={3}
+					align='center'
+					flexWrap='wrap'>
+					<Text
+						fontSize='xs'
+						color='fg.muted'>
+						Show them
+					</Text>
+					<SegmentGroup.Root
+						size='xs'
+						disabled={disabled}
+						value={stacked ? 'stacked' : 'inline'}
+						onValueChange={e => e.value && onLayoutChange(e.value as PickerDetailsLayout)}>
+						<SegmentGroup.Indicator />
+						<SegmentGroup.Items
+							items={[
+								{ value: 'inline', label: 'Side by side · dotted' },
+								{ value: 'stacked', label: 'One per line' },
+							]}
+						/>
+					</SegmentGroup.Root>
+				</Flex>
+			)}
 		</Box>
 	);
 };

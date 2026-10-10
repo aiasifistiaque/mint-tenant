@@ -5,7 +5,7 @@ import { MdClose } from 'react-icons/md';
 import { FormControl, Icon, useGetAllQuery } from '../..';
 import { humanizeKey, optionPrefill, optionQuery } from '../../functions/optionFilters';
 import QuickAdd from './QuickAdd';
-import { usePickerDetails } from '../../functions/pickerDetails';
+import { detailText, usePickerDetails } from '../../functions/pickerDetails';
 
 const EMPTY: any[] = [];
 
@@ -49,20 +49,21 @@ const VDataTags: FC<InputContainerProps> = ({
 	const [search, setSearch] = useState('');
 	const { params, waitingFor } = optionQuery(item?.optionFilters, formData);
 	// Fields of each record shown under its name in the list (schema.pickerDetails).
-	const detailsOf = usePickerDetails(model, item?.pickerDetails);
+	const detailsOf = usePickerDetails(model, item?.pickerDetails, item?.pickerDetailsLayout);
+	// The record's name: its primary field (schema.labelKey, `name` unless the builder picked another).
+	const labelKey = item?.labelKey || 'name';
 	const { data, currentData, isFetching } = useGetAllQuery(
-		{ path: model, limit: '1000', sort: 'name', filters: params },
+		{ path: model, limit: '1000', sort: labelKey, filters: params },
 		{ skip: !model || !!waitingFor }
 	);
 	const docs: any[] = (!waitingFor && data?.doc) || EMPTY;
 
 	// WO-05: valueKey is what createFormFields emits; valKey kept as a deprecated fallback.
 	const valueKey = item?.valueKey || item?.valKey || '_id';
-	const labelKey = item?.labelKey || 'name';
 
 	const displayLabel = (doc: any) => {
 		const addOn = item?.modelAddOn && doc?.[item.modelAddOn];
-		return `${doc?.[labelKey] ?? ''}${addOn ? ` (${addOn})` : ''}`;
+		return `${detailText(doc, labelKey)}${addOn ? ` (${addOn})` : ''}`;
 	};
 
 	const allCollection = useMemo(
