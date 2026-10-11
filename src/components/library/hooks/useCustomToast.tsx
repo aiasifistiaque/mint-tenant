@@ -10,6 +10,22 @@ type ToastProps = {
 	successText?: string;
 	successTitle?: string;
 	isLoading: boolean;
+	/** The answer: a save that changed linked records (`linked`) says which. */
+	data?: any;
+};
+
+/** "Also updated Invoice A (Status, Payment date)." — from a save's `linked`. */
+export const linkedText = (linked: any) => {
+	if (!Array.isArray(linked) || !linked.length) return '';
+	const byRecord = new Map<string, { label: string; fields: Set<string> }>();
+	for (const l of linked) {
+		const key = `${l.route}:${l.id}`;
+		const entry = byRecord.get(key) || { label: `${l.model || 'Record'} ${l.name || ''}`.trim(), fields: new Set<string>() };
+		(l.changes || []).forEach((c: any) => entry.fields.add(c.label || c.field));
+		byRecord.set(key, entry);
+	}
+	const parts = [...byRecord.values()].map(e => `${e.label}${e.fields.size ? ` (${[...e.fields].join(', ')})` : ''}`);
+	return ` Also updated ${parts.join('; ')}.`;
 };
 
 // Chakra's toaster renders with flushSync, which React refuses inside an
@@ -24,6 +40,7 @@ const useCustomToast = ({
 	successText,
 	successTitle,
 	isLoading,
+	data,
 }: ToastProps) => {
 	useEffect(() => {
 		if (isLoading) return;
@@ -44,12 +61,12 @@ const useCustomToast = ({
 		if (isSuccess) {
 			show({
 				title: successTitle || 'Success',
-				description: successText || 'Operation completed successfully',
+				description: (successText || 'Operation completed successfully') + linkedText(data?.linked),
 				type: 'success',
 				duration: 9000,
 			});
 		}
-	}, [isSuccess, isLoading, successText, successTitle]);
+	}, [isSuccess, isLoading, successText, successTitle, data]);
 
 	return null;
 };

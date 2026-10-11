@@ -56,6 +56,10 @@ const OPTIONAL_FIELD_PROPS = [
 	'pickerDetails',
 	// Those fields on one dotted line or one per line (`inline` | `stacked`).
 	'pickerDetailsLayout',
+	// Linked Relationships: required while a rule holds, and the fields a rule reads (the form's hint).
+	'requiredIf',
+	'linkedReads',
+	'linkedRoute',
 ] as const;
 
 const createResolvedField = ({

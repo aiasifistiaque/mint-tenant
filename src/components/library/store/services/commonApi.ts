@@ -1,6 +1,10 @@
 import { BASE_LIMIT } from '../..';
 import mainApi, { routeTags } from './mainApi';
 
+/** Pages a save changed through Linked Relationships (`linked` in its answer) — refreshed too. */
+const linkedRoutes = (result: any): string[] =>
+	Array.isArray(result?.linked) ? [...new Set<string>(result.linked.map((l: any) => l?.route).filter(Boolean))] : [];
+
 export const userApi = mainApi.injectEndpoints({
 	overrideExisting: true,
 	endpoints: builder => ({
@@ -99,7 +103,7 @@ export const userApi = mainApi.injectEndpoints({
 				body: body,
 			}),
 			invalidatesTags: (result, error, { path, invalidate = [] }: any) =>
-				routeTags('filters', path, ...invalidate),
+				routeTags('filters', path, ...invalidate, ...linkedRoutes(result)),
 		}),
 		export: builder.mutation<any, { path: string; body: any; invalidate?: string; type?: string }>({
 			query: ({ path, body, invalidate, type = 'csv' }): any => ({
@@ -169,14 +173,14 @@ export const userApi = mainApi.injectEndpoints({
 				method: 'PUT',
 				body: body,
 			}),
-			invalidatesTags: (result, error, { path, id, invalidate = [] }: any) => routeTags(path, ...invalidate),
+			invalidatesTags: (result, error, { path, id, invalidate = [] }: any) => routeTags(path, ...invalidate, ...linkedRoutes(result)),
 		}),
 		deleteById: builder.mutation<any, { path: string; id: string; invalidate?: string[] }>({
 			query: ({ path, id, invalidate }): any => ({
 				url: `${path}/${id}`,
 				method: 'DELETE',
 			}),
-			invalidatesTags: (result, error, { path, id, invalidate = [] }: any) => routeTags(path, ...invalidate),
+			invalidatesTags: (result, error, { path, id, invalidate = [] }: any) => routeTags(path, ...invalidate, ...linkedRoutes(result)),
 		}),
 		updateMany: builder.mutation<any, { path: string; body: any; invalidate?: any }>({
 			query: ({ path, body }): any => ({
@@ -185,7 +189,16 @@ export const userApi = mainApi.injectEndpoints({
 				body: body,
 			}),
 			// `invalidate` is optional here; routeTags drops it when missing.
-			invalidatesTags: (result, error, { path, invalidate }) => routeTags(path, invalidate),
+			invalidatesTags: (result, error, { path, invalidate }) => routeTags(path, invalidate, ...linkedRoutes(result)),
+		}),
+		// Linked Relationships: what saving these form values would change in
+		// the records they pick (POST /<route>/linked/preview). Writes nothing.
+		linkedPreview: builder.mutation<any, { path: string; id?: string; values: any }>({
+			query: ({ path, id, values }): any => ({
+				url: `${path}/linked/preview`,
+				method: 'POST',
+				body: { id, values },
+			}),
 		}),
 		copyItem: builder.mutation<any, { path: string; body: any; invalidate?: string[] }>({
 			query: ({ path, body, invalidate }): any => ({
@@ -217,6 +230,7 @@ export const {
 	useGetAllQuery,
 	useDeleteByIdMutation,
 	usePostMutation,
+	useLinkedPreviewMutation,
 	useGetCountQuery,
 	useExportMutation,
 	useUpdateManyMutation,

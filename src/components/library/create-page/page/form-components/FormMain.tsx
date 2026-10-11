@@ -11,6 +11,8 @@ import { Accordion, Text } from '@chakra-ui/react';
 import { hiddenFormFields } from '../../../functions/formRules';
 import { withFormulaValues } from '../../../functions/formula';
 import LinkedFiller from './LinkedFiller';
+import LinkedPreview from './LinkedPreview';
+import { meets } from '../../../functions/fieldLocks';
 
 type FormMainType = {
 	fields: any;
@@ -113,6 +115,11 @@ const FormMain: FC<FormMainType> = ({
 	// formula calculated, so one that uses another reads its result, not 0.
 	const calculated = useMemo(() => withFormulaValues(formData, fields), [formData, fields]);
 
+	// Linked Relationships: a field a rule copies or asks for is required while
+	// the rule's conditions hold — ticking "Mark as paid" makes Payment date required.
+	const requiredNow = (item: any) =>
+		Array.isArray(item?.requiredIf) && item.requiredIf.some((r: any) => !r?.when?.length || meets(formData, r.when, r.match));
+
 	return (
 		<>
 		{/* Fields filled from a linked record when it's picked (settings fillFrom). */}
@@ -151,7 +158,7 @@ const FormMain: FC<FormMainType> = ({
 									formData={item?.type === 'formula' ? calculated : formData}
 									setFormData={setFormData}
 									setChangedData={setChangedData}
-									isRequired={item?.isRequired || false}
+									isRequired={item?.isRequired || requiredNow(item)}
 									name={item?.name}
 									label={item?.label}
 									type={item?.type}
@@ -170,6 +177,11 @@ const FormMain: FC<FormMainType> = ({
 				);
 			})}
 		</Accordion.Root>
+		{/* What saving will also change in the records this form picks. */}
+		<LinkedPreview
+			fields={fields}
+			formData={formData}
+		/>
 		</>
 	);
 };
