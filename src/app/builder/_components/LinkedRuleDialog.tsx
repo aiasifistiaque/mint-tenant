@@ -190,6 +190,7 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 			size='xl'
 			// Grows as rows are added: pinned to the top so the buttons don't move under the pointer.
 			placement='top'
+			scrollBehavior='inside'
 			open={open}
 			onOpenChange={e => !e.open && onClose()}>
 			<Portal>
