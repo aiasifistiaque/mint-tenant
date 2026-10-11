@@ -17,7 +17,12 @@ import RecordPicker from './RecordPicker';
 
 const ICON = { size: 14, strokeWidth: 1.75 };
 
-export type TabCondition = { field: string; op: CondOp; value?: string | string[] };
+/** `{ ref: 'this.amount' }`: compared with a field of the record being saved (Linked Relationships only). */
+export type CondRef = { ref: string };
+export type TabCondition = { field: string; op: CondOp; value?: string | string[] | CondRef };
+const isRef = (v: any): v is CondRef => !!v && typeof v === 'object' && !Array.isArray(v) && typeof v.ref === 'string';
+/** The tests that can compare with another field. */
+const REF_OPS: CondOp[] = ['is', 'not', 'gt', 'gte', 'lt', 'lte'];
 /** How the conditions combine: every one must hold, or any one is enough. */
 export type Match = 'all' | 'any';
 export type CondOp = 'is' | 'not' | 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'empty' | 'filled';
@@ -64,7 +69,7 @@ const OP_LABEL: Record<CondOp, string> = {
 /** "status is due", for the tab's problems line. */
 export const conditionText = (c: TabCondition) => {
 	const op = OP_LABEL[c.op] || c.op;
-	const value = Array.isArray(c.value) ? c.value.join(', ') : c.value;
+	const value = isRef(c.value) ? c.value.ref : Array.isArray(c.value) ? c.value.join(', ') : c.value;
 	return ['empty', 'filled'].includes(c.op) ? `${c.field} ${op}` : `${c.field} ${op} ${value ?? ''}`.trim();
 };
 
@@ -74,13 +79,14 @@ export const conditionsText = (where: TabCondition[] = [], match: Match = 'all')
 
 /** A value is missing (empty and filled need none; a list needs one item). */
 export const missingValue = (c: TabCondition) =>
-	!['empty', 'filled'].includes(c.op) && (Array.isArray(c.value) ? !c.value.length : c.value === undefined || c.value === '');
+	!['empty', 'filled'].includes(c.op) && (isRef(c.value) ? !c.value.ref : Array.isArray(c.value) ? !c.value.length : c.value === undefined || c.value === '');
 
 const ConditionValue: FC<{ field?: ModelField; cond: TabCondition; onChange: (v: string | string[] | undefined) => void }> = ({
 	field,
-	cond,
+	cond: raw,
 	onChange,
 }) => {
+	const cond = { ...raw, value: isRef(raw.value) ? undefined : raw.value };
 	if (['empty', 'filled'].includes(cond.op)) return null;
 	// "is one of" on a choice: pick any number of its values.
 	if (field?.enum?.length && cond.op === 'in') {
@@ -171,7 +177,12 @@ const ConditionsEditor: FC<{
 	/** How they combine — all (and) by default. Without `onMatch` they're always all. */
 	match?: Match;
 	onMatch?: (m: Match) => void;
-}> = ({ fields, where, onChange, hint, emptyHint, disabled, match = 'all', onMatch }) => {
+	/**
+	 * Linked Relationships: a condition may compare with a field of the record
+	 * being saved instead of a value ("Balance is less than this Transfer’s Amount").
+	 */
+	compareWith?: { label: string; fields: { key: string; label: string }[] };
+}> = ({ fields, where, onChange, hint, emptyHint, disabled, match = 'all', onMatch, compareWith }) => {
 	const set = (i: number, c: TabCondition) => onChange(where.map((x, j) => (j === i ? c : x)));
 	const any = match === 'any';
 	// "status is void" and "status is paid" can't both hold: say so, and how to fix it.
@@ -256,8 +267,9 @@ const ConditionsEditor: FC<{
 							onChange={(v: string) => {
 									// Into "is one of" a value becomes a list; out of it, its first item.
 									const op = v as CondOp;
-									const value =
-										op === 'in'
+									const value = isRef(c.value)
+										? REF_OPS.includes(op) ? c.value : undefined
+										: op === 'in'
 											? Array.isArray(c.value) || c.value === undefined ? c.value : [String(c.value)]
 											: Array.isArray(c.value) ? c.value[0] : c.value;
 									set(i, { ...c, op, value });
@@ -270,11 +282,38 @@ const ConditionsEditor: FC<{
 								</option>
 							))}
 						</Dropdown>
-						<ConditionValue
-							field={field}
-							cond={c}
-							onChange={v => set(i, { ...c, value: v === '' ? undefined : v })}
-						/>
+						{compareWith && REF_OPS.includes(c.op) && (
+							<Dropdown
+								size='xs'
+								w='150px'
+								value={isRef(c.value) ? 'field' : 'value'}
+								onChange={(v: string) => set(i, { ...c, value: v === 'field' ? { ref: '' } : undefined })}>
+								<option value='value'>a value</option>
+								<option value='field'>{`this ${compareWith.label}’s…`}</option>
+							</Dropdown>
+						)}
+						{compareWith && isRef(c.value) && REF_OPS.includes(c.op) ? (
+							<Dropdown
+								size='xs'
+								w='160px'
+								value={c.value.ref.replace(/^this\./, '')}
+								placeholder='Field'
+								onChange={(v: string) => set(i, { ...c, value: { ref: `this.${v}` } })}>
+								{compareWith.fields.map(f => (
+									<option
+										key={f.key}
+										value={f.key}>
+										{f.label}
+									</option>
+								))}
+							</Dropdown>
+						) : (
+							<ConditionValue
+								field={field}
+								cond={c}
+								onChange={v => set(i, { ...c, value: v === '' ? undefined : v })}
+							/>
+						)}
 						<IconButton
 							size='2xs'
 							variant='ghost'

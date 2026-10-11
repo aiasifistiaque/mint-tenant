@@ -28,6 +28,8 @@ type Props = {
 	fields: SettingsField[];
 	modelFields: ModelField[];
 	disabled?: boolean;
+	/** Off in the model wizard: a page that doesn't exist yet has nothing pointing at it. */
+	showIncoming?: boolean;
 };
 
 const labelOf = (fields: SettingsField[], key: string) => {
@@ -38,10 +40,10 @@ const labelOf = (fields: SettingsField[], key: string) => {
 /** Problems the editor holds a save back for, across every rule. */
 export const linkedProblems = (rules: LinkedRule[] = []) => rules.flatMap(ruleProblems);
 
-const LinkedRelationshipsPanel: FC<Props> = ({ route, title, rules, onChange, fields, modelFields, disabled }) => {
+const LinkedRelationshipsPanel: FC<Props> = ({ route, title, rules, onChange, fields, modelFields, disabled, showIncoming = true }) => {
 	const [editing, setEditing] = useState<{ index: number; rule: LinkedRule } | null>(null);
 	const [removing, setRemoving] = useState<number | null>(null);
-	const { data: incoming } = useGetIncomingLinkedQuery(route, { skip: !route });
+	const { data: incoming } = useGetIncomingLinkedQuery(route, { skip: !route || !showIncoming });
 
 	// Labels of the linked page aren't loaded here: the card names its fields by key, the dialog by label.
 	const sentence = (r: LinkedRule) => {
@@ -173,40 +175,42 @@ const LinkedRelationshipsPanel: FC<Props> = ({ route, title, rules, onChange, fi
 				</Flex>
 			</Panel>
 
-			<Panel
-				title={
-					<ToneTitle
-						icon={ArrowLeftRight}
-						palette='green'>
-						Changed by…
-					</ToneTitle>
-				}
-				subtitle='Rules on other pages that change this page’s records. Edit them on those pages.'>
-				{incoming?.doc?.length ? (
-					<Flex
-						direction='column'
-						gap={1.5}>
-						{incoming.doc.map((x, i) => (
-							<Text
-								key={i}
-								fontSize='sm'>
-								<strong>{x.title}</strong> — “{x.rule}”{' '}
+			{showIncoming && (
+				<Panel
+					title={
+						<ToneTitle
+							icon={ArrowLeftRight}
+							palette='green'>
+							Changed by…
+						</ToneTitle>
+					}
+					subtitle='Rules on other pages that change this page’s records. Edit them on those pages.'>
+					{incoming?.doc?.length ? (
+						<Flex
+							direction='column'
+							gap={1.5}>
+							{incoming.doc.map((x, i) => (
 								<Text
-									as='span'
-									color='fg.muted'>
-									{x.block ? 'can refuse a save' : `can change ${x.fields.join(', ') || 'nothing yet'}`} (through its {x.via})
+									key={i}
+									fontSize='sm'>
+									<strong>{x.title}</strong> — “{x.rule}”{' '}
+									<Text
+										as='span'
+										color='fg.muted'>
+										{x.block ? 'can refuse a save' : `can change ${x.fields.join(', ') || 'nothing yet'}`} (through its {x.via})
+									</Text>
 								</Text>
-							</Text>
-						))}
-					</Flex>
-				) : (
-					<Text
-						fontSize='sm'
-						color='fg.muted'>
-						No published rule on another page changes these records.
-					</Text>
-				)}
-			</Panel>
+							))}
+						</Flex>
+					) : (
+						<Text
+							fontSize='sm'
+							color='fg.muted'>
+							No published rule on another page changes these records.
+						</Text>
+					)}
+				</Panel>
+			)}
 
 			<Text
 				fontSize='xs'

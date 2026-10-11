@@ -118,7 +118,7 @@ const FormMain: FC<FormMainType> = ({
 	// Linked Relationships: a field a rule copies or asks for is required while
 	// the rule's conditions hold — ticking "Mark as paid" makes Payment date required.
 	const requiredNow = (item: any) =>
-		Array.isArray(item?.requiredIf) && item.requiredIf.some((r: any) => !r?.when?.length || meets(formData, r.when, r.match));
+		Array.isArray(item?.requiredIf) && item.requiredIf.some((r: any) => !r?.when?.length || meets(formData, r.when, r.match, { this: formData }));
 
 	return (
 		<>

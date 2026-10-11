@@ -10,7 +10,7 @@ import ConditionsEditor from './ConditionsEditor';
 import { ModelField } from './filterTypes';
 import { SettingsField } from './SettingsEditor';
 import { DocLink, FieldLabel, Toggle } from './ui';
-import { ACTIONS, Assignment, HOW, HowKind, LinkedRule, UNDO, howOf, ruleProblems, ruleSentence, withHow } from './linkedRules';
+import { ACTIONS, Assignment, HOW, HowKind, LinkedRule, UNDO, howOf, ruleProblems, ruleSentence, stepIsField, stepOf, withHow } from './linkedRules';
 
 /**
  * One Linked Relationship, edited as the sentence it reads as: when this
@@ -63,6 +63,8 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 	// What a rule may set: editable there, not worked out by itself.
 	const settable = targetFields.filter(f => f.edit && f.schema?.type !== 'formula' && !f.rollup);
 	const numbersHere = fields.filter(f => f.type === 'number');
+	// Conditions may compare with one of this record's fields: "Balance is less than this Transfer’s Amount".
+	const compareWith = { label: title, fields: fields.map(f => ({ key: f.key, label: labelOf(fields, f.key) })) };
 
 	const isBlock = !!r.block;
 	const problems = ruleProblems(r);
@@ -93,7 +95,7 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 					))}
 				</Dropdown>
 			);
-		if (how === 'inc')
+		if (how === 'inc' || how === 'dec')
 			return (
 				<Flex
 					gap={1}
@@ -101,9 +103,9 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 					<Dropdown
 						size='xs'
 						w='150px'
-						value={typeof a.inc === 'string' && a.inc && !Number.isFinite(Number(a.inc)) ? a.inc : ''}
+						value={stepIsField(a) ? String(stepOf(a)) : ''}
 						placeholder='A number field…'
-						onChange={(v: string) => setRow(i, { field: a.field, inc: v })}>
+						onChange={(v: string) => setRow(i, { ...a, [how]: v })}>
 						{numbersHere.map(f => (
 							<option
 								key={f.key}
@@ -122,8 +124,8 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 						w='70px'
 						type='number'
 						placeholder='1'
-						value={typeof a.inc === 'number' || Number.isFinite(Number(a.inc)) ? String(a.inc ?? '') : ''}
-						onChange={e => setRow(i, { field: a.field, inc: e.target.value })}
+						value={stepIsField(a) ? '' : String(stepOf(a) ?? '')}
+						onChange={e => setRow(i, { ...a, [how]: e.target.value })}
 					/>
 				</Flex>
 			);
@@ -277,6 +279,7 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 										onChange={w => set({ when: w as any })}
 										match={r.match}
 										onMatch={m => set({ match: m })}
+										compareWith={compareWith}
 										hint='Only when these hold — Mark as paid is Yes'
 										emptyHint='Every time'
 									/>
@@ -317,7 +320,8 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 											onChange={w => setTarget({ when: w as any })}
 											match={r.target.match}
 											onMatch={m => setTarget({ match: m })}
-											hint='Only when the linked record holds these — Status is not cancelled'
+											compareWith={compareWith}
+											hint='Only when the linked record holds these — Status is not cancelled, or Balance is less than this record’s Amount'
 											emptyHint='Any linked record'
 										/>
 									</Box>
@@ -375,47 +379,83 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 													</Text>
 												)}
 												{(r.set || []).map((a, i) => (
-													<Flex
-														key={i}
-														gap={2}
-														align='center'
-														flexWrap='wrap'>
-														<Dropdown
-															size='xs'
-															w='170px'
-															value={a.field}
-															placeholder={`${targetTitle} field`}
-															onChange={(v: string) => setRow(i, { ...a, field: v })}>
-															{settable.map(f => (
-																<option
-																	key={f.key}
-																	value={f.key}>
-																	{labelOf(targetFields, f.key)}
-																</option>
-															))}
-														</Dropdown>
-														<Dropdown
-															size='xs'
-															w='170px'
-															value={howOf(a)}
-															onChange={(v: string) => setRow(i, withHow(a, v as HowKind))}>
-															{HOW.filter(h => h.value !== 'inc' || targetFields.find(f => f.key === a.field)?.type === 'number' || !a.field).map(h => (
-																<option
-																	key={h.value}
-																	value={h.value}>
-																	{h.label}
-																</option>
-															))}
-														</Dropdown>
-														{valueInput(a, i)}
-														<IconButton
-															aria-label='Remove this change'
-															size='xs'
-															variant='ghost'
-															onClick={() => set({ set: (r.set || []).filter((_, j) => j !== i) })}>
-															<X size={14} />
-														</IconButton>
-													</Flex>
+													<Box key={i}>
+														<Flex
+															gap={2}
+															align='center'
+															flexWrap='wrap'>
+															<Dropdown
+																size='xs'
+																w='170px'
+																value={a.field}
+																placeholder={`${targetTitle} field`}
+																onChange={(v: string) => setRow(i, { ...a, field: v })}>
+																{settable.map(f => (
+																	<option
+																		key={f.key}
+																		value={f.key}>
+																		{labelOf(targetFields, f.key)}
+																	</option>
+																))}
+															</Dropdown>
+															<Dropdown
+																size='xs'
+																w='170px'
+																value={howOf(a)}
+																onChange={(v: string) => setRow(i, withHow(a, v as HowKind))}>
+																{HOW.filter(h => !['inc', 'dec'].includes(h.value) || targetFields.find(f => f.key === a.field)?.type === 'number' || !a.field).map(h => (
+																	<option
+																		key={h.value}
+																		value={h.value}>
+																		{h.label}
+																	</option>
+																))}
+															</Dropdown>
+															{valueInput(a, i)}
+															<IconButton
+																aria-label='Remove this change'
+																size='xs'
+																variant='ghost'
+																onClick={() => set({ set: (r.set || []).filter((_, j) => j !== i) })}>
+																<X size={14} />
+															</IconButton>
+														</Flex>
+														{/* A floor: a balance that can't go under 0 refuses the transfer instead. */}
+														{['inc', 'dec'].includes(howOf(a)) && (
+															<Flex
+																gap={2}
+																align='center'
+																flexWrap='wrap'
+																mt={1.5}
+																pl={3}
+																borderLeftWidth='2px'
+																borderColor='border'>
+																<Text
+																	fontSize='xs'
+																	color='fg.muted'>
+																	Never below
+																</Text>
+																<Input
+																	size='xs'
+																	w='80px'
+																	type='number'
+																	placeholder='No limit'
+																	value={String(a.min ?? '')}
+																	onChange={e => setRow(i, { ...a, min: e.target.value === '' ? undefined : e.target.value })}
+																/>
+																{a.min !== undefined && a.min !== '' && (
+																	<Input
+																		size='xs'
+																		flex='1'
+																		minW='200px'
+																		placeholder={`Message when it would — Not enough ${labelOf(targetFields, a.field).toLowerCase()}`}
+																		value={a.message || ''}
+																		onChange={e => setRow(i, { ...a, message: e.target.value })}
+																	/>
+																)}
+															</Flex>
+														)}
+													</Box>
 												))}
 												<Flex
 													align='center'

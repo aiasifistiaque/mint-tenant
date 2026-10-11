@@ -43,6 +43,7 @@ import ViewLayoutPanel from '@/app/builder/_components/ViewLayoutPanel';
 import PagePreview, { PreviewField, PreviewTab } from '@/app/builder/_components/PagePreview';
 import { AREAS, AreaCard, AreaIntro, AreaKey, AreaTabLabel, ToneIcon, ToneTitle } from '@/app/builder/_components/areas';
 import { DocLink, viewProblems } from '@/app/builder/_components/ui';
+import LinkedRelationshipsPanel, { linkedProblems } from '@/app/builder/_components/LinkedRelationshipsPanel';
 import { EditableFilter, fromServer, toServer, validate } from '@/app/builder/_components/filterTypes';
 import { BULK_MENU_TYPES, ROW_MENU_TYPES, validateMenu } from '@/app/builder/_components/menuTypes';
 import ModelPanels, {
@@ -92,7 +93,7 @@ const STEPS: { key: StepKey; title: string; hint: string; palette: string; icon:
 ];
 
 /** The parts of the pages step, in the page builder's colours. */
-const PAGE_TABS: AreaKey[] = ['overview', 'table', 'form', 'view', 'filters', 'settings'];
+const PAGE_TABS: AreaKey[] = ['overview', 'table', 'form', 'view', 'filters', 'settings', 'linked'];
 const PREVIEW_FOR: Partial<Record<AreaKey, PreviewTab>> = { table: 'table', filters: 'table', form: 'form', settings: 'form', view: 'view' };
 
 const STORAGE_KEY = 'model-wizard';
@@ -433,6 +434,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 			...(menu ? [{ area: 'table' as AreaKey, text: 'Table page: a menu item is incomplete — fix the items marked in red' }] : []),
 			...viewProblems(config.rest.view).map(text => ({ area: 'view' as AreaKey, text: `Record page: ${text}` })),
 			...(Object.keys(filterCheck.errors).length ? [{ area: 'filters' as AreaKey, text: 'Filters: some need attention' }] : []),
+			...linkedProblems(config.rest.linkedRelationships).map(text => ({ area: 'linked' as AreaKey, text: `Linked Relationships: ${text}` })),
 		];
 	};
 
@@ -953,6 +955,14 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 				]}
 				onOpen={() => openPart('settings')}
 			/>
+			<AreaCard
+				area='linked'
+				lines={[
+					plural((config.rest.linkedRelationships || []).length, 'rule'),
+					(config.rest.linkedRelationships || []).map((r: any) => r.name || 'Untitled').join(', ') || 'Optional — none yet',
+				]}
+				onOpen={() => openPart('linked')}
+			/>
 		</Grid>
 	);
 
@@ -1134,6 +1144,23 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						codeFields={generated?.settings?.fields || []}
 						modelFields={preview?.fields || []}
 						onChange={setSettings}
+					/>
+				</Flex>
+			)}
+
+			{area === 'linked' && (
+				<Flex
+					direction='column'
+					gap={5}>
+					<AreaIntro area='linked' />
+					<LinkedRelationshipsPanel
+						route={route}
+						title={recordName}
+						rules={config.rest.linkedRelationships || []}
+						onChange={linkedRelationships => setRest({ linkedRelationships: linkedRelationships.length ? linkedRelationships : undefined })}
+						fields={settings}
+						modelFields={preview?.fields || []}
+						showIncoming={false}
 					/>
 				</Flex>
 			)}
