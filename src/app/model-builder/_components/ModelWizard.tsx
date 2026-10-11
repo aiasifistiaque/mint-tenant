@@ -1413,6 +1413,7 @@ const AREAS_DOC: Record<AreaKey, string> = {
 	filters: 'filters',
 	form: 'form',
 	view: 'view',
+	linked: 'linked-relationships',
 	source: 'source',
 };
 

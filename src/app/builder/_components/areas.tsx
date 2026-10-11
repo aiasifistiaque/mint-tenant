@@ -9,6 +9,7 @@ import {
 	Filter,
 	History,
 	LayoutDashboard,
+	Link2,
 	ListChecks,
 	LucideIcon,
 	PanelTop,
@@ -27,7 +28,7 @@ import { DocLink } from './ui';
  * dark mode and every colour theme.
  */
 
-export type AreaKey = 'overview' | 'settings' | 'table' | 'filters' | 'form' | 'view' | 'source';
+export type AreaKey = 'overview' | 'settings' | 'table' | 'filters' | 'form' | 'view' | 'linked' | 'source';
 
 export type Area = {
 	label: string;
@@ -82,6 +83,13 @@ export const AREAS: Record<AreaKey, Area> = {
 		icon: PanelTop,
 		description: 'The page one record opens on: its sections of details, linked records and tabs of related lists.',
 		doc: 'view',
+	},
+	linked: {
+		label: 'Linked Relationships',
+		palette: 'green',
+		icon: Link2,
+		description: 'What saving a record does to the records it picks — a payment marking its invoice paid, stock taken off a product.',
+		doc: 'linked-relationships',
 	},
 	source: {
 		label: 'Versions',

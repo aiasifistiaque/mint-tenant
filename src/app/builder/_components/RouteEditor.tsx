@@ -44,6 +44,7 @@ import PickerFiltersPanel from './PickerFiltersPanel';
 import ViewSectionRulesPanel, { viewSectionProblems } from './ViewSectionRulesPanel';
 import SectionsEditor from './SectionsEditor';
 import PublishDialog from './PublishDialog';
+import LinkedRelationshipsPanel, { linkedProblems } from './LinkedRelationshipsPanel';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
 import { AREAS, AreaCard, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
 import { BULK_MENU_TYPES, DEFAULT_ROW_MENU, ROW_MENU_TYPES, validateMenu } from './menuTypes';
@@ -57,6 +58,7 @@ const TABS: { value: AreaKey; label?: string }[] = [
 	{ value: 'form' },
 	{ value: 'view' },
 	{ value: 'filters' },
+	{ value: 'linked' },
 	{ value: 'settings' },
 	{ value: 'source', label: IS_TENANT_PANEL ? undefined : 'Source & versions' },
 ];
@@ -324,6 +326,12 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 			...viewSectionProblems(working.rest.view, viewRuleFields),
 			...formRuleProblems(working.rest.viewRules, viewRuleFields),
 		];
+		const lp = linkedProblems(working.rest.linkedRelationships);
+		if (lp.length) {
+			goTo('linked');
+			toaster.create({ title: 'A linked relationship is incomplete', description: lp.join(' · '), type: 'error' });
+			return false;
+		}
 		if (vp.length) {
 			goTo('view');
 			toaster.create({ title: 'The view is incomplete', description: vp.join(' · '), type: 'error' });
@@ -526,6 +534,20 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 				]}
 				onOpen={() => goTo('filters')}
 			/>
+			{hasSettings && (
+				<AreaCard
+					area='linked'
+					lines={
+						(working.rest.linkedRelationships || []).length
+							? [
+									`${working.rest.linkedRelationships.length} ${working.rest.linkedRelationships.length === 1 ? 'rule' : 'rules'}`,
+									working.rest.linkedRelationships.map((r: any) => r.name || 'Untitled').join(', '),
+							  ]
+							: ['No rules — saving a record changes only itself']
+					}
+					onOpen={() => goTo('linked')}
+				/>
+			)}
 			{hasSettings && (
 				<AreaCard
 					area='settings'
@@ -1120,6 +1142,30 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 								onPreview={hasSettings ? () => openPreview('view') : undefined}
 							/>
 							{viewPanel}
+						</Flex>
+					)}
+					{tab === 'linked' && (
+						<Flex
+							direction='column'
+							gap={5}>
+							<AreaIntro area='linked' />
+							{hasSettings ? (
+								<LinkedRelationshipsPanel
+									route={route}
+									title={working.rest.route?.title || humanize(route.split('/').pop() || route)}
+									rules={working.rest.linkedRelationships || []}
+									onChange={linkedRelationships => setRest({ linkedRelationships: linkedRelationships.length ? linkedRelationships : undefined })}
+									fields={settingsWorking}
+									modelFields={modelFields}
+									disabled={!!data?.protected}
+								/>
+							) : (
+								<Text
+									fontSize='sm'
+									color='fg.muted'>
+									Only pages that save records through the builder’s routes can have Linked Relationships.
+								</Text>
+							)}
 						</Flex>
 					)}
 					{tab === 'source' && (

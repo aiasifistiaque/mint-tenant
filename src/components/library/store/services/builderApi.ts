@@ -35,6 +35,11 @@ export const builderApi = mainApi.injectEndpoints({
 			query: name => `builder/backlinks/${encodeURIComponent(name)}`,
 			providesTags: ['builder'],
 		}),
+		// Linked Relationships on other pages that change this page's records.
+		getIncomingLinked: builder.query<{ doc: { route: string; title: string; rule: string; via: string; block: boolean; fields: string[] }[] }, string>({
+			query: route => ({ url: 'builder/linked/incoming', params: { route } }),
+			providesTags: ['builder'],
+		}),
 		saveBuilderDraft: builder.mutation<any, { route: string; kind: Kind; draft: any }>({
 			query: body => ({ url: 'builder/draft', method: 'PUT', body }),
 			invalidatesTags: ['builder'],
@@ -191,6 +196,7 @@ export const {
 	useGetViewTabQuery,
 	useGetBuilderBacklinksQuery,
 	useLazyGetBuilderBacklinksQuery,
+	useGetIncomingLinkedQuery,
 	useCompareBuilderRouteQuery,
 	useSetBuilderStateMutation,
 	useSetBuilderSourceMutation,
