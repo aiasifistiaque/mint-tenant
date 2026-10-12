@@ -9,13 +9,13 @@ import { useLinkedPreviewMutation } from '../../../store/services/commonApi';
  * saving it will also change — "Will also update Invoice INV-0042: Status →
  * Paid, Payment date → 11 Oct 2026" — or why it would be refused. Asked of
  * the server (POST /<route>/linked/preview, nothing written) when a field a
- * rule reads changes, a moment after typing stops. Fields a rule still needs
- * aren't errors here — only a quiet "fill in …"; the save says so if they're
- * still blank. Only on forms whose fields
+ * rule reads changes, a moment after typing stops. Nothing is asked or shown
+ * until the form's required fields are filled (`ready`) — a half-filled form
+ * gets no messages from here; the save says what's missing. Only on forms whose fields
  * carry `linkedReads`; renders nothing otherwise.
  */
 
-type Props = { fields: any[]; formData: any };
+type Props = { fields: any[]; formData: any; ready?: boolean };
 
 const DELAY = 500;
 
@@ -26,9 +26,6 @@ const plain = (v: any): any => {
 	return v;
 };
 
-/** "A", "A and B", "A, B and C". */
-const listOf = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
-
 const shown = (v: string) => {
 	if (/^\d{4}-\d{2}-\d{2}T/.test(v)) {
 		const d = new Date(v);
@@ -37,7 +34,7 @@ const shown = (v: string) => {
 	return v === 'empty' ? '—' : v;
 };
 
-const LinkedPreview: FC<Props> = ({ fields, formData }) => {
+const LinkedPreview: FC<Props> = ({ fields, formData, ready = true }) => {
 	const reads = useMemo(() => (fields || []).filter((f: any) => f?.name && f?.linkedReads?.length), [fields]);
 	const route: string | undefined = reads[0]?.linkedRoute;
 	const [ask, { data, isLoading }] = useLinkedPreviewMutation();
@@ -56,8 +53,8 @@ const LinkedPreview: FC<Props> = ({ fields, formData }) => {
 	}, [formData]);
 
 	useEffect(() => {
-		if (!route) return;
 		clearTimeout(timer.current);
+		if (!route || !ready) return;
 		timer.current = setTimeout(() => {
 			setAsked(true);
 			ask({ path: route, id: formData?._id, values }).catch(() => {});
@@ -65,9 +62,9 @@ const LinkedPreview: FC<Props> = ({ fields, formData }) => {
 		return () => clearTimeout(timer.current);
 		// `key` stands for the values the rules read; the rest of the form doesn't matter here.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [key, route]);
+	}, [key, route, ready]);
 
-	if (!route || !asked) return null;
+	if (!route || !asked || !ready) return null;
 	// One line per record, however many rules change it.
 	const byRecord = new Map<string, any>();
 	for (const c of (data?.changes || []) as any[]) {
@@ -79,19 +76,7 @@ const LinkedPreview: FC<Props> = ({ fields, formData }) => {
 	}
 	const changes: any[] = [...byRecord.values()];
 	const error: string | null = data?.error?.message || null;
-	const missing: string[] = data?.missing || [];
-	if (!changes.length && !error && !missing.length) return null;
-
-	if (!error && !changes.length)
-		return (
-			<Text
-				mt={3}
-				fontSize='sm'
-				color='fg.muted'
-				aria-live='polite'>
-				Fill in {listOf(missing)} to see what saving will also change.
-			</Text>
-		);
+	if (!changes.length && !error) return null;
 
 	return (
 		<Box
@@ -132,7 +117,6 @@ const LinkedPreview: FC<Props> = ({ fields, formData }) => {
 							</Text>
 						</Text>
 					))}
-					{missing.length > 0 && <Text color='fg.muted'>Fill in {listOf(missing)} to see the rest.</Text>}
 				</Flex>
 			)}
 		</Box>

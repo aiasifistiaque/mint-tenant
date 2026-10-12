@@ -120,6 +120,13 @@ const FormMain: FC<FormMainType> = ({
 	const requiredNow = (item: any) =>
 		Array.isArray(item?.requiredIf) && item.requiredIf.some((r: any) => !r?.when?.length || meets(formData, r.when, r.match, { this: formData }));
 
+	// The linked preview waits for every shown required field: until then it has nothing useful to say.
+	const blank = (v: any) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+	const filled = (fields || []).every(
+		(item: any) =>
+			!item?.name || !(item?.isRequired || requiredNow(item)) || hidden.has(item.name) || (item?.renderCondition && !item.renderCondition(formData)) || !blank(formData?.[item.name])
+	);
+
 	return (
 		<>
 		{/* Fields filled from a linked record when it's picked (settings fillFrom). */}
@@ -181,6 +188,7 @@ const FormMain: FC<FormMainType> = ({
 		<LinkedPreview
 			fields={fields}
 			formData={formData}
+			ready={filled}
 		/>
 		</>
 	);
