@@ -1068,6 +1068,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						route={route}
 						code={codeConfig.route}
 						fields={tableFields}
+						modelFields={modelFields}
 					/>
 				)}
 

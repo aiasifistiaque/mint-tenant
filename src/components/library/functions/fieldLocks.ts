@@ -189,3 +189,15 @@ export const mutedForUpdate = (fields: any[] = [], record: any): any[] =>
 		return f;
 	});
 
+/**
+ * A new record's form with some fields filled in for it and locked — a row
+ * menu's "Add payment" on a bill sets the bill. Each shows muted with the
+ * value it was given (`shown`: the populated record, for a picked one).
+ */
+export const lockedPresets = (fields: any[] = [], locks: Record<string, { shown: any; helper: string }>): any[] =>
+	(fields || []).map((f: any) => {
+		const lock = f?.name ? locks[f.name] : undefined;
+		if (!lock) return f;
+		if (PLAIN.has(f.type)) return { ...f, type: 'locked', recordValue: lock.shown, helper: lock.helper };
+		return { ...f, locked: true, helper: lock.helper };
+	});

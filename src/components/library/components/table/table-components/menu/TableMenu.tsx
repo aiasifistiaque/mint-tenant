@@ -4,6 +4,7 @@ import {
 	ArrowUpRight,
 	Copy,
 	Eye,
+	FilePlus,
 	ListChecks,
 	MousePointerClick,
 	PanelRightOpen,
@@ -31,6 +32,8 @@ import {
 	useGetConfigQuery,
 } from '../../../..';
 import { pagePath, projectHref } from '../../../../config/lib/constants/panel';
+import { meets } from '../../../../functions/fieldLocks';
+import AddRelatedDialog from './AddRelatedDialog';
 
 type TableMenuProps = {
 	data: any;
@@ -54,6 +57,7 @@ const DIALOG_TYPES = new Set([
 	'duplicate',
 	'view-modal',
 	'view-server-modal',
+	'add-related',
 ]);
 
 const ICON = { size: 16, strokeWidth: 1.75 };
@@ -79,6 +83,8 @@ const iconFor = (item: any) => {
 			return <Copy {...ICON} />;
 		case 'post':
 			return <Plus {...ICON} />;
+		case 'add-related':
+			return <FilePlus {...ICON} />;
 		case 'delete':
 			return <Trash2 {...ICON} />;
 		case 'link':
@@ -134,6 +140,8 @@ const TableMenu: FC<TableMenuProps> = ({
 		// props object, so every `{...commonProps}` below sets it
 		// directly on the element instead.
 		if (item?.renderCondition && !item?.renderCondition(doc)) return null;
+		// Route builder → Row menu → "Show only when": only on rows that match.
+		if (Array.isArray(item?.showIf) && item.showIf.length && !meets(doc, item.showIf, item.showMatch === 'any' ? 'any' : 'all')) return null;
 
 		if (item?.getValue) {
 			data = item?.getValue(doc);
@@ -250,6 +258,15 @@ const TableMenu: FC<TableMenuProps> = ({
 		};
 
 		switch (item.type) {
+			case 'add-related':
+				return (
+					<AddRelatedDialog
+						item={item}
+						doc={doc}
+						path={path}
+						onClose={closeActive}
+					/>
+				);
 			case 'post':
 				return (
 					<CreateModal

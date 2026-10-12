@@ -1023,6 +1023,7 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						route={route}
 						code={generated?.config?.route}
 						fields={tableFields}
+						modelFields={preview?.fields || []}
 					/>
 					<BulkActionsPanel
 						value={page}

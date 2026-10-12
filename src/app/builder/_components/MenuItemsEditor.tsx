@@ -1,12 +1,15 @@
 'use client';
 
-import { DragEvent, FC, useState } from 'react';
+import { DragEvent, FC, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Text, Textarea } from '@chakra-ui/react';
-import { AlertTriangle, ChevronDown, ChevronRight, GripVertical, Plus, Trash2, X } from 'lucide-react';
-import { radius } from '@/components/library';
-import { KEY_TYPES, MenuItem, MenuType, Param, validateMenu } from './menuTypes';
+import { AlertTriangle, ChevronDown, ChevronRight, GripVertical, Lock, LockOpen, Plus, Trash2, X } from 'lucide-react';
+import { radius, useGetBuilderRouteQuery, useGetBuilderRoutesQuery } from '@/components/library';
+import { KEY_TYPES, MenuItem, MenuType, Param, Preset, validateMenu } from './menuTypes';
 import { TableField } from './TableColumnsEditor';
 import { Dropdown } from '@/components/library/cl';
+import ConditionsEditor, { conditionsText } from './ConditionsEditor';
+import { ModelField } from './filterTypes';
+import { SettingsField } from './SettingsEditor';
 
 type Props = {
 	items: MenuItem[];
@@ -14,6 +17,15 @@ type Props = {
 	fields: TableField[];
 	onChange: (items: MenuItem[]) => void;
 	addLabel?: string;
+	/**
+	 * The row menu only: this page's model fields, for "Show only when" on
+	 * every item (a bill's "Add payment" while it isn't paid), and its route —
+	 * an add-related item fills in the new record's link back to it.
+	 */
+	conditionFields?: ModelField[];
+	route?: string;
+	/** "Bill" — how this page's record is named in the "Filled in" rows. */
+	recordName?: string;
 };
 
 const ICON = { size: 14, strokeWidth: 1.75 };
@@ -90,14 +102,230 @@ const JsonInput: FC<{ value: any; onChange: (v: any) => void }> = ({ value, onCh
 	);
 };
 
-const ParamInput: FC<{ param: Param; item: MenuItem; fields: TableField[]; set: (patch: any) => void }> = ({
-	param,
+/** A page's settings fields as the builder shows them (draft first). */
+const settingsOf = (data: any): SettingsField[] =>
+	(data?.settings?.draft ?? data?.settings?.data)?.fields || data?.code?.settings?.fields || [];
+const fieldLabel = (f?: SettingsField) => f?.schema?.label || f?.title || f?.key || '';
+
+/** Another page of the panel; picking one fills in its link back to this page. */
+const RouteInput: FC<{ item: MenuItem; route?: string; set: (patch: any) => void }> = ({ item, route, set }) => {
+	const { data: all } = useGetBuilderRoutesQuery();
+	const [picked, setPicked] = useState<string | null>(null);
+	const { data: target, isFetching } = useGetBuilderRouteQuery(picked as string, { skip: !picked });
+	const pages = useMemo(
+		() =>
+			(all?.doc || [])
+				.filter((r: any) => r.kind !== 'custom' && r.model && r.route !== route)
+				.sort((a: any, b: any) => String(a.title || a.route).localeCompare(String(b.title || b.route))),
+		[all, route]
+	);
+	// Once the picked page loads: its fields that pick this page start the list, locked.
+	useEffect(() => {
+		if (!picked || isFetching || !target) return;
+		const links = settingsOf(target).filter(f => route && f.schema?.model === route);
+		if (links.length && item.route === picked && !(item.presets || []).length)
+			set({ presets: links.map(f => ({ field: f.key, from: '_id', lock: true })) });
+		setPicked(null);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [picked, isFetching, target]);
+	return (
+		<Dropdown
+			value={item.route || ''}
+			placeholder='Pick a page'
+			onChange={(v: string) => {
+				set({ route: v, presets: [] });
+				setPicked(v);
+			}}>
+			{pages.map((r: any) => (
+				<option
+					key={r.route}
+					value={r.route}>
+					{r.title || r.route} ({r.route})
+				</option>
+			))}
+		</Dropdown>
+	);
+};
+
+const VALUE = '__value';
+
+/** The new record's fields filled from this row — or a fixed value — each optionally locked. */
+const PresetsInput: FC<{ item: MenuItem; fields: TableField[]; recordName: string; set: (patch: any) => void }> = ({
 	item,
 	fields,
+	recordName,
 	set,
 }) => {
+	const { data: target, isFetching } = useGetBuilderRouteQuery(item.route as string, { skip: !item.route });
+	const targetFields = useMemo(() => settingsOf(target).filter(f => f.schema?.type !== 'formula' && !f.rollup), [target]);
+	const presets: Preset[] = Array.isArray(item.presets) ? item.presets : [];
+	const setPresets = (next: Preset[]) => set({ presets: next.length ? next : undefined });
+	const setOne = (i: number, patch: Partial<Preset>) => setPresets(presets.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+	if (!item.route)
+		return (
+			<Text
+				fontSize='xs'
+				color='fg.muted'>
+				Pick the page first.
+			</Text>
+		);
+	return (
+		<Flex
+			direction='column'
+			gap={1.5}>
+			{isFetching && !targetFields.length && (
+				<Text
+					fontSize='xs'
+					color='fg.muted'>
+					Loading its fields…
+				</Text>
+			)}
+			{presets.map((p, i) => {
+				const tf = targetFields.find(f => f.key === p.field);
+				const yesNo = tf?.type === 'boolean' || ['checkbox', 'switch'].includes(tf?.schema?.type);
+				const options: any[] = yesNo
+					? [
+							{ value: 'true', label: 'Yes' },
+							{ value: 'false', label: 'No' },
+					  ]
+					: Array.isArray(tf?.schema?.options)
+					? tf!.schema.options
+					: [];
+				return (
+					<Flex
+						key={i}
+						gap={2}
+						align='center'
+						wrap={{ base: 'wrap', md: 'nowrap' }}>
+						<Box
+							flex='1'
+							minW='140px'>
+							<Dropdown
+								size='xs'
+								value={p.field || ''}
+								placeholder='Field'
+								onChange={(v: string) => setOne(i, { field: v })}>
+								{targetFields.map(f => (
+									<option
+										key={f.key}
+										value={f.key}>
+										{fieldLabel(f)}
+									</option>
+								))}
+							</Dropdown>
+						</Box>
+						<Text
+							fontSize='xs'
+							color='fg.muted'>
+							←
+						</Text>
+						<Box
+							flex='1'
+							minW='140px'>
+							<Dropdown
+								size='xs'
+								value={p.from === undefined ? VALUE : p.from}
+								onChange={(v: string) => setOne(i, v === VALUE ? { from: undefined, value: '' } : { from: v, value: undefined })}>
+								<option value='_id'>{`This ${recordName}`}</option>
+								{fields.map(f => (
+									<option
+										key={f.key}
+										value={f.key}>
+										{`${recordName}’s ${f.label}`}
+									</option>
+								))}
+								<option value={VALUE}>A value</option>
+							</Dropdown>
+						</Box>
+						{p.from === undefined && (
+							<Box
+								flex='1'
+								minW='120px'>
+								{options.length ? (
+									<Dropdown
+										size='xs'
+										value={p.value === undefined ? '' : String(p.value)}
+										placeholder='Pick'
+										onChange={(v: string) => setOne(i, { value: yesNo ? v === 'true' : v })}>
+										{options.map((o: any) => {
+											const v = typeof o === 'object' ? o.value : o;
+											return (
+												<option
+													key={String(v)}
+													value={v}>
+													{typeof o === 'object' ? o.label ?? v : o}
+												</option>
+											);
+										})}
+									</Dropdown>
+								) : (
+									<Input
+										size='xs'
+										placeholder='Value'
+										value={p.value ?? ''}
+										onChange={e => setOne(i, { value: tf?.type === 'number' && e.target.value !== '' && !isNaN(Number(e.target.value)) ? Number(e.target.value) : e.target.value })}
+									/>
+								)}
+							</Box>
+						)}
+						<IconButton
+							size='xs'
+							variant={p.lock ? 'subtle' : 'ghost'}
+							aria-label={p.lock ? 'Locked — click to let it be changed' : 'Can be changed — click to lock'}
+							title={p.lock ? 'Locked: shown, can’t be changed' : 'Can be changed in the form'}
+							onClick={() => setOne(i, { lock: !p.lock || undefined })}>
+							{p.lock ? <Lock {...ICON} /> : <LockOpen {...ICON} />}
+						</IconButton>
+						<IconButton
+							size='xs'
+							variant='ghost'
+							aria-label='Remove this field'
+							onClick={() => setPresets(presets.filter((_, j) => j !== i))}>
+							<X {...ICON} />
+						</IconButton>
+					</Flex>
+				);
+			})}
+			<Box>
+				<Button
+					size='xs'
+					variant='outline'
+					onClick={() => setPresets([...presets, { field: '', from: '_id' }])}>
+					<Plus {...ICON} />
+					Fill in a field
+				</Button>
+			</Box>
+		</Flex>
+	);
+};
+
+const ParamInput: FC<{
+	param: Param;
+	item: MenuItem;
+	fields: TableField[];
+	set: (patch: any) => void;
+	route?: string;
+	recordName: string;
+}> = ({ param, item, fields, set, route, recordName }) => {
 	const value = item[param.name];
 	switch (param.kind) {
+		case 'route':
+			return (
+				<RouteInput
+					item={item}
+					route={route}
+					set={set}
+				/>
+			);
+		case 'presets':
+			return (
+				<PresetsInput
+					item={item}
+					fields={fields}
+					recordName={recordName}
+					set={set}
+				/>
+			);
 		case 'text':
 			return (
 				<Input
@@ -252,7 +480,7 @@ const ParamInput: FC<{ param: Param; item: MenuItem; fields: TableField[]; set: 
  * Rows are dragged to reorder; a row expands to show the parameters its type
  * reads, and nothing else.
  */
-const MenuItemsEditor: FC<Props> = ({ items, types, fields, onChange, addLabel = 'Add item' }) => {
+const MenuItemsEditor: FC<Props> = ({ items, types, fields, onChange, addLabel = 'Add item', conditionFields, route, recordName = 'record' }) => {
 	const [open, setOpen] = useState<number | null>(null);
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -263,9 +491,11 @@ const MenuItemsEditor: FC<Props> = ({ items, types, fields, onChange, addLabel =
 	const changeType = (i: number, type: string) => {
 		const def = types.find(t => t.value === type);
 		const current = items[i];
-		// Keep only the title: the old type's parameters mean nothing to the new one.
+		// Keep only the title (and when it shows): the old type's parameters mean nothing to the new one.
 		const title = current.title && current.title !== types.find(t => t.value === current.type)?.label ? current.title : def?.label;
-		onChange(items.map((it, j) => (j === i ? { type, title } : it)));
+		const { showIf, showMatch } = current;
+		onChange(items.map((it, j) => (j === i ? { type, title, ...(showIf?.length && { showIf, showMatch }) } : it)));
+		if (def?.params?.length) setOpen(i);
 	};
 
 	const drop = (index: number) => {
@@ -370,7 +600,7 @@ const MenuItemsEditor: FC<Props> = ({ items, types, fields, onChange, addLabel =
 									{item.type}
 								</Badge>
 							)}
-							{!!type?.params?.length && (
+							{(!!type?.params?.length || (!!conditionFields && !!type)) && (
 								<IconButton
 									size='xs'
 									variant='ghost'
@@ -401,16 +631,17 @@ const MenuItemsEditor: FC<Props> = ({ items, types, fields, onChange, addLabel =
 								fontSize='11px'
 								color='fg.muted'>
 								{type.hint}
+								{!isOpen && item.showIf?.length ? ` · Only when ${conditionsText(item.showIf, item.showMatch)}` : ''}
 							</Text>
 						)}
 
-						{isOpen && type?.params && (
+						{isOpen && (type?.params || conditionFields) && (
 							<Flex
 								direction='column'
 								gap={3}
 								p={3}
 								pl='52px'>
-								{type.params.map(p => (
+								{(type?.params || []).map(p => (
 									<Box key={p.name}>
 										<Label hint={p.hint}>
 											{p.label}
@@ -421,9 +652,27 @@ const MenuItemsEditor: FC<Props> = ({ items, types, fields, onChange, addLabel =
 											item={item}
 											fields={fields}
 											set={patch => setItem(i, patch)}
+											route={route}
+											recordName={recordName}
 										/>
 									</Box>
 								))}
+								{conditionFields && type && (
+									<Box>
+										<Label hint='Hides this option on rows that don’t match — it doesn’t stop a save; a Linked Relationships rule does that.'>
+											Show only when
+										</Label>
+										<ConditionsEditor
+											fields={conditionFields}
+											where={item.showIf || []}
+											onChange={w => setItem(i, { showIf: w.length ? w : undefined, ...(!w.length && { showMatch: undefined }) })}
+											match={item.showMatch}
+											onMatch={m => setItem(i, { showMatch: m === 'any' ? 'any' : undefined })}
+											hint='Only on rows where these hold'
+											emptyHint='On every row'
+										/>
+									</Box>
+								)}
 							</Flex>
 						)}
 

@@ -15,7 +15,9 @@ export type ParamKind =
 	| 'keyType' //    how update-key edits its field
 	| 'options' //    value/label rows
 	| 'json' //       an object (update-api body)
-	| 'prompt'; //    confirm dialog: title, body, button text
+	| 'prompt' //     confirm dialog: title, body, button text
+	| 'route' //      another page of the panel
+	| 'presets'; //   add-related: the target's fields filled from this row
 
 export type Param = { name: string; label: string; kind: ParamKind; hint?: string; required?: boolean };
 
@@ -66,6 +68,20 @@ export const ROW_MENU_TYPES: MenuType[] = [
 			{ name: 'path', label: 'Route', kind: 'text', hint: 'Defaults to this route' },
 			{ name: 'body', label: 'Body', kind: 'json', required: true },
 			prompt,
+		],
+	},
+	{
+		value: 'add-related',
+		label: 'Add a linked record',
+		hint: 'Opens another page’s create form with fields filled from this row — “Add payment” on a bill',
+		params: [
+			{ name: 'route', label: 'Page', kind: 'route', required: true, hint: 'Where the new record is added' },
+			{
+				name: 'presets',
+				label: 'Filled in',
+				kind: 'presets',
+				hint: 'Fields of the new record set from this row or to a value. Locked ones show but can’t be changed.',
+			},
 		],
 	},
 	{
@@ -146,6 +162,13 @@ export const KEY_TYPES = [
 
 export type MenuItem = { type: string; title?: string; [key: string]: any };
 
+/**
+ * One field of the new record an add-related item fills in: from this row
+ * (`from: '_id'` is the row itself, else one of its fields) or a fixed `value`.
+ * `lock` shows it read-only.
+ */
+export type Preset = { field: string; from?: string; value?: any; lock?: boolean };
+
 /** The default row menu for a generated table config. */
 export const DEFAULT_ROW_MENU: MenuItem[] = [
 	{ type: 'view-server-modal', title: 'View' },
@@ -164,7 +187,11 @@ export const validateMenu = (items: MenuItem[], types: MenuType[]) => {
 		const missing = (type.params || []).find(
 			p => p.required && (item[p.name] === undefined || item[p.name] === '' || (Array.isArray(item[p.name]) && !item[p.name].length))
 		);
-		if (missing) errors[i] = `Needs ${missing.label.toLowerCase()}`;
+		if (missing) return (errors[i] = `Needs ${missing.label.toLowerCase()}`);
+		const presets: Preset[] = Array.isArray(item.presets) ? item.presets : [];
+		if (presets.some(p => !p?.field)) return (errors[i] = 'A filled-in row needs its field');
+		if (presets.some(p => p.from === undefined && (p.value === undefined || p.value === ''))) return (errors[i] = 'A filled-in row needs a value');
+		if (Array.isArray(item.showIf) && item.showIf.some((c: any) => !c?.field)) errors[i] = 'A “show only when” condition needs its field';
 	});
 	return errors;
 };

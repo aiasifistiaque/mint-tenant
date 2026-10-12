@@ -12,7 +12,8 @@ import TotalsEditor from './TotalsEditor';
 import StatusEditor from './StatusEditor';
 import { TableField } from './TableColumnsEditor';
 import { BULK_MENU_TYPES, ROW_MENU_TYPES } from './menuTypes';
-import { FieldLabel, Toggle } from './ui';
+import { DocLink, FieldLabel, Toggle } from './ui';
+import { ModelField } from './filterTypes';
 import { singularOf } from '@/components/library/modals/CreateModal/CreateModal';
 
 /**
@@ -231,7 +232,7 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 	);
 };
 
-export const RowMenuPanel: FC<Props & { fields: TableField[] }> = ({ value: page, onChange, code, fields }) => (
+export const RowMenuPanel: FC<Props & { fields: TableField[]; modelFields?: ModelField[] }> = ({ value: page, onChange, route, code, fields, modelFields }) => (
 	<Panel
 		title={
 			<ToneTitle
@@ -240,18 +241,22 @@ export const RowMenuPanel: FC<Props & { fields: TableField[] }> = ({ value: page
 				Row menu
 			</ToneTitle>
 		}
-		subtitle='What the ⋯ button on every row offers — View, Edit, Delete and more — in order. Drag to reorder.'
+		subtitle='What the ⋯ button on every row offers — View, Edit, Delete and more — in order. Drag to reorder. An item can show only on some rows, and “Add a linked record” opens another page’s form filled in from the row.'
 		actions={
-			code?.menu &&
-			JSON.stringify(page.menu || []) !== JSON.stringify(code.menu) && (
-				<Button
-					size='xs'
-					variant='outline'
-					onClick={() => onChange({ ...page, menu: code.menu })}>
-					<RotateCcw size={14} />
-					{IS_TENANT_PANEL ? 'Starting menu' : 'Code menu'}
-				</Button>
-			)
+			<Flex
+				align='center'
+				gap={3}>
+				<DocLink section='row-menu' />
+				{code?.menu && JSON.stringify(page.menu || []) !== JSON.stringify(code.menu) && (
+					<Button
+						size='xs'
+						variant='outline'
+						onClick={() => onChange({ ...page, menu: code.menu })}>
+						<RotateCcw size={14} />
+						{IS_TENANT_PANEL ? 'Starting menu' : 'Code menu'}
+					</Button>
+				)}
+			</Flex>
 		}>
 		<MenuItemsEditor
 			items={page.menu || []}
@@ -259,6 +264,9 @@ export const RowMenuPanel: FC<Props & { fields: TableField[] }> = ({ value: page
 			fields={fields}
 			addLabel='Add menu item'
 			onChange={menu => onChange({ ...page, menu })}
+			conditionFields={modelFields || []}
+			route={route}
+			recordName={singularOf(page.title) || 'record'}
 		/>
 	</Panel>
 );

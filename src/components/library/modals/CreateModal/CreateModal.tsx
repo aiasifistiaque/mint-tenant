@@ -217,6 +217,8 @@ const CreateModal = (props: CreateModalProps) => {
 		icon,
 		open: controlledOpen,
 		onClose: onControlledClose,
+		defaults,
+		description,
 	} = props;
 
 	// Controlled mode (see types.tsx): when `open` is passed, this dialog is
@@ -250,7 +252,7 @@ const CreateModal = (props: CreateModalProps) => {
 			if (field?.value) newFieldData = { ...newFieldData, [field.name]: field?.value };
 		});
 
-		setFormData((prev: any) => ({ ...prev, ...newFieldData }));
+		setFormData((prev: any) => ({ ...prev, ...newFieldData, ...(type !== 'update' && defaults) }));
 		if (type == 'update') {
 			if (populate) {
 				setFormData(populate);
@@ -426,7 +428,7 @@ const CreateModal = (props: CreateModalProps) => {
 						divider
 						icon={isUpdate ? <Pencil size={17} strokeWidth={1.75} /> : <Plus size={18} strokeWidth={1.75} />}
 						badge={isUpdate && <StatusPill value={record?.status} />}
-						description={subheading || prompt?.description || undefined}>
+						description={subheading || prompt?.description || description || undefined}>
 						{heading}
 					</DialogHeader>
 					<DialogCloseButton top={{ base: 4, md: 5 }} />
