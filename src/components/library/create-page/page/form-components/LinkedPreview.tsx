@@ -9,7 +9,9 @@ import { useLinkedPreviewMutation } from '../../../store/services/commonApi';
  * saving it will also change — "Will also update Invoice INV-0042: Status →
  * Paid, Payment date → 11 Oct 2026" — or why it would be refused. Asked of
  * the server (POST /<route>/linked/preview, nothing written) when a field a
- * rule reads changes, a moment after typing stops. Only on forms whose fields
+ * rule reads changes, a moment after typing stops. Fields a rule still needs
+ * aren't errors here — only a quiet "fill in …"; the save says so if they're
+ * still blank. Only on forms whose fields
  * carry `linkedReads`; renders nothing otherwise.
  */
 
@@ -23,6 +25,9 @@ const plain = (v: any): any => {
 	if (v && typeof v === 'object' && !(v instanceof Date)) return v._id ?? v.value ?? v;
 	return v;
 };
+
+/** "A", "A and B", "A, B and C". */
+const listOf = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 const shown = (v: string) => {
 	if (/^\d{4}-\d{2}-\d{2}T/.test(v)) {
@@ -74,7 +79,19 @@ const LinkedPreview: FC<Props> = ({ fields, formData }) => {
 	}
 	const changes: any[] = [...byRecord.values()];
 	const error: string | null = data?.error?.message || null;
-	if (!changes.length && !error) return null;
+	const missing: string[] = data?.missing || [];
+	if (!changes.length && !error && !missing.length) return null;
+
+	if (!error && !changes.length)
+		return (
+			<Text
+				mt={3}
+				fontSize='sm'
+				color='fg.muted'
+				aria-live='polite'>
+				Fill in {listOf(missing)} to see what saving will also change.
+			</Text>
+		);
 
 	return (
 		<Box
@@ -115,6 +132,7 @@ const LinkedPreview: FC<Props> = ({ fields, formData }) => {
 							</Text>
 						</Text>
 					))}
+					{missing.length > 0 && <Text color='fg.muted'>Fill in {listOf(missing)} to see the rest.</Text>}
 				</Flex>
 			)}
 		</Box>
