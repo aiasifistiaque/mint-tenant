@@ -58,9 +58,16 @@ const DIALOG_TYPES = new Set([
 	'view-modal',
 	'view-server-modal',
 	'add-related',
+	'set-field',
 ]);
 
 const ICON = { size: 16, strokeWidth: 1.75 };
+
+/** A row's value against a menu item's — a picked record by its id, true and "true" alike. */
+const sameValue = (a: any, b: any) => {
+	const plain = (v: any) => (v && typeof v === 'object' ? v._id ?? v.value ?? v : v);
+	return a != null && String(plain(a)) === String(plain(b));
+};
 
 /** Each row-menu option's icon, by its type. */
 const iconFor = (item: any) => {
@@ -75,6 +82,8 @@ const iconFor = (item: any) => {
 		case 'edit-modal':
 		case 'edit-server-modal':
 			return <Pencil {...ICON} />;
+		case 'set-field':
+			return <PencilLine {...ICON} />;
 		case 'update-key':
 			return item?.keyType === 'data-menu' ? <ListChecks {...ICON} /> : <PencilLine {...ICON} />;
 		case 'update-api':
@@ -142,6 +151,8 @@ const TableMenu: FC<TableMenuProps> = ({
 		if (item?.renderCondition && !item?.renderCondition(doc)) return null;
 		// Route builder → Row menu → "Show only when": only on rows that match.
 		if (Array.isArray(item?.showIf) && item.showIf.length && !meets(doc, item.showIf, item.showMatch === 'any' ? 'any' : 'all')) return null;
+		// "Mark as void" isn't offered on a row that's already void.
+		if (item?.type === 'set-field' && item.key && sameValue(doc?.[item.key], item.value)) return null;
 
 		if (item?.getValue) {
 			data = item?.getValue(doc);
@@ -353,6 +364,29 @@ const TableMenu: FC<TableMenuProps> = ({
 					default:
 						return null;
 				}
+			case 'set-field':
+				return (
+					<DecisionModal
+						item={{
+							...item,
+							body: { [item.key]: item.value },
+							prompt: {
+								title: `${item.title || 'Change'}?`,
+								body: `${item.fieldLabel || item.key} becomes ${item.valueLabel ?? String(item.value)}.`,
+								btnText: item.title || 'Change',
+								successMsg: `${item.fieldLabel || item.key} is now ${item.valueLabel ?? String(item.value)}`,
+								// What the builder's Confirmation set, over these.
+								...Object.fromEntries(Object.entries(item.prompt || {}).filter(([, v]) => v)),
+							},
+							invalidate: [path, ...(item.invalidate || [])],
+						}}
+						path={item?.path || path}
+						doc={doc}
+						itemId={id}
+						open
+						onClose={closeActive}
+					/>
+				);
 			case 'update-api':
 				return (
 					<DecisionModal

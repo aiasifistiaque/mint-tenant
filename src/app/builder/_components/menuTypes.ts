@@ -17,6 +17,7 @@ export type ParamKind =
 	| 'json' //       an object (update-api body)
 	| 'prompt' //     confirm dialog: title, body, button text
 	| 'route' //      another page of the panel
+	| 'fieldValue' // a value for the item's `key` field: its options, yes/no, or typed
 	| 'presets'; //   add-related: the target's fields filled from this row
 
 export type Param = { name: string; label: string; kind: ParamKind; hint?: string; required?: boolean };
@@ -58,6 +59,21 @@ export const ROW_MENU_TYPES: MenuType[] = [
 			{ name: 'key', label: 'Field', kind: 'field', required: true },
 			{ name: 'keyType', label: 'Input', kind: 'keyType', required: true },
 			{ name: 'dataPath', label: 'Options from route', kind: 'text', hint: 'For a data menu: the route its options come from' },
+		],
+	},
+	{
+		value: 'set-field',
+		label: 'Set a field',
+		hint: 'Changes one field of the record to a value, after confirming — “Mark as void” sets Status to Void',
+		params: [
+			{ name: 'key', label: 'Field', kind: 'field', required: true },
+			{ name: 'value', label: 'New value', kind: 'fieldValue', required: true },
+			{
+				name: 'prompt',
+				label: 'Confirmation',
+				kind: 'prompt',
+				hint: 'Leave empty for “Mark as void? Status becomes Void.”',
+			},
 		],
 	},
 	{

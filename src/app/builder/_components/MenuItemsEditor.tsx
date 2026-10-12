@@ -309,6 +309,60 @@ const ParamInput: FC<{
 }> = ({ param, item, fields, set, route, recordName }) => {
 	const value = item[param.name];
 	switch (param.kind) {
+		case 'fieldValue': {
+			const f = fields.find(x => x.key === item.key);
+			if (!f)
+				return (
+					<Text
+						fontSize='xs'
+						color='fg.muted'>
+						Pick the field first.
+					</Text>
+				);
+			const yesNo = f.type === 'boolean' || ['checkbox', 'switch'].includes(f.input || '');
+			const options: any[] = yesNo
+				? [
+						{ value: 'true', label: 'Yes' },
+						{ value: 'false', label: 'No' },
+				  ]
+				: Array.isArray(f.options)
+				? f.options
+				: [];
+			// The labels go with the item, for the confirmation it asks by default.
+			const setValue = (v: any, valueLabel: string) => set({ [param.name]: v, fieldLabel: f.label, valueLabel });
+			if (options.length)
+				return (
+					<Select
+						value={value === undefined ? '' : String(value)}
+						placeholder='Pick a value'
+						onChange={v => {
+							const o = options.find((x: any) => String(typeof x === 'object' ? x.value : x) === v);
+							setValue(yesNo ? v === 'true' : v, String(typeof o === 'object' ? o.label ?? o.value : o ?? v));
+						}}>
+						{options.map((o: any) => {
+							const v = typeof o === 'object' ? o.value : o;
+							return (
+								<option
+									key={String(v)}
+									value={String(v)}>
+									{typeof o === 'object' ? o.label ?? v : o}
+								</option>
+							);
+						})}
+					</Select>
+				);
+			return (
+				<Input
+					size='sm'
+					value={value ?? ''}
+					onChange={e => {
+						const t = e.target.value;
+						const v = f.type === 'number' && t !== '' && !isNaN(Number(t)) ? Number(t) : t;
+						setValue(v, t);
+					}}
+				/>
+			);
+		}
 		case 'route':
 			return (
 				<RouteInput
@@ -339,7 +393,8 @@ const ParamInput: FC<{
 				<Select
 					value={value || ''}
 					placeholder='Pick a field'
-					onChange={v => set({ [param.name]: v })}>
+					// Set a field: a new field's value is picked again.
+					onChange={v => set({ [param.name]: v, ...(item.type === 'set-field' && v !== value && { value: undefined, fieldLabel: undefined, valueLabel: undefined }) })}>
 					{fields.map(f => (
 						<option
 							key={f.key}
