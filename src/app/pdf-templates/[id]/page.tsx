@@ -286,7 +286,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		() => (t ? flattenFields(tree?.fields || []).filter(f => f.type !== 'list').map(f => ({ key: `${t.alias}.${f.path}`, instance: INSTANCE[f.type] || 'String' })) : []),
 		[tree, t?.alias]
 	);
-	const ctx = useMemo(() => (t ? { template: t, tree } : null), [t, tree]);
+	const ctx = useMemo(() => (t ? { template: t, tree, texts: settings?.texts || [] } : null), [t, tree, settings?.texts]);
 	const sel = t ? findBlock(t, selected) : null;
 	useEffect(() => {
 		if (t && also.some(id => !findBlock(t, id))) setAlso(a => a.filter(id => !!findBlock(t, id)));
