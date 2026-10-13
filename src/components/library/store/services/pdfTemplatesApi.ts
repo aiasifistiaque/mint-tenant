@@ -97,6 +97,11 @@ export const pdfTemplatesApi = mainApi.injectEndpoints({
 		getPdfRecordData: builder.query<{ roots: any; settings: any; tz: string }, { route: string; id: string; template: any; tz?: string }>({
 			query: ({ route, id, template, tz }) => ({ url: `${route}/export/template`, method: 'POST', body: { ids: [id], template, tz, as: 'data' } }),
 		}),
+		/** The designer's "Sample data": every field filled like Preview, the business details and saved texts as they are. */
+		getPdfPreviewData: builder.query<{ roots: any; settings: any; tz: string }, { template: any; tz?: string }>({
+			query: ({ template, tz }) => ({ url: 'pdf-templates/render', method: 'POST', body: { template, tz, dummy: true, as: 'data' } }),
+			providesTags: routeTags(`${TAG}-settings`),
+		}),
 	}),
 });
 
@@ -118,6 +123,7 @@ export const {
 	useRenderPdfSampleMutation,
 	useRenderPdfRecordsMutation,
 	useGetPdfRecordDataQuery,
+	useGetPdfPreviewDataQuery,
 } = pdfTemplatesApi;
 
 /** The viewer's time zone, so dates print as they read them. */

@@ -65,7 +65,8 @@ export const LogoField: FC<{ value: string; onChange: (url: string) => void; dis
 					handleImage={(url: any) => typeof url === 'string' && url && onChange(url)}>
 					<Button
 						size='xs'
-						variant='outline'>
+						variant='outline'
+						data-field='logo'>
 						<ImagePlus size={13} />
 						{value ? 'Change logo' : 'Upload logo'}
 					</Button>
@@ -108,6 +109,7 @@ const BusinessFields: FC<{ value: Business; onChange: (v: Business) => void; dis
 			<Field.Label {...labelCss}>{label}</Field.Label>
 			<Input
 				size='sm'
+				data-field={k}
 				value={value[k] || ''}
 				autoFocus={focus === k}
 				onChange={set(k)}
@@ -143,6 +145,7 @@ const BusinessFields: FC<{ value: Business; onChange: (v: Business) => void; dis
 							<Textarea
 								size='sm'
 								rows={2}
+								data-field='address'
 								maxLength={600}
 								value={value.address || ''}
 								autoFocus={focus === 'address'}

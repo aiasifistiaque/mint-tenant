@@ -51,12 +51,26 @@ const SettingsDialog: FC<{ open: boolean; onClose: () => void; focus?: string | 
 		setS(data);
 		let list: Draft[] = data.texts || [];
 		const want = focus?.startsWith('texts.') ? focus.slice(6) : '';
-		if (want && !list.some(t => t.key === want)) list = [...list, { key: want, label: want.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()), text: '', fresh: false }];
+		// "New saved text" (texts.new_text): a blank one whose key follows its name; any other key is a template's, kept as it is.
+		if (want && !list.some(t => t.key === want))
+			list = [...list, want === 'new_text' ? { key: want, label: '', text: '', fresh: true } : { key: want, label: want.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()), text: '', fresh: false }];
 		setTexts(list);
-		setTab(want ? 'texts' : 'business');
+		setTab(focus?.startsWith('texts.') ? 'texts' : 'business');
 		setFocusText(want || null);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [open, data, focus]);
+
+	// The dialog puts the cursor on its first control; then this moves it to the field asked for.
+	useEffect(() => {
+		if (!open || !focus || !data) return;
+		const sel = focus.startsWith('texts.') ? `[data-text="${focus.slice(6)}"]` : `[data-field="${focus.slice(9)}"]`;
+		const timer = setTimeout(() => {
+			const el = document.querySelector<HTMLElement>(`[role=dialog] ${sel}`);
+			el?.focus();
+			el?.scrollIntoView({ block: 'center' });
+		}, 250);
+		return () => clearTimeout(timer);
+	}, [open, focus, data, tab]);
 
 	const bizFocus = focus?.startsWith('business.') ? (focus.slice(9) as BusinessKey | 'note') : null;
 	const business: Business = { ...EMPTY_BUSINESS, ...s.business };
@@ -101,6 +115,7 @@ const SettingsDialog: FC<{ open: boolean; onClose: () => void; focus?: string | 
 			onClose={onClose}
 			title='Business details'
 			maxW='780px'
+			initialFocus={focus ? (focus.startsWith('texts.') ? `[data-text="${focus.slice(6)}"]` : `[data-field="${focus.slice(9)}"]`) : undefined}
 			description={
 				<>
 					What every template prints — <code>{'{{business.name}}'}</code>, <code>{'{{texts.terms_conditions}}'}</code> — and how amounts and dates look.{' '}
@@ -162,6 +177,7 @@ const SettingsDialog: FC<{ open: boolean; onClose: () => void; focus?: string | 
 							<Textarea
 								size='sm'
 								rows={2}
+								data-field='note'
 								autoFocus={bizFocus === 'note'}
 								value={s.business?.note || ''}
 								onChange={e => setS((x: any) => ({ ...x, business: { ...x.business, note: e.target.value } }))}
@@ -224,6 +240,7 @@ const SettingsDialog: FC<{ open: boolean; onClose: () => void; focus?: string | 
 								<Textarea
 									size='sm'
 									rows={4}
+									data-text={t.key}
 									maxLength={5000}
 									autoFocus={focusText === t.key}
 									placeholder='The words to print'

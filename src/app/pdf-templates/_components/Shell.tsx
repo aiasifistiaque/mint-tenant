@@ -13,9 +13,12 @@ const Shell: FC<{
 	maxW?: string;
 	footer?: ReactNode;
 	children: ReactNode;
-}> = ({ open, onClose, title, description, maxW = '640px', footer, children }) => (
+	/** A selector inside the dialog for the cursor on opening (else its first control). */
+	initialFocus?: string;
+}> = ({ open, onClose, title, description, maxW = '640px', footer, children, initialFocus }) => (
 	<Dialog.Root
 		open={open}
+		initialFocusEl={initialFocus ? () => document.querySelector<HTMLElement>(`[role=dialog] ${initialFocus}`) : undefined}
 		onOpenChange={e => !e.open && onClose()}
 		size='xl'
 		placement='top'

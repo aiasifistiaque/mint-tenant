@@ -17,8 +17,10 @@ import { Block, PdfTemplate, pageSize } from './types';
  * in the designer shows the file itself).
  *
  * `mode='fields'` shows tokens as chips instead of values. With `onSelect`,
- * blocks are clickable and the selected one is outlined; blocks whose "Show
- * only when" doesn't hold are drawn faded rather than hidden.
+ * blocks are clickable and the selected one is outlined (with `blockBar` on
+ * it); blocks whose "Show only when" doesn't hold are drawn faded rather than
+ * hidden. With `onFix`, an empty business detail or saved text shows as
+ * "Add phone" / "Upload logo" / "Write Terms & conditions" — click to fill it in.
  */
 
 export type PdfPageProps = {
@@ -31,6 +33,10 @@ export type PdfPageProps = {
 	scale?: number;
 	/** The page's height grows with its body (designer) or stays one page (thumbnail). */
 	clip?: boolean;
+	/** The designer: what an empty {{business.x}} / {{texts.x}} opens ("business.logo"). */
+	onFix?: (path: string) => void;
+	/** The designer: tools drawn on the selected block (move, duplicate, delete). */
+	blockBar?: ReactNode;
 };
 
 const FAMILY: Record<string, string> = {
@@ -46,9 +52,67 @@ const pt = (n: number | undefined) => `${n ?? 0}pt`;
 
 type Ctx = PdfPageProps & { t: PdfTemplate };
 
+const BUSINESS_FIX: Record<string, string> = {
+	name: 'Add business name',
+	logo: 'Upload logo',
+	address: 'Add address',
+	phone: 'Add phone',
+	email: 'Add email',
+	website: 'Add website',
+	taxId: 'Add tax number',
+	note: 'Add bank details',
+};
+
+/** What an empty detail's placeholder says. */
+export const fixLabel = (path: string) => {
+	const [root, key = ''] = path.split('.');
+	if (root === 'business') return BUSINESS_FIX[key] || `Add ${key}`;
+	return `Write “${key.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}”`;
+};
+
+const FIXABLE = /^(business|texts)\.[A-Za-z0-9_]+$/;
+
+/** "Add phone": a dashed chip that opens the business details at that field. */
+const Fix: FC<{ path: string; onFix: (path: string) => void }> = ({ path, onFix }) => (
+	<span
+		role='button'
+		tabIndex={0}
+		title='Click to fill it in — every template uses it'
+		onClick={e => {
+			e.stopPropagation();
+			onFix(path);
+		}}
+		onKeyDown={e => {
+			if (e.key === 'Enter') {
+				e.stopPropagation();
+				onFix(path);
+			}
+		}}
+		style={{
+			display: 'inline-block',
+			border: '1px dashed #8b8ff0',
+			color: '#4f46e5',
+			background: 'rgba(79,70,229,.06)',
+			borderRadius: 3,
+			padding: '0 4px',
+			fontFamily: FAMILY.sans,
+			fontSize: '0.85em',
+			fontWeight: 500,
+			fontStyle: 'normal',
+			letterSpacing: 0,
+			textTransform: 'none',
+			cursor: 'pointer',
+			whiteSpace: 'nowrap',
+		}}>
+		+ {fixLabel(path)}
+	</span>
+);
+
 /** `**bold**` and tokens: values, or chips naming the field. */
 const Rich: FC<{ text: string; ctx: Ctx; scope: Scope }> = ({ text, ctx, scope }) => {
-	const raw = text || '';
+	// A saved text goes in before **bold** is read, so its own bold shows (as in the PDF).
+	const texts = scope.roots?.texts || {};
+	const raw = ctx.mode === 'fields' ? text || '' : (text || '').replace(/\{\{\s*texts\.([A-Za-z0-9_]+)\s*\}\}/g, (m, k) => (texts[k] ? texts[k] : m));
 	const parts = raw.split('**');
 	return (
 		<>
@@ -66,6 +130,21 @@ const Rich: FC<{ text: string; ctx: Ctx; scope: Scope }> = ({ text, ctx, scope }
 									<Fragment key={j}>{bit}</Fragment>
 								)
 						  )
+						: ctx.onFix
+						? part.split(/(\{\{[\s\S]*?\}\})/g).map((bit, j) => {
+								if (!/^\{\{[\s\S]*\}\}$/.test(bit)) return <Fragment key={j}>{bit}</Fragment>;
+								const value = fill(bit, scope);
+								const path = bit.slice(2, -2).split('|')[0].trim();
+								return value === '' && FIXABLE.test(path) ? (
+									<Fix
+										key={j}
+										path={path}
+										onFix={ctx.onFix!}
+									/>
+								) : (
+									<Fragment key={j}>{value}</Fragment>
+								);
+						  })
 						: fill(part, scope);
 				return i % 2 ? (
 					<strong
@@ -145,6 +224,14 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 				ctx={ctx}
 				scope={scope}
 			/>
+			{selected && ctx.blockBar && (
+				// Undoes the page's zoom, so the tools keep their size at any zoom.
+				<div
+					onClick={e => e.stopPropagation()}
+					style={{ position: 'absolute', right: 0, bottom: '100%', marginBottom: 3, zoom: 1 / (ctx.scale || 1), zIndex: 2, lineHeight: 1 }}>
+					{ctx.blockBar}
+				</div>
+			)}
 		</div>
 	);
 };
@@ -177,26 +264,41 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 					</div>
 				);
 			if (!ctx.onSelect) return null;
+			const fixPath = String(b.src || '').replace(/^\{\{\s*|\s*\}\}$/g, '').split('|')[0].trim();
+			const fixable = !!ctx.onFix && ctx.mode !== 'fields' && FIXABLE.test(fixPath);
 			return (
 				<div style={wrap}>
 					<div
+						role={fixable ? 'button' : undefined}
+						title={fixable ? 'Click to upload it — every template uses it' : undefined}
+						onClick={
+							fixable
+								? e => {
+										e.stopPropagation();
+										ctx.onFix!(fixPath);
+								  }
+								: undefined
+						}
 						style={{
 							...box,
 							width: pt(b.width || (b.height ? b.height * 2.5 : 100)),
 							height: pt(b.height || 40),
-							border: '1px dashed #c7cad1',
+							border: fixable ? '1px dashed #8b8ff0' : '1px dashed #c7cad1',
+							background: fixable ? 'rgba(79,70,229,.06)' : undefined,
 							borderRadius: 3,
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
 							fontSize: '7pt',
-							color: '#8a8f98',
-							fontFamily: FAMILY.mono,
+							color: fixable ? '#4f46e5' : '#8a8f98',
+							fontFamily: fixable ? FAMILY.sans : FAMILY.mono,
+							fontWeight: fixable ? 600 : undefined,
+							cursor: fixable ? 'pointer' : undefined,
 							overflow: 'hidden',
 							padding: 2,
 							textAlign: 'center',
 						}}>
-						{String(b.src || 'Image').replace(/^\{\{\s*|\s*\}\}$/g, '')}
+						{fixable ? `+ ${fixLabel(fixPath)}` : String(b.src || 'Image').replace(/^\{\{\s*|\s*\}\}$/g, '')}
 					</div>
 				</div>
 			);
