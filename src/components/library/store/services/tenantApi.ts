@@ -35,9 +35,14 @@ export type Organization = {
 	paymentProviders?: string[];
 	owner: string;
 	onboarding?: Onboarding;
+	/** Its business details (backend docs/pdf-templates D14); `logo` is the organization's logo. */
+	business?: BusinessDetails;
 	counts?: { members: number; projects: number; websites: number };
 	createdAt?: string;
 };
+
+/** Business details: what invoices print as {{business.*}} (docs/pdf-templates D14). */
+export type BusinessDetails = { name: string; logo: string; address: string; phone: string; email: string; website: string; taxId: string };
 
 export type ProjectType = 'app' | 'website' | 'api';
 /** Whose media library a project uses (WO-23). */
@@ -59,6 +64,8 @@ export type TenantProject = {
 	mediaScope?: MediaScope;
 	isActive: boolean;
 	models?: number;
+	/** Its business details — only from GET /projects/:id and PUT (the organization's until it has its own). */
+	business?: BusinessDetails;
 	/** A template preview in the sandbox (docs/templates T-04). */
 	preview?: { expiresAt: string; from: 'draft' | 'published' };
 	/** A website template's starter code, filled for this project (docs/templates T-10). */
@@ -455,7 +462,7 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: () => 'org',
 			providesTags: ['tenant-org'],
 		}),
-		updateOrganization: builder.mutation<Organization, { name?: string; logo?: string; country?: string; onboarding?: Onboarding }>({
+		updateOrganization: builder.mutation<Organization, { name?: string; logo?: string; country?: string; onboarding?: Onboarding; business?: Partial<BusinessDetails> }>({
 			query: body => ({ url: 'org', method: 'PUT', body }),
 			invalidatesTags: ORG,
 		}),
@@ -555,6 +562,11 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 
 		/* --------------------------------------------------------- projects */
+		/** One project, with its business details. */
+		getTenantProject: builder.query<TenantProject, string>({
+			query: id => ({ url: `projects/${id}` }),
+			providesTags: ['tenant-projects'],
+		}),
 		getProjects: builder.query<{ doc: TenantProject[] }, { archived?: boolean } | void>({
 			query: arg => `projects${arg && arg.archived ? '?archived=1' : ''}`,
 			providesTags: ['tenant-projects'],
@@ -766,6 +778,7 @@ export const {
 	useSendEmailCodeMutation,
 	useVerifyEmailMutation,
 	useGetProjectsQuery,
+	useGetTenantProjectQuery,
 	useCreateProjectMutation,
 	useUpdateProjectMutation,
 	useDeleteProjectMutation,

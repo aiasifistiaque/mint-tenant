@@ -16,13 +16,17 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import { GOALS, HEARD_FROM, INDUSTRIES, TEAM_SIZES } from '@/components/library/tenant/onboarding';
 import type { Onboarding } from '@/components/library/store/services/tenantApi';
 import CountrySelect from '@/components/library/tenant/CountrySelect';
+import BusinessFields, { Business, EMPTY_BUSINESS } from '@/components/library/tenant/BusinessDetails';
 
 const PROVIDER_NAMES: Record<string, string> = { stripe: 'Stripe', sslcommerz: 'SSLCommerz', bkash: 'bKash' };
 
 /**
  * The organization's settings (tenant panel): its name, the answers about the
- * business given at sign-up (editable), and — for the owner — handing
- * ownership to another member. Needs `manage-organization` to change.
+ * business given at sign-up (editable), its business details — logo, address,
+ * phone… that new projects start with (backend docs/pdf-templates D14) — and,
+ * for the owner, handing ownership to another member. Needs
+ * `manage-organization` to change. Only here: inside a project, the project's
+ * own details are on Project settings.
  */
 
 const errorText = (e: any) => e?.data?.message || 'Something went wrong — try again.';
@@ -91,14 +95,6 @@ const Details: FC = () => {
 									}}
 								/>
 							</Field.Root>
-							<Field.Root>
-								<Field.Label {...labelCss}>Business name</Field.Label>
-								<Input
-									size='sm'
-									value={about.businessName || ''}
-									onChange={e => set('businessName')(e.target.value)}
-								/>
-							</Field.Root>
 							<Box>
 								<Text {...labelCss}>Industry</Text>
 								<Box mt={1.5}>
@@ -125,15 +121,6 @@ const Details: FC = () => {
 									/>
 								</Box>
 							</Box>
-							<Field.Root>
-								<Field.Label {...labelCss}>Website</Field.Label>
-								<Input
-									size='sm'
-									value={about.website || ''}
-									placeholder='https://'
-									onChange={e => set('website')(e.target.value)}
-								/>
-							</Field.Root>
 							<Field.Root required>
 								<Field.Label {...labelCss}>Country</Field.Label>
 								<CountrySelect
@@ -235,6 +222,73 @@ const Details: FC = () => {
 	);
 };
 
+/** The organization's business details — new projects start with a copy (each then keeps its own). */
+const BusinessPanel: FC = () => {
+	const { data: org } = useGetOrganizationQuery();
+	const { can } = useWorkspace();
+	const [save, { isLoading: saving, error, isSuccess, reset }] = useUpdateOrganizationMutation();
+	const [b, setB] = useState<Business>(EMPTY_BUSINESS);
+	const editable = can('manage-organization');
+	useEffect(() => {
+		if (org) setB({ ...EMPTY_BUSINESS, ...org.business, logo: org.logo || '' });
+	}, [org?._id, org?.logo, JSON.stringify(org?.business)]);
+
+	if (!org) return null;
+	const { logo, ...business } = b;
+	return (
+		<Panel
+			title='Business details'
+			subtitle='Your logo, address and contacts. Each new project starts with these, and its invoices and receipts print them.'
+			actions={<GuideLink section='organizations' />}>
+			<form
+				onSubmit={async e => {
+					e.preventDefault();
+					await save({ logo, business });
+				}}>
+				<Flex
+					direction='column'
+					gap={4}>
+					<BusinessFields
+						value={b}
+						disabled={!editable}
+						onChange={v => {
+							reset();
+							setB(v);
+						}}
+					/>
+					{editable && (
+						<Flex
+							align='center'
+							justify='flex-end'
+							gap={3}>
+							{error && (
+								<Text
+									fontSize='13px'
+									color='red.fg'>
+									{errorText(error)}
+								</Text>
+							)}
+							{isSuccess && (
+								<Text
+									fontSize='13px'
+									color='fg.muted'>
+									Saved — projects made from now on start with these
+								</Text>
+							)}
+							<Button
+								type='submit'
+								size='sm'
+								loading={saving}>
+								Save
+							</Button>
+						</Flex>
+					)}
+				</Flex>
+			</form>
+		</Panel>
+	);
+};
+
 const Ownership: FC = () => {
 	const { role, self } = useWorkspace();
 	const { data: members } = useGetMembersQuery();
@@ -311,6 +365,7 @@ export default function OrgSettingsPage() {
 				gap={4}
 				pt={2}>
 				<Details />
+				<BusinessPanel />
 				<Ownership />
 			</Flex>
 		</Layout>
