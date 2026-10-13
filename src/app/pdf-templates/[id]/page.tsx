@@ -102,6 +102,7 @@ const Side: FC<{ side: 'left' | 'right'; children: ReactNode }> = ({ side, child
 		h={{ lg: 'full' }}
 		minH={0}
 		overflowY='auto'
+		overflowX='hidden'
 		bg='bg.panel'
 		borderColor='border'
 		{...(side === 'left' ? { borderRightWidth: { lg: '1px' } } : { borderLeftWidth: { lg: '1px' } })}
@@ -145,7 +146,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	const [base, setBase] = useState<string>('');
 	const [hist, setHist] = useState<{ past: PdfTemplate[]; future: PdfTemplate[] }>({ past: [], future: [] });
 	const [selected, setSelected] = useState<string | null>(null);
-	const [tab, setTab] = useState<'add' | 'layers'>('add');
+	const [tab, setTab] = useState<'add' | 'pieces' | 'layers'>('add');
 	const [mode, setMode] = useState<'values' | 'fields'>('values');
 	const [zoom, setZoom] = useState(1);
 	// null: not picked yet (the first record shows); '': Sample data, picked.
@@ -713,14 +714,16 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 								value={tab}
 								onChange={v => setTab(v as any)}
 								tabs={[
-									{ value: 'add', label: 'Add' },
+									{ value: 'add', label: 'Blocks' },
+									{ value: 'pieces', label: 'Ready-made' },
 									{ value: 'layers', label: 'Layers' },
 								]}>
 								{null}
 							</ConsoleTabs>
 							<Box pt={3}>
-								{tab === 'add' ? (
+								{tab !== 'layers' ? (
 									<AddPanel
+										section={tab === 'add' ? 'blocks' : 'pieces'}
 										where={sel ? `after the selected ${labelOf(sel.block).toLowerCase()}` : 'at the end of the body — select a block to add after it'}
 										onAdd={addBlock}
 										alias={t.alias}
