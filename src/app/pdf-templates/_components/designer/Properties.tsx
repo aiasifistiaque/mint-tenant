@@ -243,48 +243,66 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 							</Button>
 						}>
 						{(b.columns || []).map((c: any, i: number) => (
-							<Flex
-								key={i}
-								align='center'
-								gap={2}>
-								<Text
-									fontSize='xs'
-									w='60px'>
-									Column {i + 1}
-								</Text>
-								<Box w='80px'>
-									<Num
-										value={c.width}
-										min={0.1}
-										max={12}
-										step={0.1}
-										unit='×'
-										onChange={v => set({ columns: listEdit(b.columns, i, { width: v ?? 1 }) })}
+							<Box key={i}>
+								<Flex
+									align='center'
+									gap={2}>
+									<Text
+										fontSize='xs'
+										w='60px'>
+										Column {i + 1}
+									</Text>
+									<Box w='80px'>
+										<Num
+											value={c.width}
+											min={0.1}
+											max={12}
+											step={0.1}
+											unit='×'
+											onChange={v => set({ columns: listEdit(b.columns, i, { width: v ?? 1 }) })}
+										/>
+									</Box>
+									<Box flex='1'>
+										<Pick
+											value={c.valign || 'top'}
+											options={[
+												['top', 'Top'],
+												['middle', 'Middle'],
+												['bottom', 'Bottom'],
+											]}
+											onChange={v => set({ columns: listEdit(b.columns, i, { valign: v }) })}
+										/>
+									</Box>
+									<ItemTools
+										i={i}
+										n={b.columns.length}
+										onMove={by => set({ columns: listMove(b.columns, i, by) })}
+										onRemove={() => set({ columns: listEdit(b.columns, i, null) })}
 									/>
-								</Box>
-								<Box flex='1'>
-									<Pick
-										value={c.valign || 'top'}
-										options={[
-											['top', 'Top'],
-											['middle', 'Middle'],
-											['bottom', 'Bottom'],
-										]}
-										onChange={v => set({ columns: listEdit(b.columns, i, { valign: v }) })}
-									/>
-								</Box>
-								<ItemTools
-									i={i}
-									n={b.columns.length}
-									onMove={by => set({ columns: listMove(b.columns, i, by) })}
-									onRemove={() => set({ columns: listEdit(b.columns, i, null) })}
-								/>
-							</Flex>
+								</Flex>
+								{/* Its blocks one under another, or side by side (PT-28). */}
+								<Flex
+									align='center'
+									gap={2}
+									mt={1}
+									pl='68px'>
+									<Box flex='1'>
+										<Pick
+											value={c.direction === 'row' ? 'row' : 'column'}
+											options={[
+												['column', 'One under another'],
+												['row', 'Side by side'],
+											]}
+											onChange={v => set({ columns: listEdit(b.columns, i, { direction: v === 'row' ? 'row' : undefined }) })}
+										/>
+									</Box>
+								</Flex>
+							</Box>
 						))}
 						<Text
 							fontSize='11px'
 							color='fg.subtle'>
-							Width is a share: 2 and 1 make the first twice as wide. Add blocks into a column from the outline.
+							Width is a share: 2 and 1 make the first twice as wide; Top / Middle / Bottom places the column’s blocks. Drag blocks into a column on the page or in Layers.
 						</Text>
 						<Row label='Gap'>
 							<Num
@@ -348,11 +366,46 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 							</Row>
 						</Section>
 						<Section title='Box'>
+							{!place.parent && (
+								<>
+									<Toggle
+										label='Full-width background'
+										checked={!!b.bleed}
+										onChange={v => set({ bleed: v || undefined })}
+									/>
+									<Text
+										fontSize='11px'
+										color='fg.muted'
+										mt={-1}>
+										{place.part === 'header'
+											? 'The background runs to the page’s edges — the first block of the header up to the top edge. What’s inside stays within the margins.'
+											: place.part === 'footer'
+											? 'The background runs to the page’s edges — the last block of the footer down to the bottom edge. What’s inside stays within the margins.'
+											: 'The background runs to the page’s left and right edges; what’s inside stays within the margins.'}
+									</Text>
+								</>
+							)}
 							<Row label='Padding'>
 								<Num
 									value={b.pad}
 									max={80}
 									onChange={v => set({ pad: v })}
+								/>
+							</Row>
+							<Row label='Top & bottom'>
+								<Num
+									value={b.padY}
+									max={80}
+									placeholder={String(b.pad ?? 10)}
+									onChange={v => set({ padY: v })}
+								/>
+							</Row>
+							<Row label='Left & right'>
+								<Num
+									value={b.padX}
+									max={80}
+									placeholder={String(b.pad ?? 10)}
+									onChange={v => set({ padX: v })}
 								/>
 							</Row>
 							<Row label='Background'>
@@ -371,6 +424,27 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 									onChange={v => set({ border: v })}
 								/>
 							</Row>
+							{!!b.border && (
+								<Row label='Lines on'>
+									<Flex gap={1}>
+										{(['top', 'right', 'bottom', 'left'] as const).map(side => {
+											const on = !b.borderSides?.length || b.borderSides.includes(side);
+											return (
+												<Button
+													key={side}
+													size='2xs'
+													variant={on ? 'solid' : 'outline'}
+													onClick={() => {
+														const now = (['top', 'right', 'bottom', 'left'] as const).filter(k => (k === side ? !on : !b.borderSides?.length || b.borderSides.includes(k)));
+														set({ borderSides: now.length === 4 || !now.length ? undefined : now });
+													}}>
+													{side[0].toUpperCase() + side.slice(1)}
+												</Button>
+											);
+										})}
+									</Flex>
+								</Row>
+							)}
 							<Row label='Border colour'>
 								<Color
 									value={b.borderColor}

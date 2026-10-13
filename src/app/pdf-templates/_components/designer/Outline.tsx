@@ -8,7 +8,8 @@ import { BLOCKS, Block, BlockType, Part, PdfTemplate, Slot, blockSummary } from 
 /**
  * The template's blocks as a tree — header, body, footer, and what sits in
  * columns and boxes. Click to select (the page outlines it), drag to move
- * (between parts and into columns or boxes too), + to add a block there.
+ * (between parts and into columns or boxes too — dropped on a box or
+ * columns row, it goes inside), + to add a block there.
  */
 
 const ICONS: Record<string, any> = {
@@ -134,6 +135,27 @@ const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove }) => 
 							color={isSel ? 'blue.fg' : undefined}
 							opacity={drag === b.id ? 0.4 : 1}
 							_hover={{ bg: isSel ? 'blue.subtle' : 'bg.muted' }}
+							// Dropped on a box or columns row: it goes inside, at the end (the first column).
+							{...((b.type === 'box' || b.type === 'columns') && {
+								outline: over === `in|${b.id}` ? '1.5px solid var(--chakra-colors-blue-500)' : undefined,
+								onDragOver: (e: DragEvent) => {
+									if (!drag || drag === b.id) return;
+									e.preventDefault();
+									setOver(`in|${b.id}`);
+								},
+								onDragLeave: () => setOver(o => (o === `in|${b.id}` ? null : o)),
+								onDrop: (e: DragEvent) => {
+									e.preventDefault();
+									if (drag && drag !== b.id)
+										onMove(
+											drag,
+											b.type === 'box' ? { part: slot.part, parent: b.id } : { part: slot.part, parent: b.id, column: 0 },
+											b.type === 'box' ? (b.blocks || []).length : (b.columns?.[0]?.blocks || []).length
+										);
+									setDrag(null);
+									setOver(null);
+								},
+							})}
 							onClick={() => onSelect(b.id)}>
 							<GripVertical
 								size={12}

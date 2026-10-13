@@ -207,21 +207,31 @@ const flexOf = (b: Block, flow: Flow): CSSProperties => {
 	return { flexShrink: 0, ...(grow && { flexGrow: grow }) };
 };
 
-const Blocks: FC<{ blocks: Block[]; ctx: Ctx; scope: Scope; flow?: Flow }> = ({ blocks, ctx, scope, flow = 'column' }) => (
+/** A part's own blocks know the page's margins, so a full-width box can reach the edges (PT-27). */
+type PartEdge = { name: 'header' | 'body' | 'footer'; ml: number; mr: number; mt: number; mb: number };
+/** How far a full-width box's background reaches past its place. */
+type Bleed = { l: number; r: number; t: number; b: number };
+
+const Blocks: FC<{ blocks: Block[]; ctx: Ctx; scope: Scope; flow?: Flow; part?: PartEdge }> = ({ blocks, ctx, scope, flow = 'column', part }) => (
 	<>
-		{(blocks || []).map(b => (
+		{(blocks || []).map((b, i, all) => (
 			<BlockView
 				key={b.id}
 				b={b}
 				ctx={ctx}
 				scope={scope}
 				flow={flow}
+				bleed={
+					part && b.type === 'box' && b.bleed
+						? { l: part.ml, r: part.mr, t: part.name === 'header' && i === 0 ? part.mt : 0, b: part.name === 'footer' && i === all.length - 1 ? part.mb : 0 }
+						: undefined
+				}
 			/>
 		))}
 	</>
 );
 
-const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ctx, scope, flow }) => {
+const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Bleed }> = ({ b, ctx, scope, flow, bleed }) => {
 	const shown = visible(b, scope);
 	const editing = !!ctx.onSelect;
 	if (!shown && !editing) return null;
@@ -265,6 +275,7 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ct
 				ctx={ctx}
 				scope={scope}
 				flow={flow}
+				bleed={bleed}
 			/>
 			{selected && ctx.blockBar && (
 				// Undoes the page's zoom, so the tools keep their size at any zoom.
@@ -278,7 +289,7 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ct
 	);
 };
 
-const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ctx, scope, flow }) => {
+const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Bleed }> = ({ b, ctx, scope, flow, bleed }) => {
 	switch (b.type) {
 		case 'text':
 			return (
@@ -353,6 +364,7 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ct
 							key={i}
 							data-container={b.id}
 							data-column={i}
+							data-dir={c.direction === 'row' ? 'row' : 'column'}
 							style={{
 								flex: `${c.width || 1} 1 0`,
 								minWidth: 0,
@@ -361,11 +373,13 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ct
 								justifyContent: c.valign === 'middle' ? 'center' : c.valign === 'bottom' ? 'flex-end' : 'flex-start',
 								...(ctx.onSelect && !(c.blocks || []).length && { minHeight: '24pt', outline: '1px dashed #d4d6db' }),
 							}}>
-							<div>
+							{/* A column's blocks one under another, or side by side (PT-28). */}
+							<div style={c.direction === 'row' ? { display: 'flex', flexDirection: 'row', gap: pt(c.gap ?? 8), alignItems: ROW_ALIGN[c.valign === 'middle' ? 'middle' : c.valign === 'bottom' ? 'bottom' : 'top'] } : undefined}>
 								<Blocks
 									blocks={c.blocks}
 									ctx={ctx}
 									scope={scope}
+									flow={c.direction === 'row' ? 'row' : 'column'}
 								/>
 							</div>
 						</div>
@@ -374,15 +388,25 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ct
 			);
 		case 'box': {
 			const row = b.direction === 'row';
+			// Padding top-bottom / left-right over the all-round one, the border on some sides only (PT-30).
+			const px = b.padX ?? b.pad ?? 10;
+			const py = b.padY ?? b.pad ?? 10;
+			const sides: string[] | null = Array.isArray(b.borderSides) && b.borderSides.length ? b.borderSides : null;
+			const line = b.border ? `${pt(b.border)} solid ${b.borderColor || HAIRLINE}` : undefined;
+			const reach = bleed && b.bg ? bleed : null;
 			return (
 				<div
 					data-container={b.id}
 					data-dir={row ? 'row' : 'column'}
 					style={{
-						padding: pt(b.pad ?? 10),
+						padding: `${pt(py + (reach?.t || 0))} ${pt(px + (reach?.r || 0))} ${pt(py + (reach?.b || 0))} ${pt(px + (reach?.l || 0))}`,
+						// Full width (PT-27): out to the page's edges; the contents stay inside the margins.
+						...(reach && { marginLeft: pt(-reach.l), marginRight: pt(-reach.r), marginTop: pt(-reach.t), marginBottom: pt(-reach.b) }),
 						background: b.bg,
-						border: b.border ? `${pt(b.border)} solid ${b.borderColor || HAIRLINE}` : undefined,
-						borderRadius: pt(b.radius),
+						...(sides
+							? { borderTop: sides.includes('top') ? line : undefined, borderRight: sides.includes('right') ? line : undefined, borderBottom: sides.includes('bottom') ? line : undefined, borderLeft: sides.includes('left') ? line : undefined }
+							: { border: line }),
+						borderRadius: sides || reach ? 0 : pt(b.radius),
 						boxSizing: 'border-box',
 						flex: '1 1 auto',
 						display: 'flex',
@@ -636,6 +660,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 						blocks={t.header}
 						ctx={ctx}
 						scope={pageScope(1)}
+						part={{ name: 'header', ml, mr, mt, mb }}
 					/>
 				</div>
 			) : (
@@ -657,6 +682,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 					blocks={t.body}
 					ctx={ctx}
 					scope={scope}
+					part={{ name: 'body', ml, mr, mt, mb }}
 				/>
 			</div>
 			{(t.footer || []).length > 0 ? (
@@ -667,6 +693,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 						blocks={t.footer}
 						ctx={ctx}
 						scope={pageScope(1)}
+						part={{ name: 'footer', ml, mr, mt, mb }}
 					/>
 				</div>
 			) : (
