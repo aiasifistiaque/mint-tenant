@@ -34,8 +34,9 @@ const asObjectUrl = async (response: Response) => {
 export const pdfTemplatesApi = mainApi.injectEndpoints({
 	overrideExisting: false,
 	endpoints: builder => ({
-		getPdfTemplates: builder.query<{ templates: any[] }, { route?: string } | void>({
-			query: arg => ({ url: 'pdf-templates', params: arg && arg.route ? { route: arg.route } : undefined }),
+		// `published`: only the ones a page offers for download (PT-33).
+		getPdfTemplates: builder.query<{ templates: any[] }, { route?: string; published?: boolean } | void>({
+			query: arg => ({ url: 'pdf-templates', params: arg && (arg.route || arg.published) ? { ...(arg.route && { route: arg.route }), ...(arg.published && { published: '1' }) } : undefined }),
 			providesTags: routeTags(TAG),
 		}),
 		getPdfTemplate: builder.query<any, string>({

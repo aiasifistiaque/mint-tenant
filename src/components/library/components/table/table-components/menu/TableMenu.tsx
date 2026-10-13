@@ -36,6 +36,7 @@ import { pagePath, projectHref } from '../../../../config/lib/constants/panel';
 import { meets } from '../../../../functions/fieldLocks';
 import AddRelatedDialog from './AddRelatedDialog';
 import { useDownloadPdf } from '../../../../pdf/DownloadPdf';
+import { useGetPdfTemplatesQuery } from '../../../../store/services/pdfTemplatesApi';
 
 type TableMenuProps = {
 	data: any;
@@ -149,6 +150,15 @@ const TableMenu: FC<TableMenuProps> = ({
 	const closeActive = () => setActiveIndex(null);
 	// Route builder → Row menu → "Download PDF" (docs/pdf-templates): straight to a file.
 	const { download: downloadPdf } = useDownloadPdf();
+	// Only published templates download (PT-33): an item for a draft — or, with none named, on a
+	// page with no published one — isn't offered. Asked once the menu opens; cached per page.
+	const needsPdf = data?.some((item: any) => item?.type === 'download-pdf');
+	const { data: pdfData } = useGetPdfTemplatesQuery({ route: path, published: true }, { skip: !hasOpened || !needsPdf });
+	const pdfOffered = (item: any) => {
+		if (!pdfData) return true;
+		const list: any[] = pdfData.templates || [];
+		return item?.template ? list.some(t => t._id === item.template) : list.length > 0;
+	};
 
 	const renderMenuTrigger = (item: any, i: number) => {
 		// No `key` in here — React does not read a key out of a spread
@@ -176,6 +186,7 @@ const TableMenu: FC<TableMenuProps> = ({
 
 		switch (item.type) {
 			case 'download-pdf':
+				if (!pdfOffered(item)) return null;
 				return (
 					<MenuItem
 						key={i}

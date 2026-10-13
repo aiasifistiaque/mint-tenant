@@ -279,7 +279,7 @@ export const PrintRows: FC<BulkProps> = ({ path, items, title }) => {
 	const [open, setOpen] = useState(false);
 	const [download, { isLoading }] = useDownloadMutation();
 	// The page's PDF templates (docs/pdf-templates): every ticked record in one file.
-	const { data: tpl } = useGetPdfTemplatesQuery({ route: path }, { skip: !open });
+	const { data: tpl } = useGetPdfTemplatesQuery({ route: path, published: true }, { skip: !open });
 	const templates: any[] = tpl?.templates || [];
 	const [making, setMaking] = useState('');
 	const withTemplate = async (t: any) => {

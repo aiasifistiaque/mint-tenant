@@ -20,6 +20,8 @@ import {
 	FileDown,
 	Redo2,
 	Save,
+	Send,
+	EyeOff,
 	ScanEye,
 	Sparkles,
 	Star,
@@ -40,7 +42,7 @@ import {
 	useUpdatePdfTemplateMutation,
 	viewerZone,
 } from '@/components/library';
-import { ConsoleTabs, Dropdown, ErrorState } from '@/components/library/cl';
+import { ConfirmAction, ConsoleTabs, Dropdown, ErrorState } from '@/components/library/cl';
 import PdfPage, { Corner } from '@/components/library/pdf/PdfPage';
 import { recordScope, sampleScope } from '@/components/library/pdf/scope';
 import {
@@ -217,6 +219,9 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	}, [data]);
 
 	const dirty = !!t && JSON.stringify(t) !== base;
+	// Older templates have no status: they're published.
+	const draft = t?.status === 'draft';
+	const [unpublishing, setUnpublishing] = useState(false);
 	useEffect(() => {
 		if (!dirty) return;
 		const warn = (e: BeforeUnloadEvent) => {
@@ -678,14 +683,21 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		};
 	}, []);
 
-	const doSave = async () => {
+	/** Saves the working copy — with `status`, published or back to a draft as well (PT-33). */
+	const doSave = async (status?: 'draft' | 'published') => {
 		if (!t || saving) return;
 		try {
-			const doc = await save({ id, body: t }).unwrap();
+			const doc = await save({ id, body: status ? { ...t, status } : t }).unwrap();
 			setProblems([]);
 			setT(doc);
 			setBase(JSON.stringify(doc));
-			toaster.create({ type: 'success', title: 'Saved' });
+			toaster.create(
+				status === 'published'
+					? { type: 'success', title: 'Published', description: doc.route ? `It’s offered on /${doc.route}’s Download PDF now.` : 'Pick the page it prints to offer it there.' }
+					: status === 'draft'
+					? { type: 'success', title: 'Back to a draft', description: 'It’s no longer offered on the page’s Download PDF.' }
+					: { type: 'success', title: 'Saved' }
+			);
 		} catch (e: any) {
 			setProblems(e?.data?.errors || [errorOf(e)]);
 			toaster.create({ type: 'error', title: 'Not saved', description: errorOf(e) });
@@ -846,6 +858,15 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 								truncate>
 								{t?.name || '…'}
 							</Text>
+							{t && (
+								<Badge
+									size='xs'
+									colorPalette={draft ? 'orange' : 'blue'}
+									variant='subtle'
+									title={draft ? 'Shows only here — publish it to offer it on the page’s Download PDF' : 'Offered on the page’s Download PDF'}>
+									{draft ? 'Draft' : 'Published'}
+								</Badge>
+							)}
 							{t?.isDefault && (
 								<Badge
 									size='xs'
@@ -991,14 +1012,49 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 					)}
 					<Button
 						size='xs'
+						variant={draft ? 'outline' : 'solid'}
 						disabled={!dirty}
 						loading={saving}
-						onClick={doSave}>
+						onClick={() => doSave()}>
 						<Save {...ICON} />
 						Save
 					</Button>
+					{/* Draft → Publish (offered on the page's Download PDF); published → back to a draft (PT-33). */}
+					{t && draft && (
+						<Button
+							size='xs'
+							colorPalette='blue'
+							loading={saving}
+							title={dirty ? 'Save your changes and offer it on the page’s Download PDF' : 'Offer it on the page’s Download PDF'}
+							onClick={() => doSave('published')}>
+							<Send {...ICON} />
+							Publish
+						</Button>
+					)}
+					{t && !draft && (
+						<Button
+							size='xs'
+							variant='ghost'
+							title='Back to a draft: it stops showing on the page’s Download PDF'
+							onClick={() => setUnpublishing(true)}>
+							<EyeOff {...ICON} />
+							Unpublish
+						</Button>
+					)}
 				</Flex>
 
+				<ConfirmAction
+					isOpen={unpublishing}
+					onClose={() => setUnpublishing(false)}
+					title={`Unpublish “${t?.name || 'this template'}”?`}
+					consequence={`It goes back to a draft and stops showing on ${route ? `/${route}’s` : 'the page’s'} Download PDF — row menus linked to it hide their Download PDF too.${dirty ? ' Your unsaved changes are saved with it.' : ''}`}
+					confirmLabel='Unpublish'
+					isLoading={saving}
+					onConfirm={async () => {
+						await doSave('draft');
+						setUnpublishing(false);
+					}}
+				/>
 				{problems.length > 0 && (
 					<Box
 						px={4}

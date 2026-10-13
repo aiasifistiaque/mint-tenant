@@ -116,6 +116,15 @@ const PdfTemplatesPage = () => {
 							truncate>
 							{t.name}
 						</Text>
+						{/* Draft or published (PT-33): only published ones are on the page's Download PDF. */}
+						{own && (
+							<Badge
+								size='xs'
+								colorPalette={t.status === 'draft' ? 'orange' : 'blue'}
+								variant='subtle'>
+								{t.status === 'draft' ? 'Draft' : 'Published'}
+							</Badge>
+						)}
 						{own && t.isDefault && (
 							<Badge
 								size='xs'

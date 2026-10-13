@@ -31,6 +31,8 @@ export type PdfTemplate = {
 	route: string;
 	alias: string;
 	isDefault?: boolean;
+	/** Draft or published (PT-33): only published ones are offered on the page's Download PDF. None = published (older ones). */
+	status?: 'draft' | 'published';
 	page: { size: 'A4' | 'Letter' | 'Legal' | 'A5'; orientation: 'portrait' | 'landscape'; margin: [number, number, number, number] };
 	style: { font: 'sans' | 'mono' | 'helvetica' | 'times' | 'courier'; size: number; color: string; muted: string; accent: string; lineHeight: number };
 	lists: { name: string; route: string; foreignField: string; sort?: string; limit?: number }[];

@@ -31,7 +31,8 @@ export const useDownloadPdf = () => {
  * button for one, a menu (default first) for several.
  */
 export const DownloadPdfButton: FC<{ route: string; id: string }> = ({ route, id }) => {
-	const { data } = useGetPdfTemplatesQuery({ route }, { skip: !route });
+	// Drafts stay in the designer (PT-33).
+	const { data } = useGetPdfTemplatesQuery({ route, published: true }, { skip: !route });
 	const { download } = useDownloadPdf();
 	const [busy, setBusy] = useState(false);
 	const templates: any[] = data?.templates || [];

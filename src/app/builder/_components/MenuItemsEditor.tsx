@@ -109,41 +109,56 @@ const settingsOf = (data: any): SettingsField[] =>
 const fieldLabel = (f?: SettingsField) => f?.schema?.label || f?.title || f?.key || '';
 
 /** Another page of the panel; picking one fills in its link back to this page. */
-/** Download PDF: one of this page's PDF templates, or its default (backend docs/pdf-templates). */
+/** Download PDF: one of this page's published PDF templates, or its default (backend docs/pdf-templates, PT-33). */
 const PdfTemplateInput: FC<{ item: MenuItem; route?: string; set: (patch: any) => void }> = ({ item, route, set }) => {
 	const { data, isLoading } = useGetPdfTemplatesQuery({ route }, { skip: !route });
-	const templates: any[] = data?.templates || [];
+	const all: any[] = data?.templates || [];
+	// Only published ones can be linked: drafts don't download.
+	const templates = all.filter(t => t.status !== 'draft');
+	const linked = (item as any).template as string | undefined;
+	const draft = linked ? all.find(t => t._id === linked && t.status === 'draft') : null;
+	const gone = !!linked && !isLoading && !all.some(t => t._id === linked);
 	if (!isLoading && !templates.length)
 		return (
 			<Text
 				fontSize='xs'
 				color='fg.muted'>
-				This page has no PDF template yet —{' '}
+				{all.length ? 'This page’s PDF templates are all drafts — publish one in its designer' : 'This page has no PDF template yet —'}{' '}
 				<a
 					href={projectHref('/pdf-templates')}
 					target='_blank'
 					rel='noopener noreferrer'
 					style={{ textDecoration: 'underline' }}>
-					make one under PDF templates
+					{all.length ? 'open PDF templates' : 'make one under PDF templates'}
 				</a>
-				. The option stays hidden until it has.
+				. The option stays hidden until one is published.
 			</Text>
 		);
 	return (
-		<Dropdown
-			size='sm'
-			value={(item as any).template || ''}
-			onChange={v => set({ template: v || undefined })}>
-			<option value=''>The page’s default</option>
-			{templates.map(t => (
-				<option
-					key={t._id}
-					value={t._id}>
-					{t.name}
-					{t.isDefault ? ' (default now)' : ''}
-				</option>
-			))}
-		</Dropdown>
+		<>
+			<Dropdown
+				size='sm'
+				value={draft || gone ? '' : linked || ''}
+				onChange={v => set({ template: v || undefined })}>
+				<option value=''>The page’s default</option>
+				{templates.map(t => (
+					<option
+						key={t._id}
+						value={t._id}>
+						{t.name}
+						{t.isDefault ? ' (default now)' : ''}
+					</option>
+				))}
+			</Dropdown>
+			{(draft || gone) && (
+				<Text
+					fontSize='xs'
+					color='orange.fg'
+					mt={1}>
+					{draft ? `“${draft.name}” is a draft, so this option is hidden — publish it, or pick a published one.` : 'Its template was deleted — pick another.'}
+				</Text>
+			)}
+		</>
 	);
 };
 
