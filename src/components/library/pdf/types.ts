@@ -78,6 +78,23 @@ export const BLOCKS: { type: BlockType; label: string; hint: string }[] = [
 
 export const blockLabel = (type: string) => BLOCKS.find(b => b.type === type)?.label || type;
 
+/** A block's name on the page and in the panels: a box laid out side by side is a "Row" (D19). */
+export const labelOf = (b: Block | null | undefined) => (!b ? 'Block' : b.type === 'box' && b.direction === 'row' ? 'Row' : blockLabel(b.type));
+
+/** A Row: a box with nothing drawn, its blocks side by side (D19). */
+export const newRow = (): Block => ({ id: newId(), type: 'box', direction: 'row', pad: 0, gap: 8, valign: 'middle', blocks: [] });
+
+/** Blocks with no width of their own: in a row they fill unless given one (backend render.ts). */
+export const FILLERS = new Set(['fields', 'table', 'divider', 'columns']);
+
+/** Which way the list a block sits in runs, and whether a block there has room to fill. */
+export type Place = { flow: 'row' | 'column'; part: Part; parent: Block | null };
+
+export const placeOf = (t: PdfTemplate, slot: Slot): Place => {
+	const parent = slot.parent ? findBlock(t, slot.parent)?.block || null : null;
+	return { flow: parent?.type === 'box' && parent.direction === 'row' && slot.column === undefined ? 'row' : 'column', part: slot.part, parent };
+};
+
 export const newId = () => `b_${Math.random().toString(36).slice(2, 12)}`;
 
 export const newBlock = (type: BlockType, alias = 'record'): Block => {
@@ -216,11 +233,11 @@ export const blockSummary = (b: Block): string => {
 		case 'columns':
 			return `${(b.columns || []).length} columns`;
 		case 'box':
-			return `${(b.blocks || []).length} inside`;
+			return b.direction === 'row' ? `Row · ${(b.blocks || []).length} side by side` : `${(b.blocks || []).length} inside`;
 		case 'image':
 			return plain(b.src) || 'No image';
 		case 'spacer':
-			return `${b.height ?? 12} pt`;
+			return Number(b.grow) > 0 ? 'Fills the free space' : `${b.height ?? 12} pt`;
 		default:
 			return '';
 	}

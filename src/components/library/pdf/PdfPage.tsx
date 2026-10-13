@@ -1,6 +1,6 @@
 'use client';
 
-import { CSSProperties, FC, Fragment, MouseEvent, ReactNode, memo } from 'react';
+import { CSSProperties, DragEvent, FC, Fragment, MouseEvent, ReactNode, memo } from 'react';
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import { meets } from '../functions/fieldLocks';
@@ -37,6 +37,10 @@ export type PdfPageProps = {
 	onFix?: (path: string) => void;
 	/** The designer: tools drawn on the selected block (move, duplicate, delete). */
 	blockBar?: ReactNode;
+	/** The designer: a block on the page starts being dragged (D20). */
+	onDragBlock?: (id: string, e: DragEvent) => void;
+	/** The designer, while something is dragged: an empty header or footer shows a place to drop. */
+	showEmptyParts?: boolean;
 };
 
 const FAMILY: Record<string, string> = {
@@ -180,7 +184,30 @@ const textCss = (ctx: Ctx, b: any, over: Partial<{ size: number; weight: number;
 
 const visible = (b: Block, scope: Scope) => !b.showIf?.length || meets(scope.roots, b.showIf as any, b.showMatch === 'any' ? 'any' : 'all');
 
-const Blocks: FC<{ blocks: Block[]; ctx: Ctx; scope: Scope }> = ({ blocks, ctx, scope }) => (
+/** Which way the list a block sits in runs: a stack, or a box's row (D19). */
+type Flow = 'column' | 'row';
+
+/** Blocks with no width of their own: in a row they fill unless given one (render.ts FILLERS). */
+const FILLERS = new Set(['fields', 'table', 'divider', 'columns']);
+const ROW_ALIGN: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end', stretch: 'stretch' };
+const ROW_JUSTIFY: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between' };
+/** A Space set to fill, seen in the designer. */
+const HATCH = 'repeating-linear-gradient(45deg, rgba(79,70,229,.10) 0 3pt, transparent 3pt 6pt)';
+
+/** A block's flex item rules (D19) — the same widths the PDF gives it. */
+const flexOf = (b: Block, flow: Flow): CSSProperties => {
+	const grow = Number(b.grow) > 0 ? Number(b.grow) : 0;
+	if (flow === 'row') {
+		if (grow) return { flex: `${grow} 1 0`, minWidth: 0 };
+		if (b.basis) return { flex: `0 0 ${pt(b.basis)}`, minWidth: 0 };
+		if (b.type === 'spacer') return { flex: `0 0 ${pt(b.height ?? 12)}`, alignSelf: 'stretch' };
+		if (FILLERS.has(b.type)) return { flex: '1 1 0', minWidth: 0 };
+		return { flex: '0 1 auto', minWidth: 0 };
+	}
+	return { flexShrink: 0, ...(grow && { flexGrow: grow }) };
+};
+
+const Blocks: FC<{ blocks: Block[]; ctx: Ctx; scope: Scope; flow?: Flow }> = ({ blocks, ctx, scope, flow = 'column' }) => (
 	<>
 		{(blocks || []).map(b => (
 			<BlockView
@@ -188,12 +215,13 @@ const Blocks: FC<{ blocks: Block[]; ctx: Ctx; scope: Scope }> = ({ blocks, ctx, 
 				b={b}
 				ctx={ctx}
 				scope={scope}
+				flow={flow}
 			/>
 		))}
 	</>
 );
 
-const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) => {
+const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ctx, scope, flow }) => {
 	const shown = visible(b, scope);
 	const editing = !!ctx.onSelect;
 	if (!shown && !editing) return null;
@@ -207,11 +235,24 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 	return (
 		<div
 			data-block={b.id}
+			data-flow={flow}
+			draggable={!!ctx.onDragBlock || undefined}
+			onDragStart={
+				ctx.onDragBlock
+					? e => {
+							e.stopPropagation();
+							ctx.onDragBlock!(b.id, e);
+					  }
+					: undefined
+			}
 			onClick={select}
 			className={editing ? 'pdf-block' : undefined}
 			style={{
 				marginTop: pt(b.mt),
 				marginBottom: pt(b.mb),
+				display: 'flex',
+				flexDirection: 'column',
+				...flexOf(b, flow),
 				position: 'relative',
 				cursor: editing ? 'pointer' : undefined,
 				opacity: shown ? 1 : 0.35,
@@ -223,6 +264,7 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 				b={b}
 				ctx={ctx}
 				scope={scope}
+				flow={flow}
 			/>
 			{selected && ctx.blockBar && (
 				// Undoes the page's zoom, so the tools keep their size at any zoom.
@@ -236,7 +278,7 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 	);
 };
 
-const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) => {
+const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow }> = ({ b, ctx, scope, flow }) => {
 	switch (b.type) {
 		case 'text':
 			return (
@@ -309,6 +351,8 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 					{(b.columns || []).map((c: any, i: number) => (
 						<div
 							key={i}
+							data-container={b.id}
+							data-column={i}
 							style={{
 								flex: `${c.width || 1} 1 0`,
 								minWidth: 0,
@@ -328,28 +372,53 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) 
 					))}
 				</div>
 			);
-		case 'box':
+		case 'box': {
+			const row = b.direction === 'row';
 			return (
 				<div
+					data-container={b.id}
+					data-dir={row ? 'row' : 'column'}
 					style={{
 						padding: pt(b.pad ?? 10),
 						background: b.bg,
 						border: b.border ? `${pt(b.border)} solid ${b.borderColor || HAIRLINE}` : undefined,
 						borderRadius: pt(b.radius),
 						boxSizing: 'border-box',
-						...(ctx.onSelect && !(b.blocks || []).length && { minHeight: '30pt' }),
+						flex: '1 1 auto',
+						display: 'flex',
+						flexDirection: row ? 'row' : 'column',
+						gap: pt(b.gap ?? (row ? 8 : 0)),
+						alignItems: row ? ROW_ALIGN[b.valign || 'top'] : 'stretch',
+						justifyContent: row ? ROW_JUSTIFY[b.justify || 'start'] : undefined,
+						minHeight: b.height ? pt(b.height) : ctx.onSelect && !(b.blocks || []).length ? '30pt' : undefined,
+						...(ctx.onSelect && !(b.blocks || []).length && !b.bg && !b.border && { outline: '1px dashed #d4d6db' }),
 					}}>
 					<Blocks
 						blocks={b.blocks}
 						ctx={ctx}
 						scope={scope}
+						flow={row ? 'row' : 'column'}
 					/>
 				</div>
 			);
+		}
 		case 'divider':
 			return <div style={{ height: 0, borderTop: `${pt(b.thickness ?? 0.75)} ${b.dashed ? 'dashed' : 'solid'} ${b.color || HAIRLINE}` }} />;
-		case 'spacer':
-			return <div style={{ height: pt(b.height ?? 12) }} />;
+		case 'spacer': {
+			// A height in a stack, a width in a row (the wrapper's flex basis); hatched in the designer when it fills.
+			const fills = Number(b.grow) > 0 && !!ctx.onSelect;
+			return (
+				<div
+					style={{
+						height: flow === 'row' ? undefined : pt(b.height ?? 12),
+						minHeight: flow === 'row' && fills ? '8pt' : undefined,
+						flex: '1 1 auto',
+						background: fills ? HATCH : undefined,
+						borderRadius: 2,
+					}}
+				/>
+			);
+		}
 		case 'pageBreak':
 			return (
 				<div style={{ borderTop: '1px dashed #a5a9b1', margin: '6pt 0', textAlign: 'center', fontSize: '7pt', color: '#8a8f98', lineHeight: 0 }}>
@@ -506,6 +575,34 @@ const TableView: FC<{ b: any; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) =>
 	);
 };
 
+/**
+ * An empty header or footer while something is dragged: somewhere to drop
+ * it, drawn in the page's margin so nothing on the page moves under the pointer.
+ */
+const EmptyPart: FC<{ part: 'header' | 'footer'; label: string; margin: number; left: number; right: number }> = ({ part, label, margin, left, right }) => (
+	<div
+		data-part={part}
+		style={{
+			position: 'absolute',
+			[part === 'header' ? 'top' : 'bottom']: pt(Math.max(2, (margin - Math.max(14, margin - 8)) / 2)),
+			left: pt(left),
+			right: pt(right),
+			height: pt(Math.max(14, margin - 8)),
+			border: '1px dashed #a5a9b1',
+			borderRadius: 3,
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			fontSize: '7pt',
+			color: '#8a8f98',
+			fontFamily: FAMILY.sans,
+			background: 'rgba(255,255,255,.9)',
+			zIndex: 1,
+		}}>
+		{label}
+	</div>
+);
+
 const PdfPage: FC<PdfPageProps> = props => {
 	const { template: t, scope, scale = 1, clip } = props;
 	const [w, h] = pageSize(t);
@@ -529,31 +626,59 @@ const PdfPage: FC<PdfPageProps> = props => {
 				display: 'flex',
 				flexDirection: 'column',
 				textAlign: 'left',
+				position: 'relative',
 			}}>
-			{(t.header || []).length > 0 && (
-				<div style={{ marginBottom: '12pt' }}>
+			{(t.header || []).length > 0 ? (
+				<div
+					data-part='header'
+					style={{ marginBottom: '12pt' }}>
 					<Blocks
 						blocks={t.header}
 						ctx={ctx}
 						scope={pageScope(1)}
 					/>
 				</div>
+			) : (
+				props.showEmptyParts && (
+					<EmptyPart
+						part='header'
+						label='Header — on top of every page'
+						margin={mt}
+						left={ml}
+						right={mr}
+					/>
+				)
 			)}
-			<div style={{ flex: '1 0 auto' }}>
+			{/* A flex column, so a block set to fill takes the room left on the page (D19). */}
+			<div
+				data-part='body'
+				style={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column' }}>
 				<Blocks
 					blocks={t.body}
 					ctx={ctx}
 					scope={scope}
 				/>
 			</div>
-			{(t.footer || []).length > 0 && (
-				<div style={{ marginTop: '12pt' }}>
+			{(t.footer || []).length > 0 ? (
+				<div
+					data-part='footer'
+					style={{ marginTop: '12pt' }}>
 					<Blocks
 						blocks={t.footer}
 						ctx={ctx}
 						scope={pageScope(1)}
 					/>
 				</div>
+			) : (
+				props.showEmptyParts && (
+					<EmptyPart
+						part='footer'
+						label='Footer — at the bottom of every page'
+						margin={mb}
+						left={ml}
+						right={mr}
+					/>
+				)
 			)}
 		</div>
 	);

@@ -2,10 +2,10 @@
 
 import { FC } from 'react';
 import { Box, Button, Flex, IconButton, Text } from '@chakra-ui/react';
-import { ArrowDown, ArrowUp, Copy, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Plus, Trash2, X } from 'lucide-react';
 import ConditionsEditor from '@/app/builder/_components/ConditionsEditor';
 import { ModelField } from '@/app/builder/_components/filterTypes';
-import { Block, blockLabel, flattenFields } from '@/components/library/pdf/types';
+import { Block, FILLERS, Place, flattenFields, labelOf } from '@/components/library/pdf/types';
 import { PickerContext } from './FieldPicker';
 import TokenText from './TokenText';
 import { ALIGN, Color, Num, Pick, Row, Section, Toggle, WEIGHT } from './controls';
@@ -19,7 +19,40 @@ type Props = {
 	onRemove: () => void;
 	onDuplicate: () => void;
 	onMove: (by: -1 | 1) => void;
+	/** Where it sits: a row or a stack, which part (D19). */
+	place: Place;
 };
+
+const LAYOUT: [string, string][] = [
+	['column', 'Stack — one under another'],
+	['row', 'Row — side by side'],
+];
+const ROW_ALIGN: [string, string][] = [
+	['top', 'Top'],
+	['middle', 'Middle'],
+	['bottom', 'Bottom'],
+	['stretch', 'Stretch — boxes as tall as the row'],
+];
+const SPREAD: [string, string][] = [
+	['start', 'From the left'],
+	['center', 'Centred'],
+	['end', 'To the right'],
+	['between', 'Space between'],
+];
+
+/** What filling the free space does where the block sits (D19). */
+const fillHint = (place: Place) =>
+	place.flow === 'row'
+		? 'Takes the width the others leave.'
+		: place.parent?.type === 'box'
+		? place.parent.height
+			? 'Takes the height the others leave in the box.'
+			: 'Give the box a minimum height (or stretch it in a row) to have height to fill.'
+		: place.parent?.type === 'columns'
+		? 'A column has no spare height to fill.'
+		: place.part === 'body'
+		? 'Takes the room left on the page — what follows sits at the bottom of the page.'
+		: 'The header and footer have no spare room to fill.';
 
 const small = { size: 12, strokeWidth: 1.75 };
 
@@ -116,7 +149,8 @@ const ItemTools: FC<{ i: number; n: number; onMove: (by: number) => void; onRemo
 	</Flex>
 );
 
-const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, onRemove, onDuplicate, onMove }) => {
+const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, onRemove, onDuplicate, onMove, place }) => {
+	const inRow = place.flow === 'row';
 	const alias = ctx.template.alias;
 
 	const body = (() => {
@@ -261,47 +295,99 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 						</Row>
 					</Section>
 				);
-			case 'box':
+			case 'box': {
+				const row = b.direction === 'row';
 				return (
-					<Section title='Box'>
-						<Row label='Padding'>
-							<Num
-								value={b.pad}
-								max={80}
-								onChange={v => set({ pad: v })}
-							/>
-						</Row>
-						<Row label='Background'>
-							<Color
-								value={b.bg}
-								placeholder='None'
-								onChange={v => set({ bg: v })}
-							/>
-						</Row>
-						<Row label='Border'>
-							<Num
-								value={b.border}
-								max={8}
-								step={0.25}
-								placeholder='None'
-								onChange={v => set({ border: v })}
-							/>
-						</Row>
-						<Row label='Border colour'>
-							<Color
-								value={b.borderColor}
-								onChange={v => set({ borderColor: v })}
-							/>
-						</Row>
-						<Row label='Corners'>
-							<Num
-								value={b.radius}
-								max={40}
-								onChange={v => set({ radius: v })}
-							/>
-						</Row>
-					</Section>
+					<>
+						<Section
+							title='Layout'
+							action={<DocLink section='layout' label='?' />}>
+							<Row label='Blocks'>
+								<Pick
+									value={row ? 'row' : 'column'}
+									options={LAYOUT}
+									onChange={v => set({ direction: v === 'row' ? 'row' : undefined })}
+								/>
+							</Row>
+							<Row label='Gap'>
+								<Num
+									value={b.gap}
+									max={120}
+									placeholder={row ? '8' : '0'}
+									onChange={v => set({ gap: v })}
+								/>
+							</Row>
+							{row && (
+								<>
+									<Row label='Align'>
+										<Pick
+											value={b.valign || 'top'}
+											options={ROW_ALIGN}
+											onChange={v => set({ valign: v === 'top' ? undefined : v })}
+										/>
+									</Row>
+									<Row
+										label='Spread'
+										hint='When nothing in the row fills the free space'>
+										<Pick
+											value={b.justify || 'start'}
+											options={SPREAD}
+											onChange={v => set({ justify: v === 'start' ? undefined : v })}
+										/>
+									</Row>
+								</>
+							)}
+							<Row label='Min height'>
+								<Num
+									value={b.height}
+									min={4}
+									max={1600}
+									placeholder='Auto'
+									onChange={v => set({ height: v })}
+								/>
+							</Row>
+						</Section>
+						<Section title='Box'>
+							<Row label='Padding'>
+								<Num
+									value={b.pad}
+									max={80}
+									onChange={v => set({ pad: v })}
+								/>
+							</Row>
+							<Row label='Background'>
+								<Color
+									value={b.bg}
+									placeholder='None'
+									onChange={v => set({ bg: v })}
+								/>
+							</Row>
+							<Row label='Border'>
+								<Num
+									value={b.border}
+									max={8}
+									step={0.25}
+									placeholder='None'
+									onChange={v => set({ border: v })}
+								/>
+							</Row>
+							<Row label='Border colour'>
+								<Color
+									value={b.borderColor}
+									onChange={v => set({ borderColor: v })}
+								/>
+							</Row>
+							<Row label='Corners'>
+								<Num
+									value={b.radius}
+									max={40}
+									onChange={v => set({ radius: v })}
+								/>
+							</Row>
+						</Section>
+					</>
 				);
+			}
 			case 'divider':
 				return (
 					<Section title='Line'>
@@ -329,8 +415,21 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 				);
 			case 'spacer':
 				return (
-					<Section title='Space'>
-						<Row label='Height'>
+					<Section
+						title='Space'
+						action={<DocLink section='layout' label='?' />}>
+						<Toggle
+							label='Fill the free space'
+							checked={Number(b.grow) > 0}
+							onChange={v => set({ grow: v ? 1 : undefined })}
+						/>
+						<Text
+							fontSize='11px'
+							color='fg.muted'
+							mt={-1}>
+							{fillHint(place)}
+						</Text>
+						<Row label={Number(b.grow) > 0 ? (inRow ? 'Least width' : 'Least height') : inRow ? 'Width' : 'Height'}>
 							<Num
 								value={b.height}
 								min={1}
@@ -624,23 +723,23 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 					fontSize='sm'
 					fontWeight='600'
 					flex='1'>
-					{blockLabel(b.type)}
+					{labelOf(b)}
 				</Text>
 				<IconButton
 					size='2xs'
 					variant='ghost'
-					aria-label='Move up'
-					title='Move up'
+					aria-label={inRow ? 'Move left' : 'Move up'}
+					title={inRow ? 'Move left' : 'Move up'}
 					onClick={() => onMove(-1)}>
-					<ArrowUp {...ICON} />
+					{inRow ? <ArrowLeft {...ICON} /> : <ArrowUp {...ICON} />}
 				</IconButton>
 				<IconButton
 					size='2xs'
 					variant='ghost'
-					aria-label='Move down'
-					title='Move down'
+					aria-label={inRow ? 'Move right' : 'Move down'}
+					title={inRow ? 'Move right' : 'Move down'}
 					onClick={() => onMove(1)}>
-					<ArrowDown {...ICON} />
+					{inRow ? <ArrowRight {...ICON} /> : <ArrowDown {...ICON} />}
 				</IconButton>
 				<IconButton
 					size='2xs'
@@ -662,6 +761,46 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 				</IconButton>
 			</Flex>
 			{body}
+			{inRow && b.type !== 'spacer' && b.type !== 'pageBreak' && (
+				<Section
+					title='Width in the row'
+					action={<DocLink section='layout' label='?' />}>
+					<Pick
+						value={Number(b.grow) > 0 ? 'fill' : b.basis ? 'fixed' : 'fit'}
+						options={[
+							['fit', FILLERS.has(b.type) ? 'Auto — shares the free width' : 'Fit its content'],
+							['fill', 'Fill the free space'],
+							['fixed', 'Fixed width'],
+						]}
+						onChange={v => set(v === 'fill' ? { grow: 1, basis: undefined } : v === 'fixed' ? { grow: undefined, basis: b.basis || 120 } : { grow: undefined, basis: undefined })}
+					/>
+					{!!b.basis && !(Number(b.grow) > 0) && (
+						<Row label='Width'>
+							<Num
+								value={b.basis}
+								min={4}
+								max={1200}
+								onChange={v => set({ basis: v })}
+							/>
+						</Row>
+					)}
+				</Section>
+			)}
+			{!inRow && b.type === 'box' && (
+				<Section title='Height'>
+					<Toggle
+						label='Fill the free space'
+						checked={Number(b.grow) > 0}
+						onChange={v => set({ grow: v ? 1 : undefined })}
+					/>
+					<Text
+						fontSize='11px'
+						color='fg.muted'
+						mt={-1}>
+						{fillHint(place)}
+					</Text>
+				</Section>
+			)}
 			<Section title='Space'>
 				<Row label='Above'>
 					<Num

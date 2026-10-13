@@ -1,10 +1,12 @@
 'use client';
 
-import { FC, ReactNode } from 'react';
+import { DragEvent, FC, ReactNode } from 'react';
 import { Box, Button, Flex, Grid, Text } from '@chakra-ui/react';
 import {
 	BadgeCheck,
+	ArrowDownToLine,
 	Box as BoxIcon,
+	Columns2,
 	Building2,
 	Columns3,
 	FileText,
@@ -23,7 +25,7 @@ import {
 	Table2,
 	Type,
 } from 'lucide-react';
-import { BLOCKS, Block, BlockType, newBlock } from '@/components/library/pdf/types';
+import { BLOCKS, Block, BlockType, newBlock, newRow } from '@/components/library/pdf/types';
 import { SavedText } from '@/components/library/pdf/scope';
 import { DocLink } from '../ui';
 
@@ -75,14 +77,22 @@ export const PIECES: { key: string; label: string; hint: string; icon: any; make
 		label: 'Signature line',
 		hint: 'A line and “Authorised signature”',
 		icon: PenLine,
+		// A row: a space that fills, then the line — so it sits on the right.
 		make: () => ({
-			...newBlock('columns'),
+			...newRow(),
 			mt: 36,
-			columns: [
-				{ width: 1, blocks: [] },
-				{ width: 1, blocks: [{ ...newBlock('divider'), color: '#9ca3af' }, text('Authorised signature', { size: 8.5, color: '#6b7280', align: 'center', mt: 4 })] },
+			blocks: [
+				{ ...newBlock('spacer'), grow: 1 },
+				{ ...newBlock('box'), bg: undefined, radius: undefined, pad: 0, basis: 170, blocks: [{ ...newBlock('divider'), color: '#9ca3af' }, text('Authorised signature', { size: 8.5, color: '#6b7280', align: 'center', mt: 4 })] },
 			],
 		}),
+	},
+	{
+		key: 'push',
+		label: 'Push to the bottom',
+		hint: 'A space that takes the room left — what follows sits at the page bottom',
+		icon: ArrowDownToLine,
+		make: () => ({ ...newBlock('spacer'), grow: 1 }),
 	},
 	{
 		key: 'computer',
@@ -128,9 +138,11 @@ export const PIECES: { key: string; label: string; hint: string; icon: any; make
 	},
 ];
 
-const Tile: FC<{ icon: any; label: string; hint: string; onClick: () => void }> = ({ icon: Icon, label, hint, onClick }) => (
+const Tile: FC<{ icon: any; label: string; hint: string; onClick: () => void; onDragStart?: (e: DragEvent) => void }> = ({ icon: Icon, label, hint, onClick, onDragStart }) => (
 	<Box
 		as='button'
+		draggable={!!onDragStart || undefined}
+		onDragStart={onDragStart}
 		textAlign='left'
 		borderWidth='1px'
 		borderColor='border'
@@ -141,7 +153,7 @@ const Tile: FC<{ icon: any; label: string; hint: string; onClick: () => void }> 
 		cursor='pointer'
 		_hover={{ borderColor: 'accent.solid', bg: 'bg.subtle' }}
 		onClick={onClick}
-		title={hint}>
+		title={`${hint} — click to add, or drag onto the page`}>
 		<Flex
 			align='center'
 			gap={1.5}>
@@ -190,90 +202,105 @@ const AddPanel: FC<{
 	alias: string;
 	texts: SavedText[];
 	onTexts: (focus?: string) => void;
-}> = ({ where, onAdd, alias, texts, onTexts }) => (
-	<Box>
-		<Text
-			fontSize='11px'
-			color='fg.muted'>
-			Goes {where}.
-		</Text>
-
-		<Heading>Blocks</Heading>
-		<Grid
-			templateColumns='1fr 1fr'
-			gap={1.5}>
-			{BLOCKS.map(b => (
-				<Tile
-					key={b.type}
-					icon={ICONS[b.type] || FileText}
-					label={b.label.replace(' rows', '')}
-					hint={b.hint}
-					onClick={() => onAdd(newBlock(b.type as BlockType, alias))}
-				/>
-			))}
-		</Grid>
-
-		<Heading>Ready-made</Heading>
-		<Grid
-			templateColumns='1fr 1fr'
-			gap={1.5}>
-			{PIECES.map(p => (
-				<Tile
-					key={p.key}
-					icon={p.icon}
-					label={p.label}
-					hint={p.hint}
-					onClick={() => onAdd(p.make())}
-				/>
-			))}
-		</Grid>
-
-		<Heading
-			action={
-				<Button
-					size='2xs'
-					variant='ghost'
-					onClick={() => onTexts()}>
-					<Settings2 size={12} />
-					Manage
-				</Button>
-			}>
-			Your saved texts
-		</Heading>
-		{texts.length ? (
-			<Flex
-				direction='column'
-				gap={1.5}>
-				{texts.map(t => (
-					<Tile
-						key={t.key}
-						icon={ScrollText}
-						label={t.label || t.key}
-						hint={t.text.replace(/\*\*/g, '').slice(0, 90) || 'Empty — write it in Manage'}
-						onClick={() => onAdd(text(`{{texts.${t.key}}}`, { size: 8.5, color: '#4b5563', mt: 10 }))}
-					/>
-				))}
-			</Flex>
-		) : (
+	/** A tile dragged onto the page: what it makes (D20). */
+	onDragNew?: (make: () => Block, e: DragEvent) => void;
+}> = ({ where, onAdd, alias, texts, onTexts, onDragNew }) => {
+	const drag = (make: () => Block) => (onDragNew ? (e: DragEvent) => onDragNew(make, e) : undefined);
+	return (
+		<Box>
 			<Text
 				fontSize='11px'
 				color='fg.muted'>
-				Terms and conditions, a return policy — write them once, print them on any template.
+				Goes {where} — or drag it onto the page.
 			</Text>
-		)}
-		<Button
-			size='xs'
-			variant='outline'
-			mt={2}
-			w='full'
-			onClick={() => onTexts('texts.new_text')}>
-			<Plus size={12} />
-			New saved text
-		</Button>
-		<Box mt={4}>
-			<DocLink section='blocks' />
+
+			<Heading>Blocks</Heading>
+			<Grid
+				templateColumns='1fr 1fr'
+				gap={1.5}>
+				{BLOCKS.map(b => (
+					<Tile
+						key={b.type}
+						icon={ICONS[b.type] || FileText}
+						label={b.label.replace(' rows', '')}
+						hint={b.hint}
+						onClick={() => onAdd(newBlock(b.type as BlockType, alias))}
+						onDragStart={drag(() => newBlock(b.type as BlockType, alias))}
+					/>
+				))}
+				<Tile
+					icon={Columns2}
+					label='Row'
+					hint='Blocks side by side, each as wide as it needs'
+					onClick={() => onAdd(newRow())}
+					onDragStart={drag(newRow)}
+				/>
+			</Grid>
+
+			<Heading>Ready-made</Heading>
+			<Grid
+				templateColumns='1fr 1fr'
+				gap={1.5}>
+				{PIECES.map(p => (
+					<Tile
+						key={p.key}
+						icon={p.icon}
+						label={p.label}
+						hint={p.hint}
+						onClick={() => onAdd(p.make())}
+						onDragStart={drag(p.make)}
+					/>
+				))}
+			</Grid>
+
+			<Heading
+				action={
+					<Button
+						size='2xs'
+						variant='ghost'
+						onClick={() => onTexts()}>
+						<Settings2 size={12} />
+						Manage
+					</Button>
+				}>
+				Your saved texts
+			</Heading>
+			{texts.length ? (
+				<Flex
+					direction='column'
+					gap={1.5}>
+					{texts.map(t => (
+						<Tile
+							key={t.key}
+							icon={ScrollText}
+							label={t.label || t.key}
+							hint={t.text.replace(/\*\*/g, '').slice(0, 90) || 'Empty — write it in Manage'}
+							onClick={() => onAdd(text(`{{texts.${t.key}}}`, { size: 8.5, color: '#4b5563', mt: 10 }))}
+							onDragStart={drag(() => text(`{{texts.${t.key}}}`, { size: 8.5, color: '#4b5563', mt: 10 }))}
+						/>
+					))}
+				</Flex>
+			) : (
+				<Text
+					fontSize='11px'
+					color='fg.muted'>
+					Terms and conditions, a return policy — write them once, print them on any template.
+				</Text>
+			)}
+			<Button
+				size='xs'
+				variant='outline'
+				mt={2}
+				w='full'
+				onClick={() => onTexts('texts.new_text')}>
+				<Plus size={12} />
+				New saved text
+			</Button>
+			<Box mt={4}>
+				<DocLink section='blocks' />
+			</Box>
 		</Box>
-	</Box>
-);
+	);
+};
 
 export default AddPanel;

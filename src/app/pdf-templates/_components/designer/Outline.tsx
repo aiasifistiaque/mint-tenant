@@ -188,7 +188,7 @@ const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove }) => 
 										fontSize='10px'
 										color='fg.subtle'
 										flex='1'>
-										Inside
+										{b.direction === 'row' ? 'Side by side' : 'Inside'}
 									</Text>
 									<AddMenu onPick={t => onAdd({ part: slot.part, parent: b.id }, (b.blocks || []).length, t)} />
 								</Flex>
