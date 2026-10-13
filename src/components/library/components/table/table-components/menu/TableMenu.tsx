@@ -2,6 +2,7 @@ import { FC, ReactNode, useState } from 'react';
 import { Menu } from '@chakra-ui/react';
 import {
 	ArrowUpRight,
+	FileDown,
 	Copy,
 	Eye,
 	FilePlus,
@@ -34,6 +35,7 @@ import {
 import { pagePath, projectHref } from '../../../../config/lib/constants/panel';
 import { meets } from '../../../../functions/fieldLocks';
 import AddRelatedDialog from './AddRelatedDialog';
+import { useDownloadPdf } from '../../../../pdf/DownloadPdf';
 
 type TableMenuProps = {
 	data: any;
@@ -94,6 +96,8 @@ const iconFor = (item: any) => {
 			return <Plus {...ICON} />;
 		case 'add-related':
 			return <FilePlus {...ICON} />;
+		case 'download-pdf':
+			return <FileDown {...ICON} />;
 		case 'delete':
 			return <Trash2 {...ICON} />;
 		case 'link':
@@ -143,6 +147,8 @@ const TableMenu: FC<TableMenuProps> = ({
 	// these item components used to need.
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	const closeActive = () => setActiveIndex(null);
+	// Route builder → Row menu → "Download PDF" (docs/pdf-templates): straight to a file.
+	const { download: downloadPdf } = useDownloadPdf();
 
 	const renderMenuTrigger = (item: any, i: number) => {
 		// No `key` in here — React does not read a key out of a spread
@@ -169,6 +175,14 @@ const TableMenu: FC<TableMenuProps> = ({
 		}
 
 		switch (item.type) {
+			case 'download-pdf':
+				return (
+					<MenuItem
+						key={i}
+						onClick={() => downloadPdf(path, [id], item?.template)}>
+						{item?.title}
+					</MenuItem>
+				);
 			case 'custom-redirect':
 				return (
 					<MenuItem

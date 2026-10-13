@@ -29,7 +29,18 @@ export type ImportResult = {
 };
 
 /** The file name from a Content-Disposition header. */
-const fileNameOf = (header: string | null, fallback: string) => /filename="?([^";]+)"?/i.exec(header || '')?.[1] || fallback;
+/** The file's name: the UTF-8 one (filename*=) when the server sends it — Bangla, “—” — else the plain one. */
+const fileNameOf = (header: string | null, fallback: string) => {
+	const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header || '')?.[1];
+	if (utf8) {
+		try {
+			return decodeURIComponent(utf8);
+		} catch {
+			/* fall through to the plain name */
+		}
+	}
+	return /filename="?([^";]+)"?/i.exec(header || '')?.[1] || fallback;
+};
 
 export const bulkApi = mainApi.injectEndpoints({
 	overrideExisting: false,

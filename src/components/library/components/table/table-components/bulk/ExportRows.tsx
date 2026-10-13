@@ -2,11 +2,12 @@
 
 import { FC, useEffect, useMemo, useState } from 'react';
 import { Box, Button, Checkbox, Flex, Grid, IconButton, RadioGroup, SegmentGroup, Text } from '@chakra-ui/react';
-import { ArrowDown, ArrowUp, Download, FileText, Printer } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, FileDown, FileText, Printer } from 'lucide-react';
 import { MenuItem } from '../../../../menu';
 import { toaster } from '@/components/ui/toaster';
 import { useGetConfigQuery } from '../../../../store/services/commonApi';
 import { useDownloadMutation } from '../../../../store/services/bulkApi';
+import { useGetPdfTemplatesQuery, viewerZone } from '../../../../store/services/pdfTemplatesApi';
 import { useAppSelector } from '../../../../hooks/useReduxHooks';
 import { BulkDialog, BulkProps, COMPACT, CancelButton, errorOf, rows } from './shared';
 
@@ -277,6 +278,21 @@ export const ExportRows: FC<BulkProps> = ({ path, items, title }) => {
 export const PrintRows: FC<BulkProps> = ({ path, items, title }) => {
 	const [open, setOpen] = useState(false);
 	const [download, { isLoading }] = useDownloadMutation();
+	// The page's PDF templates (docs/pdf-templates): every ticked record in one file.
+	const { data: tpl } = useGetPdfTemplatesQuery({ route: path }, { skip: !open });
+	const templates: any[] = tpl?.templates || [];
+	const [making, setMaking] = useState('');
+	const withTemplate = async (t: any) => {
+		setMaking(t._id);
+		try {
+			await download({ url: `${path}/export/template`, body: { ids: items, template: t._id, tz: viewerZone() }, fallbackName: `${path}.pdf` }).unwrap();
+			setOpen(false);
+		} catch (e) {
+			toaster.create({ type: 'error', title: 'Could not make the PDF', description: errorOf(e, '') });
+		} finally {
+			setMaking('');
+		}
+	};
 
 	const printView = () => {
 		window.open(`/print/${path}?ids=${items.join(',')}`, '_blank', 'noopener');
@@ -351,7 +367,16 @@ export const PrintRows: FC<BulkProps> = ({ path, items, title }) => {
 						'Download PDF',
 						'A PDF file straight away, one record per page. Plainer: text only.',
 						pdf,
-						isLoading
+						isLoading && !making
+					)}
+					{templates.map(t =>
+						option(
+							<FileDown size={18} />,
+							t.name,
+							`Printed with this PDF template${t.isDefault ? ' (the page’s default)' : ''} — each record starts a new page, one file.`,
+							() => withTemplate(t),
+							making === t._id
+						)
 					)}
 				</Grid>
 			</BulkDialog>

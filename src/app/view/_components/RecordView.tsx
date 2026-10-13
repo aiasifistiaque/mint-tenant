@@ -9,6 +9,7 @@ import useRecordView from '@/components/library/components/view/record/useRecord
 import RecordOverview from '@/components/library/components/view/record/RecordOverview';
 import { StatusPill, ago } from '@/components/library/modals/CreateModal/CreateModal';
 import { HOME, pagePath } from '@/components/library/config/lib/constants/panel';
+import { DownloadPdfButton } from '@/components/library/pdf/DownloadPdf';
 
 /** A page's own tab, shown ahead of Overview. */
 export type RecordViewTab = {
@@ -114,21 +115,24 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 					badge={badge ?? <StatusPill value={status} />}
 					meta={meta ?? defaultMeta}
 					actions={
-						actions || canEdit ? (
-							<>
-								{actions}
-								{canEdit && (
-									<CreateModal {...modalProps}>
-										<Button
-											size='sm'
-											variant='outline'>
-											<Pencil size={14} />
-											Edit
-										</Button>
-									</CreateModal>
-								)}
-							</>
-						) : undefined
+						<>
+							{actions}
+							{/* The page's PDF templates (docs/pdf-templates) — nothing when it has none. */}
+							<DownloadPdfButton
+								route={slug}
+								id={id}
+							/>
+							{canEdit && (
+								<CreateModal {...modalProps}>
+									<Button
+										size='sm'
+										variant='outline'>
+										<Pencil size={14} />
+										Edit
+									</Button>
+								</CreateModal>
+							)}
+						</>
 					}
 				/>
 

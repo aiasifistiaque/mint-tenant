@@ -3,7 +3,8 @@
 import { DragEvent, FC, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Text, Textarea } from '@chakra-ui/react';
 import { AlertTriangle, ChevronDown, ChevronRight, GripVertical, Lock, LockOpen, Plus, Trash2, X } from 'lucide-react';
-import { radius, useGetBuilderRouteQuery, useGetBuilderRoutesQuery } from '@/components/library';
+import { radius, useGetBuilderRouteQuery, useGetBuilderRoutesQuery, useGetPdfTemplatesQuery } from '@/components/library';
+import { projectHref } from '@/components/library/config/lib/constants/panel';
 import { KEY_TYPES, MenuItem, MenuType, Param, Preset, validateMenu } from './menuTypes';
 import { TableField } from './TableColumnsEditor';
 import { Dropdown } from '@/components/library/cl';
@@ -108,6 +109,44 @@ const settingsOf = (data: any): SettingsField[] =>
 const fieldLabel = (f?: SettingsField) => f?.schema?.label || f?.title || f?.key || '';
 
 /** Another page of the panel; picking one fills in its link back to this page. */
+/** Download PDF: one of this page's PDF templates, or its default (backend docs/pdf-templates). */
+const PdfTemplateInput: FC<{ item: MenuItem; route?: string; set: (patch: any) => void }> = ({ item, route, set }) => {
+	const { data, isLoading } = useGetPdfTemplatesQuery({ route }, { skip: !route });
+	const templates: any[] = data?.templates || [];
+	if (!isLoading && !templates.length)
+		return (
+			<Text
+				fontSize='xs'
+				color='fg.muted'>
+				This page has no PDF template yet —{' '}
+				<a
+					href={projectHref('/pdf-templates')}
+					target='_blank'
+					rel='noopener noreferrer'
+					style={{ textDecoration: 'underline' }}>
+					make one under PDF templates
+				</a>
+				. The option stays hidden until it has.
+			</Text>
+		);
+	return (
+		<Dropdown
+			size='sm'
+			value={(item as any).template || ''}
+			onChange={v => set({ template: v || undefined })}>
+			<option value=''>The page’s default</option>
+			{templates.map(t => (
+				<option
+					key={t._id}
+					value={t._id}>
+					{t.name}
+					{t.isDefault ? ' (default now)' : ''}
+				</option>
+			))}
+		</Dropdown>
+	);
+};
+
 const RouteInput: FC<{ item: MenuItem; route?: string; set: (patch: any) => void }> = ({ item, route, set }) => {
 	const { data: all } = useGetBuilderRoutesQuery();
 	const [picked, setPicked] = useState<string | null>(null);
@@ -366,6 +405,14 @@ const ParamInput: FC<{
 		case 'route':
 			return (
 				<RouteInput
+					item={item}
+					route={route}
+					set={set}
+				/>
+			);
+		case 'pdfTemplate':
+			return (
+				<PdfTemplateInput
 					item={item}
 					route={route}
 					set={set}

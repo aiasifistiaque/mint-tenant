@@ -39,6 +39,7 @@ export const API_ORIGIN = BACKEND.replace(/\/(tenant|admin)\/api\/?$/, '');
 export const PROJECT_PAGES = new Set([
 	'dashboard', 't', 'view', 'model-builder', 'builder', 'sidebar-builder', 'dashboard-builder', 'images', 'public-api',
 	'analytics', 'site-setup', 'get-started', 'activity', 'webhooks', 'widgets', 'site-payments', 'site-builder',
+	'pdf-templates',
 ]);
 
 // Every top-level page folder (next.config.mjs); any other first segment is a project.
@@ -201,6 +202,8 @@ const userDocsFor = (guide: string, anchor: string): [string, string] => {
 			return ['dashboard', anchor];
 		case 'media':
 			return ['media', anchor];
+		case 'pdf-templates':
+			return ['pdf-templates', anchor];
 		case 'two-factor':
 			return ['account', anchor];
 		case 'themes':
