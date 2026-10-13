@@ -19,7 +19,8 @@ export type Block = {
 };
 
 export type BlockType = 'text' | 'image' | 'columns' | 'box' | 'table' | 'fields' | 'divider' | 'spacer' | 'pageBreak';
-export type Part = 'header' | 'body' | 'footer';
+/** Where a block lives: the flow's three parts, or placed freely on the page (D22). */
+export type Part = 'header' | 'body' | 'footer' | 'free';
 
 export type PdfTemplate = {
 	_id?: string;
@@ -36,6 +37,8 @@ export type PdfTemplate = {
 	header: Block[];
 	body: Block[];
 	footer: Block[];
+	/** Placed freely (D22): blocks with x / y (pt from the page's top-left), a width `w`, and rotate / opacity / behind / pages. */
+	free?: Block[];
 	slots?: any[];
 	sample?: any;
 	gallery?: { published: boolean; order: number };
@@ -129,7 +132,7 @@ export const walk = (t: PdfTemplate, fn: (b: Block, slot: Slot, index: number) =
 			if (b.type === 'columns') (b.columns || []).forEach((c: any, ci: number) => go(c.blocks, { part: slot.part, parent: b.id, column: ci }));
 			if (b.type === 'box') go(b.blocks, { part: slot.part, parent: b.id });
 		});
-	(['header', 'body', 'footer'] as Part[]).forEach(part => go(t[part], { part }));
+	(['header', 'body', 'footer', 'free'] as Part[]).forEach(part => go(t[part] || [], { part }));
 };
 
 export const findBlock = (t: PdfTemplate, id: string | null): { block: Block; slot: Slot; index: number } | null => {

@@ -28,6 +28,7 @@ const PARTS: { part: Part; title: string; hint: string }[] = [
 	{ part: 'header', title: 'Header', hint: 'On top of every page' },
 	{ part: 'body', title: 'Body', hint: 'Flows over as many pages as it needs' },
 	{ part: 'footer', title: 'Footer', hint: 'At the bottom of every page' },
+	{ part: 'free', title: 'Placed freely', hint: 'Anywhere on the page — drag them there' },
 ];
 
 type Props = {

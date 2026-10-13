@@ -16,6 +16,7 @@ import {
 	LayoutList,
 	Minus,
 	MonitorCheck,
+	Move,
 	MoveVertical,
 	PenLine,
 	Plus,
@@ -204,14 +205,37 @@ const AddPanel: FC<{
 	onDragNew?: (make: () => Block, e: DragEvent) => void;
 	/** Which tab: plain blocks, or ready-made pieces and saved texts — each fits the panel without scrolling. */
 	section: 'blocks' | 'pieces';
-}> = ({ where, onAdd, alias, texts, onTexts, onDragNew, section }) => {
+	/** Place freely (D22): new blocks go exactly where they're dropped on the page. */
+	free: boolean;
+	onFree: (on: boolean) => void;
+}> = ({ where, onAdd, alias, texts, onTexts, onDragNew, section, free, onFree }) => {
 	const drag = (make: () => Block) => (onDragNew ? (e: DragEvent) => onDragNew(make, e) : undefined);
 	return (
 		<Box>
+			<Flex
+				gap={1}
+				mb={2}>
+				<Button
+					size='2xs'
+					flex='1'
+					variant={free ? 'outline' : 'solid'}
+					onClick={() => onFree(false)}>
+					In the flow
+				</Button>
+				<Button
+					size='2xs'
+					flex='1'
+					variant={free ? 'solid' : 'outline'}
+					onClick={() => onFree(true)}
+					title='Like Canva: drop it anywhere on the page'>
+					<Move size={11} />
+					Place freely
+				</Button>
+			</Flex>
 			<Text
 				fontSize='11px'
 				color='fg.muted'>
-				Goes {where} — or drag it onto the page.
+				Goes {where} — or drag it onto the page{free ? ', exactly where you let go' : ''}.
 			</Text>
 
 			{section === 'blocks' ? (

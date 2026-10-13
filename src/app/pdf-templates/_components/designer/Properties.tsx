@@ -21,7 +21,16 @@ type Props = {
 	onMove: (by: -1 | 1) => void;
 	/** Where it sits: a row or a stack, which part (D19). */
 	place: Place;
+	/** Out of the flow onto the page where it is (D22) — and back. */
+	onPlaceFreely: () => void;
+	onBackInFlow: () => void;
 };
+
+const FREE_PAGES: [string, string][] = [
+	['first', 'First page'],
+	['all', 'Every page'],
+	['last', 'Last page'],
+];
 
 const LAYOUT: [string, string][] = [
 	['column', 'Stack — one under another'],
@@ -149,8 +158,9 @@ const ItemTools: FC<{ i: number; n: number; onMove: (by: number) => void; onRemo
 	</Flex>
 );
 
-const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, onRemove, onDuplicate, onMove, place }) => {
-	const inRow = place.flow === 'row';
+const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, onRemove, onDuplicate, onMove, place, onPlaceFreely, onBackInFlow }) => {
+	const free = place.part === 'free' && !place.parent;
+	const inRow = place.flow === 'row' && !free;
 	const alias = ctx.template.alias;
 
 	const body = (() => {
@@ -834,6 +844,103 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 					<Trash2 {...ICON} />
 				</IconButton>
 			</Flex>
+			{free ? (
+				<Section
+					title='Placed freely'
+					action={<DocLink section='free' label='?' />}>
+					<Text
+						fontSize='11px'
+						color='fg.muted'
+						mt={-1}>
+						Drag it on the page — it snaps to the margins, the middle and other placed blocks (hold ⌥ not to). Arrow keys nudge it 1pt, ⇧ 10pt.
+					</Text>
+					<Row label='From the left'>
+						<Num
+							value={b.x}
+							min={-2000}
+							max={2000}
+							onChange={v => set({ x: v ?? 0 })}
+						/>
+					</Row>
+					<Row label='From the top'>
+						<Num
+							value={b.y}
+							min={-2000}
+							max={2000}
+							onChange={v => set({ y: v ?? 0 })}
+						/>
+					</Row>
+					<Row label='Width'>
+						<Num
+							value={b.w}
+							min={4}
+							max={2000}
+							onChange={v => set({ w: v ?? 160 })}
+						/>
+					</Row>
+					<Row label='Turn'>
+						<Num
+							value={b.rotate}
+							min={-180}
+							max={180}
+							unit='°'
+							placeholder='0'
+							onChange={v => set({ rotate: v || undefined })}
+						/>
+					</Row>
+					<Row label='Opacity'>
+						<Num
+							value={b.opacity === undefined ? undefined : Math.round(b.opacity * 100)}
+							min={5}
+							max={100}
+							unit='%'
+							placeholder='100'
+							onChange={v => set({ opacity: v === undefined || v >= 100 ? undefined : v / 100 })}
+						/>
+					</Row>
+					<Row label='On'>
+						<Pick
+							value={b.pages || 'first'}
+							options={FREE_PAGES}
+							onChange={v => set({ pages: v === 'first' ? undefined : v })}
+						/>
+					</Row>
+					<Toggle
+						label='Behind the content — a watermark'
+						checked={!!b.behind}
+						onChange={v => set({ behind: v || undefined })}
+					/>
+					<Button
+						size='xs'
+						variant='outline'
+						onClick={onBackInFlow}>
+						Back into the flow
+					</Button>
+				</Section>
+			) : (
+				b.type !== 'pageBreak' &&
+				!place.parent && (
+					<Flex
+						align='center'
+						gap={2}
+						py={2}
+						borderTopWidth='1px'
+						borderColor='border'>
+						<Text
+							fontSize='11px'
+							color='fg.muted'
+							flex='1'>
+							Want it exactly somewhere — a stamp, a signature?
+						</Text>
+						<Button
+							size='xs'
+							variant='outline'
+							onClick={onPlaceFreely}>
+							Place freely
+						</Button>
+					</Flex>
+				)
+			)}
 			{body}
 			{inRow && b.type !== 'spacer' && b.type !== 'pageBreak' && (
 				<Section

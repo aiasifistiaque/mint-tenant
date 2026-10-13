@@ -1,6 +1,6 @@
 'use client';
 
-import { CSSProperties, DragEvent, FC, Fragment, MouseEvent, ReactNode, memo } from 'react';
+import { CSSProperties, DragEvent, FC, Fragment, MouseEvent, PointerEvent, ReactNode, memo } from 'react';
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import { meets } from '../functions/fieldLocks';
@@ -44,6 +44,10 @@ export type PdfPageProps = {
 	onDragBlock?: (id: string, e: DragEvent) => void;
 	/** The designer, while something is dragged: an empty header or footer shows a place to drop. */
 	showEmptyParts?: boolean;
+	/** The designer: a placed block (D22) pressed — to move it, or (`resize`) its width handle. */
+	onFreeDown?: (id: string, e: PointerEvent, mode: 'move' | 'resize') => void;
+	/** The designer, while a placed block moves: the lines it snapped to (pt from the page's left / top). */
+	guides?: { x: number[]; y: number[] } | null;
 };
 
 const FAMILY: Record<string, string> = {
@@ -631,6 +635,50 @@ const EmptyPart: FC<{ part: 'header' | 'footer'; label: string; margin: number; 
 	</div>
 );
 
+/**
+ * A block placed freely (D22): at x / y with its width, turned about its
+ * middle, see-through by its opacity; under the flow with `behind` (raised
+ * while selected, so it can be moved), over it otherwise. In the designer it
+ * moves with the pointer and the selected one has a width handle.
+ */
+const FreeView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) => {
+	const editing = !!ctx.onFreeDown;
+	const selected = ctx.selected === b.id || !!ctx.alsoSelected?.includes(b.id);
+	return (
+		<div
+			data-free={b.id}
+			onPointerDown={editing ? e => ctx.onFreeDown!(b.id, e, 'move') : undefined}
+			style={{
+				position: 'absolute',
+				left: pt(b.x),
+				top: pt(b.y),
+				width: pt(b.w || 160),
+				transform: b.rotate ? `rotate(${b.rotate}deg)` : undefined,
+				opacity: b.opacity ?? 1,
+				zIndex: b.behind && !selected ? 0 : 3,
+				cursor: editing ? 'move' : undefined,
+				touchAction: editing ? 'none' : undefined,
+			}}>
+			<BlockView
+				b={b}
+				ctx={{ ...ctx, onDragBlock: undefined }}
+				scope={scope}
+				flow='column'
+			/>
+			{editing && ctx.selected === b.id && (
+				<div
+					title='Drag to change the width'
+					onPointerDown={e => {
+						e.stopPropagation();
+						ctx.onFreeDown!(b.id, e, 'resize');
+					}}
+					style={{ position: 'absolute', right: -5, top: '50%', marginTop: -6, width: 10, height: 12, zoom: 1 / (ctx.scale || 1), background: '#fff', border: '1.5px solid #4f46e5', borderRadius: 2, cursor: 'ew-resize', zIndex: 4 }}
+				/>
+			)}
+		</div>
+	);
+};
+
 const PdfPage: FC<PdfPageProps> = props => {
 	const { template: t, scope, scale = 1, clip } = props;
 	const [w, h] = pageSize(t);
@@ -639,6 +687,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 	const pageScope = (page: number): Scope => ({ ...scope, roots: { ...scope.roots, page, pages: 1 } });
 	return (
 		<div
+			data-page
 			onClick={() => props.onSelect?.('')}
 			style={{
 				zoom: scale,
@@ -659,7 +708,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 			{(t.header || []).length > 0 ? (
 				<div
 					data-part='header'
-					style={{ marginBottom: '12pt' }}>
+					style={{ marginBottom: '12pt', position: 'relative', zIndex: 1 }}>
 					<Blocks
 						blocks={t.header}
 						ctx={ctx}
@@ -681,7 +730,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 			{/* A flex column, so a block set to fill takes the room left on the page (D19). */}
 			<div
 				data-part='body'
-				style={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column' }}>
+				style={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
 				<Blocks
 					blocks={t.body}
 					ctx={ctx}
@@ -692,7 +741,7 @@ const PdfPage: FC<PdfPageProps> = props => {
 			{(t.footer || []).length > 0 ? (
 				<div
 					data-part='footer'
-					style={{ marginTop: '12pt' }}>
+					style={{ marginTop: '12pt', position: 'relative', zIndex: 1 }}>
 					<Blocks
 						blocks={t.footer}
 						ctx={ctx}
@@ -711,6 +760,27 @@ const PdfPage: FC<PdfPageProps> = props => {
 					/>
 				)
 			)}
+			{(t.free || []).map(b => (
+				<FreeView
+					key={b.id}
+					b={b}
+					ctx={ctx}
+					scope={pageScope(1)}
+				/>
+			))}
+			{/* Snap guides while a placed block moves. */}
+			{props.guides?.x.map(x => (
+				<div
+					key={`gx${x}`}
+					style={{ position: 'absolute', left: pt(x), top: 0, bottom: 0, width: 0, borderLeft: '1px solid #ec4899', zIndex: 5, pointerEvents: 'none' }}
+				/>
+			))}
+			{props.guides?.y.map(y => (
+				<div
+					key={`gy${y}`}
+					style={{ position: 'absolute', top: pt(y), left: 0, right: 0, height: 0, borderTop: '1px solid #ec4899', zIndex: 5, pointerEvents: 'none' }}
+				/>
+			))}
 		</div>
 	);
 };

@@ -10,8 +10,17 @@ import { BLOCKS, Block, Part, PdfTemplate, Slot, findBlock } from '@/components/
 /** The drag's type on the page and from the Add panel (the payload itself is kept in the designer). */
 export const DRAG_TYPE = 'application/x-mint-pdf-block';
 
-/** Where a drop lands, and the line (or box) that shows it, in window coordinates. */
-export type Drop = { slot: Slot; index: number; line: { left: number; top: number; width: number; height: number; box?: boolean } };
+/** Where a drop lands, and the line (or box) that shows it, in window coordinates. `at`: placed freely there (pt, D22). */
+export type Drop = { slot: Slot; index: number; line: { left: number; top: number; width: number; height: number; box?: boolean }; at?: { x: number; y: number } };
+
+/** The page's pt per screen pixel, and where a window point is on it (pt from its top-left). */
+export const pagePoint = (pageWidthPt: number, x: number, y: number): { x: number; y: number; ppx: number } | null => {
+	const page = document.querySelector('[data-page]');
+	if (!page) return null;
+	const r = page.getBoundingClientRect();
+	const ppx = pageWidthPt / r.width;
+	return { x: (x - r.left) * ppx, y: (y - r.top) * ppx, ppx };
+};
 
 /** Near a container's edge (screen px), a drop goes beside it rather than inside. */
 const EDGE = 8;
@@ -87,6 +96,8 @@ export const dropAt = (t: PdfTemplate, target: Element | null, x: number, y: num
 		if (self && (self === el || self.contains(el))) return null;
 	}
 	let drop: Drop | null = null;
+	// A placed block (D22) has no "before" or "after" — only its insides take drops.
+	if (el.hasAttribute('data-block') && el.parentElement?.hasAttribute('data-free')) return null;
 	if (el.hasAttribute('data-block')) drop = beside(t, el, x, y);
 	else {
 		// Near a box's or column's edge: beside the block that holds it.

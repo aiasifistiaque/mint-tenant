@@ -1,6 +1,6 @@
 'use client';
 
-import { DragEvent, FC, ReactNode, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DragEvent, FC, PointerEvent as ReactPointerEvent, ReactNode, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NextLink from 'next/link';
 import { Badge, Box, Button, Flex, Grid, IconButton, Spinner, Text } from '@chakra-ui/react';
 import {
@@ -70,7 +70,7 @@ import Outline from '../_components/designer/Outline';
 import PageSettings from '../_components/designer/PageSettings';
 import Properties from '../_components/designer/Properties';
 import AddPanel from '../_components/designer/AddPanel';
-import { DRAG_TYPE, Drop, clipBlocks, clipText, dropAt, pastePlace } from '../_components/designer/dnd';
+import { DRAG_TYPE, Drop, clipBlocks, clipText, dropAt, pagePoint, pastePlace } from '../_components/designer/dnd';
 import AiDialog from '../_components/AiDialog';
 import RealPdfDialog from '../_components/RealPdfDialog';
 import SettingsDialog from '../_components/SettingsDialog';
@@ -78,6 +78,20 @@ import { DocLink, ICON, LIST_HREF, errorOf, openPreview } from '../_components/u
 
 const INSTANCE: Record<string, string> = { number: 'Number', date: 'Date', boolean: 'Boolean' };
 const MAX_HISTORY = 100;
+/** Snap within this many screen pixels (D22). */
+const SNAP_PX = 6;
+
+/** Placed blocks (D22) always have a place: one put among them without x / y starts at the top-left margin. */
+const placed = (t: PdfTemplate): PdfTemplate => {
+	const free = t.free || [];
+	if (free.every(b => typeof b.x === 'number' && typeof b.y === 'number' && b.w)) return t;
+	const [mt, mr, , ml] = t.page?.margin || [40, 40, 40, 40];
+	const room = pageSize(t)[0] - ml - mr;
+	return { ...t, free: free.map((b, i) => (typeof b.x === 'number' && typeof b.y === 'number' && b.w ? b : { ...b, x: b.x ?? ml, y: b.y ?? mt + i * 16, w: b.w || Math.min(200, room) })) };
+};
+
+/** A block's placing props — what's dropped when it goes back into the flow. */
+const PLACING = ['x', 'y', 'w', 'rotate', 'opacity', 'behind', 'pages'];
 const ACCENT = '#4f46e5';
 
 /** Waits until `value` has stopped changing for `ms`. */
@@ -217,8 +231,9 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	const edit = useCallback((fn: (t: PdfTemplate) => PdfTemplate) => {
 		setT(cur => {
 			if (!cur) return cur;
-			const next = fn(cur);
-			if (next === cur) return cur;
+			const changed = fn(cur);
+			if (changed === cur) return cur;
+			const next = placed(changed);
 			setHist(h => ({ past: [...h.past.slice(-MAX_HISTORY), cur], future: [] }));
 			return next;
 		});
@@ -280,9 +295,17 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	const place = t && sel ? placeOf(t, sel.slot) : null;
 	const inRow = place?.flow === 'row';
 
-	/** A new block: after the selected one, or at the end of the body. */
+	// Add → Place freely (D22): new blocks go on the page where they're dropped (a click: the top-left margin).
+	const [freeMode, setFreeMode] = useState(false);
+	/** A new block: after the selected one, or at the end of the body — or placed freely. */
 	const addBlock = (b: Block) => {
 		if (!t) return;
+		if (freeMode) {
+			const [mt, , , ml] = t.page.margin;
+			edit(x => ({ ...x, free: [...(x.free || []), { ...b, x: ml, y: mt + (x.free || []).length * 12, w: 200 }] }));
+			setSelected(b.id);
+			return;
+		}
 		const hit = findBlock(t, selected);
 		edit(x => (hit ? insertBlock(x, hit.slot, hit.index + 1, b) : insertBlock(x, { part: 'body' }, x.body.length, b)));
 		setSelected(b.id);
@@ -350,6 +373,16 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	const onDragOver = (e: DragEvent) => {
 		const d = dragRef.current;
 		if (!d || !t) return;
+		if (freeMode && !d.id) {
+			// Placed freely: anywhere on the page, a box where it will sit.
+			const p = pagePoint(pageSize(t)[0], e.clientX, e.clientY);
+			if (!p || !(e.target as Element)?.closest?.('[data-page]')) return drop && setDrop(null);
+			e.preventDefault();
+			e.dataTransfer.dropEffect = 'copy';
+			const w = 200 / p.ppx;
+			setDrop({ slot: { part: 'free' }, index: (t.free || []).length, at: { x: Math.round(p.x), y: Math.round(p.y) }, line: { left: e.clientX, top: e.clientY, width: w, height: 24 / p.ppx, box: true } });
+			return;
+		}
 		const at = dropAt(t, e.target as Element, e.clientX, e.clientY, d.block);
 		if (!at) {
 			if (drop) setDrop(null);
@@ -364,11 +397,114 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		if (!d || !drop) return endDrag();
 		e.preventDefault();
 		const { slot, index } = drop;
+		if (drop.at) {
+			edit(x => ({ ...x, free: [...(x.free || []), { ...d.block, x: drop.at!.x, y: drop.at!.y, w: 200 }] }));
+			setSelected(d.block.id);
+			return endDrag();
+		}
 		if (d.ids) edit(x => relocateMany(x, d.ids!, slot, index));
 		else if (d.id) edit(x => relocateBlock(x, d.id!, slot, index));
 		else edit(x => insertBlock(x, slot, index, d.block));
 		if (!d.ids) setSelected(d.block.id);
 		endDrag();
+	};
+
+	/* ----------------------------------------- placed freely: move (D22) */
+	const [guides, setGuides] = useState<{ x: number[]; y: number[] } | null>(null);
+	const tRef = useRef(t);
+	tRef.current = t;
+	const onFreeDown = useCallback(
+		(fid: string, e: ReactPointerEvent, mode: 'move' | 'resize') => {
+			const base = tRef.current;
+			const b = base && findBlock(base, fid)?.block;
+			if (!base || !b || e.button !== 0) return;
+			e.stopPropagation();
+			const add = e.shiftKey || e.metaKey || e.ctrlKey;
+			if (!add) pick(fid);
+			const [pw, ph] = pageSize(base);
+			const [mt, mr, mb, ml] = base.page.margin;
+			const start = pagePoint(pw, e.clientX, e.clientY);
+			if (!start) return;
+			const ppx = start.ppx;
+			const sizeOf = (id: string) => {
+				const r = document.querySelector(`[data-free="${id}"]`)?.getBoundingClientRect();
+				const page = document.querySelector('[data-page]')!.getBoundingClientRect();
+				return r ? { x: (r.left - page.left) * ppx, y: (r.top - page.top) * ppx, w: r.width * ppx, h: r.height * ppx } : null;
+			};
+			const me = sizeOf(fid);
+			const h = me?.h || 20;
+			// What it can snap to: the page's edges, margins and middle, and the other placed blocks.
+			const others = (base.free || []).filter(o => o.id !== fid).map(o => sizeOf(o.id)).filter(Boolean) as { x: number; y: number; w: number; h: number }[];
+			const xs = [0, ml, pw / 2, pw - mr, pw, ...others.flatMap(o => [o.x, o.x + o.w / 2, o.x + o.w])];
+			const ys = [0, mt, ph / 2, ph - mb, ph, ...others.flatMap(o => [o.y, o.y + o.h / 2, o.y + o.h])];
+			const near = SNAP_PX * ppx;
+			const snap = (edges: number[], lines: number[]) => {
+				let best: { d: number; line: number; edge: number } | null = null;
+				for (const edge of edges) for (const line of lines) if (Math.abs(line - edge) <= near && (!best || Math.abs(line - edge) < Math.abs(best.d))) best = { d: line - edge, line, edge };
+				return best;
+			};
+			let moved = false;
+			const move = (ev: PointerEvent) => {
+				const p = pagePoint(pw, ev.clientX, ev.clientY);
+				if (!p) return;
+				const dx = p.x - start.x;
+				const dy = p.y - start.y;
+				if (!moved && Math.hypot(dx / ppx, dy / ppx) < 3) return;
+				if (!moved) {
+					moved = true;
+					// One step to undo for the whole drag.
+					setHist(hh => ({ past: [...hh.past.slice(-MAX_HISTORY), base], future: [] }));
+				}
+				const round = (n: number) => Math.round(n * 2) / 2;
+				if (mode === 'resize') {
+					const right = b.x + b.w + dx;
+					const s = ev.altKey ? null : snap([right], xs);
+					const w = Math.max(20, (s ? right + s.d : right) - b.x);
+					setGuides(s ? { x: [s.line], y: [] } : null);
+					setT(cur => (cur ? updateBlock(cur, fid, { w: round(w) }) : cur));
+					return;
+				}
+				let x = b.x + dx;
+				let y = b.y + dy;
+				// ⌥ held: no snapping.
+				const sx = ev.altKey ? null : snap([x, x + b.w / 2, x + b.w], xs);
+				const sy = ev.altKey ? null : snap([y, y + h / 2, y + h], ys);
+				if (sx) x += sx.d;
+				if (sy) y += sy.d;
+				setGuides(sx || sy ? { x: sx ? [sx.line] : [], y: sy ? [sy.line] : [] } : null);
+				setT(cur => (cur ? updateBlock(cur, fid, { x: round(x), y: round(y) }) : cur));
+			};
+			const up = () => {
+				window.removeEventListener('pointermove', move);
+				window.removeEventListener('pointerup', up);
+				setGuides(null);
+			};
+			window.addEventListener('pointermove', move);
+			window.addEventListener('pointerup', up);
+		},
+		[selected, also]
+	);
+	/** Takes a block out of the flow and puts it on the page where it is now (D22). */
+	const placeFreely = (bid: string) => {
+		if (!t) return;
+		const hit = findBlock(t, bid);
+		const el = document.querySelector(`[data-block="${bid}"]`);
+		const at = el && pagePoint(pageSize(t)[0], el.getBoundingClientRect().left, el.getBoundingClientRect().top);
+		if (!hit || hit.block.type === 'pageBreak') return;
+		const w = el ? el.getBoundingClientRect().width * (at?.ppx || 1) : 200;
+		edit(x => ({ ...removeBlock(x, bid), free: [...(removeBlock(x, bid).free || []), { ...hit.block, x: Math.round(at?.x ?? x.page.margin[3]), y: Math.round(at?.y ?? x.page.margin[0]), w: Math.max(20, Math.round(w)) }] }));
+		setSelected(bid);
+	};
+	/** Puts a placed block back into the flow, at the end of the body. */
+	const backInFlow = (bid: string) => {
+		if (!t) return;
+		const hit = findBlock(t, bid);
+		if (!hit) return;
+		const b: Block = { ...hit.block };
+		for (const k of PLACING) delete b[k];
+		edit(x => insertBlock(removeBlock(x, bid), { part: 'body' }, x.body.length, b));
+		setSelected(bid);
+		reveal(bid);
 	};
 
 	/* --------------------------------------------- copy / cut / paste (D20) */
@@ -396,7 +532,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
 	// Keys: undo / redo, delete the selected block, save — not while typing.
 	const keyRef = useRef<any>(null);
-	keyRef.current = { undo, redo, selected, sel, remove, removeAll, group, multi, allSelected, selectedBlocks, doSave: () => doSave(), copyBlocks, paste };
+	keyRef.current = { undo, redo, selected, sel, remove, removeAll, group, multi, allSelected, selectedBlocks, doSave: () => doSave(), copyBlocks, paste, edit };
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			const k = keyRef.current;
@@ -421,6 +557,13 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 			} else if ((e.key === 'Delete' || e.key === 'Backspace') && k.selected && k.sel) {
 				e.preventDefault();
 				k.remove(k.selected);
+			} else if (e.key.startsWith('Arrow') && k.sel?.slot.part === 'free' && !k.sel.slot.parent) {
+				// A placed block nudges 1pt (⇧ 10pt) — D22.
+				e.preventDefault();
+				const by = e.shiftKey ? 10 : 1;
+				const d = { ArrowLeft: [-by, 0], ArrowRight: [by, 0], ArrowUp: [0, -by], ArrowDown: [0, by] }[e.key as 'ArrowLeft'] || [0, 0];
+				const b = k.sel.block;
+				k.edit((x: PdfTemplate) => updateBlock(x, b.id, { x: (b.x || 0) + d[0], y: (b.y || 0) + d[1] }));
 			} else if (e.key === 'Escape') setSelected(null);
 		};
 		window.addEventListener('keydown', onKey);
@@ -824,12 +967,14 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 								{tab !== 'layers' ? (
 									<AddPanel
 										section={tab === 'add' ? 'blocks' : 'pieces'}
-										where={sel ? `after the selected ${labelOf(sel.block).toLowerCase()}` : 'at the end of the body — select a block to add after it'}
+										where={freeMode ? 'on the page — drag it to where it goes' : sel ? `after the selected ${labelOf(sel.block).toLowerCase()}` : 'at the end of the body — select a block to add after it'}
 										onAdd={addBlock}
 										alias={t.alias}
 										texts={settings?.texts || []}
 										onTexts={focus => openBusiness(focus || 'texts.')}
 										onDragNew={(make, e) => startDrag(e, { block: make() })}
+										free={freeMode}
+										onFree={setFreeMode}
 									/>
 								) : (
 									<>
@@ -877,7 +1022,9 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 									onFix={path => openBusiness(path)}
 									blockBar={dragging ? null : multiBar || blockBar}
 									onDragBlock={onDragBlock}
-									showEmptyParts={dragging}
+									showEmptyParts={dragging && !freeMode}
+									onFreeDown={onFreeDown}
+									guides={guides}
 								/>
 							</Box>
 							{/* Where a drag lands: a line between blocks, or the empty box it goes into. */}
@@ -998,6 +1145,8 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 									onDuplicate={duplicate}
 									onMove={by => edit(x => moveBlock(x, sel.block.id, by))}
 									place={place!}
+									onPlaceFreely={() => placeFreely(sel.block.id)}
+									onBackInFlow={() => backInFlow(sel.block.id)}
 								/>
 							) : (
 								<Box>
