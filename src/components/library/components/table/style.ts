@@ -12,7 +12,8 @@ export const containerCss: FlexProps = {
 	gap: 3,
 	justify: 'space-between',
 	align: { base: 'flex-start', md: 'center' },
-	pt: { base: 4, md: 6 },
+	// No top padding: the page body already starts 16px under the navbar, so
+	// the first line (title or breadcrumb) sits level with the sidebar's Find.
 	pb: { base: 1, md: 2 },
 };
 

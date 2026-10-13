@@ -141,6 +141,8 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 	return (
 		<Flex
 			{...wrapperCss}
+			// Trail, title and subtitle read as one block: 8px apart, not 16 + padding.
+			gap={2}
 			{...props}>
 			{/* The same trail as the console and builder pages (cl PageHeader). */}
 			{isLoading ? (
@@ -150,7 +152,7 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					borderRadius='full'
 				/>
 			) : (
-				<Box mb={-1}>
+				<Box>
 					<Crumbs
 						data={[
 							{ href: HOME, title: 'Home' },
@@ -159,10 +161,10 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					/>
 				</Box>
 			)}
-			{/* No top padding of its own: the trail above already spaces it (12px, like cl PageHeader). */}
+			{/* No bottom padding under a trail: the gap already spaces the subtitle. */}
 			<Flex
 				{...containerCss}
-				pt={0}>
+				pb={0}>
 				{isLoading ? (
 					// One bar the size of the <Heading> it stands in for. This was a
 					// `SkeletonText noOfLines={3}`, where `h` applies per line — so a

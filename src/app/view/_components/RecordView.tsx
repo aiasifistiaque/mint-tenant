@@ -191,8 +191,9 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 	);
 };
 
+// No top padding: the page body already starts 16px under the navbar, level
+// with the sidebar's Find field — the trail sits there, as on table pages.
 const containerCss: FlexProps = {
-	pt: 4,
 	gap: 5,
 };
 
