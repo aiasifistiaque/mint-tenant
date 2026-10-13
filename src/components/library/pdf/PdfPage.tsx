@@ -46,8 +46,59 @@ export type PdfPageProps = {
 	showEmptyParts?: boolean;
 	/** The designer: a placed block (D22) pressed — to move it, or (`resize`) its width handle. */
 	onFreeDown?: (id: string, e: PointerEvent, mode: 'move' | 'resize') => void;
+	/** The designer: a corner handle of the selected image pressed — to make it bigger or smaller, like Figma. */
+	onImageDown?: (id: string, e: PointerEvent, corner: Corner) => void;
+	/** The designer, while an image is resized: its size ("120 × 48 pt"), shown under it. */
+	sizeHint?: string | null;
 	/** The designer, while a placed block moves: the lines it snapped to (pt from the page's left / top). */
 	guides?: { x: number[]; y: number[] } | null;
+};
+
+/** An image's corner handles: north-west, north-east, south-west, south-east. */
+export type Corner = 'nw' | 'ne' | 'sw' | 'se';
+const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
+
+/** The selected image's four corner handles, and its size while it's being resized. */
+const ImageHandles: FC<{ b: Block; ctx: Ctx }> = ({ b, ctx }) => {
+	if (!ctx.onImageDown || ctx.selected !== b.id) return null;
+	const z = 1 / (ctx.scale || 1);
+	return (
+		<>
+			{CORNERS.map(c => (
+				<div
+					key={c}
+					data-handle={c}
+					title='Drag to make it bigger or smaller — hold ⇧ to change the shape'
+					onClick={e => e.stopPropagation()}
+					onPointerDown={e => {
+						e.stopPropagation();
+						e.preventDefault();
+						ctx.onImageDown!(b.id, e, c);
+					}}
+					style={{
+						position: 'absolute',
+						[c[0] === 'n' ? 'top' : 'bottom']: 0,
+						[c[1] === 'w' ? 'left' : 'right']: 0,
+						translate: `${c[1] === 'w' ? '-50%' : '50%'} ${c[0] === 'n' ? '-50%' : '50%'}`,
+						width: 9,
+						height: 9,
+						zoom: z,
+						background: '#fff',
+						border: '1.5px solid #4f46e5',
+						borderRadius: 1.5,
+						cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize',
+						zIndex: 4,
+						touchAction: 'none',
+					}}
+				/>
+			))}
+			{ctx.sizeHint && (
+				<div style={{ position: 'absolute', top: '100%', left: '50%', translate: '-50% 6px', zoom: z, background: '#4f46e5', color: '#fff', fontFamily: FAMILY.sans, fontSize: 11, fontWeight: 500, lineHeight: 1, padding: '3px 5px', borderRadius: 3, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 4 }}>
+					{ctx.sizeHint}
+				</div>
+			)}
+		</>
+	);
 };
 
 const FAMILY: Record<string, string> = {
@@ -316,12 +367,21 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 			if (src && /^(https?:|data:image\/)/.test(src))
 				return (
 					<div style={wrap}>
-						{/* eslint-disable-next-line @next/next/no-img-element */}
-						<img
-							src={src}
-							alt=''
-							style={{ ...box, objectFit: 'contain', display: 'block' }}
-						/>
+						<div
+							data-image={b.id}
+							style={{ position: 'relative', maxWidth: '100%', lineHeight: 0 }}>
+							{/* eslint-disable-next-line @next/next/no-img-element */}
+							<img
+								src={src}
+								alt=''
+								draggable={false}
+								style={{ ...box, objectFit: 'contain', display: 'block' }}
+							/>
+							<ImageHandles
+								b={b}
+								ctx={ctx}
+							/>
+						</div>
 					</div>
 				);
 			if (!ctx.onSelect) return null;
@@ -330,6 +390,7 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 			return (
 				<div style={wrap}>
 					<div
+						data-image={b.id}
 						role={fixable ? 'button' : undefined}
 						title={fixable ? 'Click to upload it — every template uses it' : undefined}
 						onClick={
@@ -355,11 +416,16 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 							fontFamily: fixable ? FAMILY.sans : FAMILY.mono,
 							fontWeight: fixable ? 600 : undefined,
 							cursor: fixable ? 'pointer' : undefined,
-							overflow: 'hidden',
 							padding: 2,
 							textAlign: 'center',
+							position: 'relative',
+							maxWidth: '100%',
 						}}>
-						{fixable ? `+ ${fixLabel(fixPath)}` : String(b.src || 'Image').replace(/^\{\{\s*|\s*\}\}$/g, '')}
+						<span style={{ overflow: 'hidden', maxHeight: '100%', color: 'inherit' }}>{fixable ? `+ ${fixLabel(fixPath)}` : String(b.src || 'Image').replace(/^\{\{\s*|\s*\}\}$/g, '')}</span>
+						<ImageHandles
+							b={b}
+							ctx={ctx}
+						/>
 					</div>
 				</div>
 			);

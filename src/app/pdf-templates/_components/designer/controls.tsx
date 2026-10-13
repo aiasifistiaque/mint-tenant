@@ -1,8 +1,10 @@
 'use client';
 
 import { FC, ReactNode } from 'react';
-import { Box, Flex, Input, Switch, Text } from '@chakra-ui/react';
+import { Box, Flex, IconButton, Input, Switch, Text } from '@chakra-ui/react';
+import { AlignCenter, AlignLeft, AlignRight, LucideIcon } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
+import { Tooltip } from '@/components/ui/tooltip';
 
 /** The designer's small inputs: a label beside or above, values in pt. */
 
@@ -116,6 +118,75 @@ export const Pick: FC<{ value: any; onChange: (v: string) => void; options: [str
 	</Dropdown>
 );
 
+/** One choice of an IconPick: its icon, and the name + one line the hover card explains it with. */
+export type IconOption = { value: string; label: string; hint?: string; icon: LucideIcon };
+
+/**
+ * A row of icon buttons, like Figma's alignment pickers: one is on, and
+ * hovering any of them shows what it does.
+ */
+export const IconPick: FC<{ value: string; onChange: (v: string) => void; options: IconOption[]; label: string }> = ({ value, onChange, options, label }) => (
+	<Flex
+		role='radiogroup'
+		aria-label={label}
+		display='inline-flex'
+		gap='2px'
+		p='2px'
+		bg='bg.muted'
+		borderRadius='md'>
+		{options.map(o => {
+			const on = o.value === value;
+			const Icon = o.icon;
+			return (
+				<Tooltip
+					key={o.value}
+					openDelay={150}
+					showArrow
+					positioning={{ placement: 'top' }}
+					content={
+						<Box
+							maxW='200px'
+							py={0.5}>
+							{/* `inherit`: Text's own colour is the page's, unreadable on the card. */}
+							<Text
+								color='inherit'
+								fontWeight='600'>
+								{o.label}
+							</Text>
+							{o.hint && (
+								<Text
+									color='inherit'
+									opacity={0.75}
+									mt={0.5}>
+									{o.hint}
+								</Text>
+							)}
+						</Box>
+					}>
+					<IconButton
+						role='radio'
+						aria-checked={on}
+						aria-label={o.label}
+						size='xs'
+						h='26px'
+						minW='30px'
+						variant='ghost'
+						color={on ? 'fg' : 'fg.muted'}
+						bg={on ? 'bg' : 'transparent'}
+						boxShadow={on ? 'xs' : 'none'}
+						_hover={{ bg: on ? 'bg' : 'bg.emphasized', color: 'fg' }}
+						onClick={() => onChange(o.value)}>
+						<Icon
+							size={15}
+							strokeWidth={1.75}
+						/>
+					</IconButton>
+				</Tooltip>
+			);
+		})}
+	</Flex>
+);
+
 export const Toggle: FC<{ checked: boolean; onChange: (v: boolean) => void; label: string }> = ({ checked, onChange, label }) => (
 	<Switch.Root
 		size='sm'
@@ -154,10 +225,10 @@ export const Section: FC<{ title: string; children: ReactNode; action?: ReactNod
 	</Box>
 );
 
-export const ALIGN: [string, string][] = [
-	['left', 'Left'],
-	['center', 'Centre'],
-	['right', 'Right'],
+export const ALIGN: IconOption[] = [
+	{ value: 'left', label: 'Left', icon: AlignLeft },
+	{ value: 'center', label: 'Centre', icon: AlignCenter },
+	{ value: 'right', label: 'Right', icon: AlignRight },
 ];
 export const WEIGHT: [string, string][] = [
 	['400', 'Regular'],

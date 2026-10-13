@@ -41,7 +41,7 @@ import {
 	viewerZone,
 } from '@/components/library';
 import { ConsoleTabs, Dropdown, ErrorState } from '@/components/library/cl';
-import PdfPage from '@/components/library/pdf/PdfPage';
+import PdfPage, { Corner } from '@/components/library/pdf/PdfPage';
 import { recordScope, sampleScope } from '@/components/library/pdf/scope';
 import {
 	Block,
@@ -494,6 +494,73 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		},
 		[selected, also]
 	);
+	/* ------------------------------- images: corner handles, like Figma */
+	const [sizeHint, setSizeHint] = useState<string | null>(null);
+	const onImageDown = useCallback((iid: string, e: ReactPointerEvent, corner: Corner) => {
+		const base = tRef.current;
+		const hit = base && findBlock(base, iid);
+		if (!base || !hit || e.button !== 0) return;
+		const b = hit.block;
+		const [pw] = pageSize(base);
+		const start = pagePoint(pw, e.clientX, e.clientY);
+		const img = document.querySelector(`[data-image="${iid}"]`)?.getBoundingClientRect();
+		// Its room: what holds it (in a row its own place is only as wide as it is).
+		const room = document.querySelector(`[data-block="${iid}"]`)?.parentElement?.getBoundingClientRect();
+		if (!start || !img || !room) return;
+		const ppx = start.ppx;
+		const w0 = img.width * ppx;
+		const h0 = img.height * ppx;
+		const ratio = h0 / Math.max(1, w0);
+		// Placed freely, it may grow past its box (its box grows along); in the flow, no wider than what holds it.
+		const free = (base.free || []).some(f => f.id === iid);
+		const most = free ? pw : room.width * ppx;
+		// Centred, both sides move — twice the pointer's way, so the corner stays under it.
+		const twice = b.align === 'center' ? 2 : 1;
+		const east = corner[1] === 'e' ? 1 : -1;
+		const south = corner[0] === 's' ? 1 : -1;
+		const round = (n: number) => Math.round(n * 2) / 2;
+		let moved = false;
+		const move = (ev: PointerEvent) => {
+			const p = pagePoint(pw, ev.clientX, ev.clientY);
+			if (!p) return;
+			const dx = (p.x - start.x) * east * twice;
+			const dy = (p.y - start.y) * south;
+			if (!moved && Math.hypot(dx, dy) / ppx < 2) return;
+			if (!moved) {
+				moved = true;
+				setHist(hh => ({ past: [...hh.past.slice(-MAX_HISTORY), base], future: [] }));
+			}
+			let w: number, h: number | undefined;
+			if (ev.shiftKey) {
+				// ⇧: its own width and height — the picture keeps its shape inside.
+				w = Math.min(most, Math.max(8, w0 + dx));
+				h = Math.max(8, h0 + dy);
+			} else {
+				// The way the pointer went furthest decides; the shape stays.
+				const by = Math.abs(dx) >= Math.abs(dy / ratio) ? dx : dy / ratio;
+				w = Math.min(most, Math.max(8, w0 + by));
+				h = b.height ? w * ratio : undefined;
+			}
+			const patch: Partial<Block> = { width: round(w), height: h === undefined ? undefined : round(h) };
+			if (free) patch.w = Math.max(b.w || 0, round(w));
+			setSizeHint(`${Math.round(w)} × ${Math.round(h ?? w * ratio)} pt`);
+			setT(cur => (cur ? updateBlock(cur, iid, patch) : cur));
+		};
+		const up = () => {
+			window.removeEventListener('pointermove', move);
+			window.removeEventListener('pointerup', up);
+			setSizeHint(null);
+			if (!moved) return;
+			const swallow = (ev: MouseEvent) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+			};
+			window.addEventListener('click', swallow, { capture: true, once: true });
+			setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+		};
+		window.addEventListener('pointermove', move);
+		window.addEventListener('pointerup', up);
+	}, []);
 	/** Takes a block out of the flow and puts it on the page where it is now (D22). */
 	const placeFreely = (bid: string) => {
 		if (!t) return;
@@ -1034,6 +1101,8 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 									onDragBlock={onDragBlock}
 									showEmptyParts={dragging && !freeMode}
 									onFreeDown={onFreeDown}
+									onImageDown={onImageDown}
+									sizeHint={sizeHint}
 									guides={guides}
 								/>
 							</Box>

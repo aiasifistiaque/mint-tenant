@@ -2,13 +2,36 @@
 
 import { FC } from 'react';
 import { Box, Button, Flex, IconButton, Text } from '@chakra-ui/react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Plus, Trash2, X } from 'lucide-react';
+import {
+	AlignCenterHorizontal,
+	AlignCenterVertical,
+	AlignEndHorizontal,
+	AlignEndVertical,
+	AlignHorizontalJustifyCenter,
+	AlignHorizontalJustifyEnd,
+	AlignHorizontalJustifyStart,
+	AlignHorizontalSpaceBetween,
+	AlignStartHorizontal,
+	AlignStartVertical,
+	AlignVerticalJustifyCenter,
+	AlignVerticalJustifyEnd,
+	AlignVerticalJustifyStart,
+	ArrowDown,
+	ArrowLeft,
+	ArrowRight,
+	ArrowUp,
+	Copy,
+	Plus,
+	StretchVertical,
+	Trash2,
+	X,
+} from 'lucide-react';
 import ConditionsEditor from '@/app/builder/_components/ConditionsEditor';
 import { ModelField } from '@/app/builder/_components/filterTypes';
 import { Block, FILLERS, Place, flattenFields, labelOf } from '@/components/library/pdf/types';
 import { PickerContext } from './FieldPicker';
 import TokenText from './TokenText';
-import { ALIGN, Color, Num, Pick, Row, Section, Toggle, WEIGHT } from './controls';
+import { ALIGN, Color, IconOption, IconPick, Num, Pick, Row, Section, Toggle, WEIGHT } from './controls';
 import { DocLink, ICON } from '../ui';
 
 type Props = {
@@ -32,21 +55,32 @@ const FREE_PAGES: [string, string][] = [
 	['last', 'Last page'],
 ];
 
-const LAYOUT: [string, string][] = [
-	['column', 'Stack — one under another'],
-	['row', 'Row — side by side'],
+/* Figma-like pickers (IconPick): an icon each, explained on hover. */
+const LAYOUT: IconOption[] = [
+	{ value: 'column', label: 'One under another', hint: 'Blocks stack down the page.', icon: ArrowDown },
+	{ value: 'row', label: 'Side by side', hint: 'Blocks sit in a row, left to right.', icon: ArrowRight },
 ];
-const ROW_ALIGN: [string, string][] = [
-	['top', 'Top'],
-	['middle', 'Middle'],
-	['bottom', 'Bottom'],
-	['stretch', 'Stretch — boxes as tall as the row'],
+const ROW_ALIGN: IconOption[] = [
+	{ value: 'top', label: 'Top', hint: 'Blocks line up along the top of the row.', icon: AlignStartHorizontal },
+	{ value: 'middle', label: 'Middle', hint: 'Blocks are centred up and down in the row.', icon: AlignCenterHorizontal },
+	{ value: 'bottom', label: 'Bottom', hint: 'Blocks line up along the bottom of the row.', icon: AlignEndHorizontal },
+	{ value: 'stretch', label: 'Stretch', hint: 'Boxes grow as tall as the row’s tallest block.', icon: StretchVertical },
 ];
-const SPREAD: [string, string][] = [
-	['start', 'From the left'],
-	['center', 'Centred'],
-	['end', 'To the right'],
-	['between', 'Space between'],
+const SPREAD: IconOption[] = [
+	{ value: 'start', label: 'From the left', hint: 'Blocks start at the left; the free space is on the right.', icon: AlignHorizontalJustifyStart },
+	{ value: 'center', label: 'Centred', hint: 'Blocks sit in the middle, free space on both sides.', icon: AlignHorizontalJustifyCenter },
+	{ value: 'end', label: 'To the right', hint: 'Blocks end at the right; the free space is on the left.', icon: AlignHorizontalJustifyEnd },
+	{ value: 'between', label: 'Space between', hint: 'First block at the left, last at the right, the rest spaced evenly.', icon: AlignHorizontalSpaceBetween },
+];
+const COLUMN_ALIGN: IconOption[] = [
+	{ value: 'top', label: 'Top', hint: 'The column’s blocks start at its top.', icon: AlignVerticalJustifyStart },
+	{ value: 'middle', label: 'Middle', hint: 'The column’s blocks are centred up and down.', icon: AlignVerticalJustifyCenter },
+	{ value: 'bottom', label: 'Bottom', hint: 'The column’s blocks sit at its bottom.', icon: AlignVerticalJustifyEnd },
+];
+const IMAGE_ALIGN: IconOption[] = [
+	{ value: 'left', label: 'Left', hint: 'The image sits at the left of its space.', icon: AlignStartVertical },
+	{ value: 'center', label: 'Centre', hint: 'The image is centred in its space.', icon: AlignCenterVertical },
+	{ value: 'right', label: 'Right', hint: 'The image sits at the right of its space.', icon: AlignEndVertical },
 ];
 
 /** What filling the free space does where the block sits (D19). */
@@ -93,7 +127,8 @@ const TextStyle: FC<{ b: Block; set: (p: Partial<Block>) => void; align?: boolea
 		</Row>
 		{align && (
 			<Row label='Align'>
-				<Pick
+				<IconPick
+					label='Align'
 					value={b.align || 'left'}
 					options={ALIGN}
 					onChange={v => set({ align: v })}
@@ -230,9 +265,10 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 							/>
 						</Row>
 						<Row label='Align'>
-							<Pick
+							<IconPick
+								label='Align'
 								value={b.align || 'left'}
-								options={ALIGN}
+								options={IMAGE_ALIGN}
 								onChange={v => set({ align: v })}
 							/>
 						</Row>
@@ -272,17 +308,7 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 											onChange={v => set({ columns: listEdit(b.columns, i, { width: v ?? 1 }) })}
 										/>
 									</Box>
-									<Box flex='1'>
-										<Pick
-											value={c.valign || 'top'}
-											options={[
-												['top', 'Top'],
-												['middle', 'Middle'],
-												['bottom', 'Bottom'],
-											]}
-											onChange={v => set({ columns: listEdit(b.columns, i, { valign: v }) })}
-										/>
-									</Box>
+									<Box flex='1' />
 									<ItemTools
 										i={i}
 										n={b.columns.length}
@@ -296,23 +322,25 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 									gap={2}
 									mt={1}
 									pl='68px'>
-									<Box flex='1'>
-										<Pick
-											value={c.direction === 'row' ? 'row' : 'column'}
-											options={[
-												['column', 'One under another'],
-												['row', 'Side by side'],
-											]}
-											onChange={v => set({ columns: listEdit(b.columns, i, { direction: v === 'row' ? 'row' : undefined }) })}
-										/>
-									</Box>
+									<IconPick
+										label={`Column ${i + 1} blocks`}
+										value={c.direction === 'row' ? 'row' : 'column'}
+										options={LAYOUT}
+										onChange={v => set({ columns: listEdit(b.columns, i, { direction: v === 'row' ? 'row' : undefined }) })}
+									/>
+									<IconPick
+										label={`Column ${i + 1} align`}
+										value={c.valign || 'top'}
+										options={COLUMN_ALIGN}
+										onChange={v => set({ columns: listEdit(b.columns, i, { valign: v }) })}
+									/>
 								</Flex>
 							</Box>
 						))}
 						<Text
 							fontSize='11px'
 							color='fg.subtle'>
-							Width is a share: 2 and 1 make the first twice as wide; Top / Middle / Bottom places the column’s blocks. Drag blocks into a column on the page or in Layers.
+							Width is a share: 2 and 1 make the first twice as wide. Under each column: its blocks down or side by side, and where they sit — hover an icon to see what it does. Drag blocks into a column on the page or in Layers.
 						</Text>
 						<Row label='Gap'>
 							<Num
@@ -331,7 +359,8 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 							title='Layout'
 							action={<DocLink section='layout' label='?' />}>
 							<Row label='Blocks'>
-								<Pick
+								<IconPick
+									label='Blocks'
 									value={row ? 'row' : 'column'}
 									options={LAYOUT}
 									onChange={v => set({ direction: v === 'row' ? 'row' : undefined })}
@@ -348,7 +377,8 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 							{row && (
 								<>
 									<Row label='Align'>
-										<Pick
+										<IconPick
+											label='Align'
 											value={b.valign || 'top'}
 											options={ROW_ALIGN}
 											onChange={v => set({ valign: v === 'top' ? undefined : v })}
@@ -357,7 +387,8 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 									<Row
 										label='Spread'
 										hint='When nothing in the row fills the free space'>
-										<Pick
+										<IconPick
+											label='Spread'
 											value={b.justify || 'start'}
 											options={SPREAD}
 											onChange={v => set({ justify: v === 'start' ? undefined : v })}
@@ -704,8 +735,9 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 												onChange={v => set({ columns: listEdit(b.columns, i, { width: v ?? 1 }) })}
 											/>
 										</Box>
-										<Box w='84px'>
-											<Pick
+										<Box flexShrink={0}>
+											<IconPick
+												label={`Column ${i + 1} align`}
 												value={c.align || 'left'}
 												options={ALIGN}
 												onChange={v => set({ columns: listEdit(b.columns, i, { align: v }) })}

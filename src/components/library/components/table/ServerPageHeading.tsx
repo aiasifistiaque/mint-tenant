@@ -159,7 +159,10 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 					/>
 				</Box>
 			)}
-			<Flex {...containerCss}>
+			{/* No top padding of its own: the trail above already spaces it (12px, like cl PageHeader). */}
+			<Flex
+				{...containerCss}
+				pt={0}>
 				{isLoading ? (
 					// One bar the size of the <Heading> it stands in for. This was a
 					// `SkeletonText noOfLines={3}`, where `h` applies per line — so a
