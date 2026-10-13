@@ -600,8 +600,8 @@ const TableView: FC<{ b: any; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) =>
 		verticalAlign: 'top',
 		textAlign: align as any,
 		background: header ? b.headerBg : zebra ? ZEBRA : undefined,
-		border: grid ? `0.5pt solid ${HAIRLINE}` : undefined,
-		borderBottom: grid ? `0.5pt solid ${HAIRLINE}` : lines ? (header ? `0.75pt solid ${s.color}` : `0.5pt solid ${HAIRLINE}`) : undefined,
+		border: grid ? `0.5pt solid ${b.lineColor || HAIRLINE}` : undefined,
+		borderBottom: grid ? `0.5pt solid ${b.lineColor || HAIRLINE}` : lines ? (header ? `0.75pt solid ${b.lineColor || s.color}` : `0.5pt solid ${b.lineColor || HAIRLINE}`) : undefined,
 	});
 	const style = (header: boolean) => textCss(ctx, b, { weight: header ? 600 : b.weight ?? 400, color: header ? b.headerColor ?? s.color : b.color ?? s.color, upper: false, spacing: 0 });
 	return (

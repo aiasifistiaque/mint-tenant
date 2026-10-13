@@ -795,6 +795,15 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 									onChange={v => set({ lines: v })}
 								/>
 							</Row>
+							{b.lines !== 'none' && (
+								<Row label='Line colour'>
+									<Color
+										value={b.lineColor}
+										placeholder='Light grey'
+										onChange={v => set({ lineColor: v })}
+									/>
+								</Row>
+							)}
 							<Row label='Cell padding'>
 								<Num
 									value={b.pad}
