@@ -9,6 +9,9 @@ import mainApi, { routeTags } from './mainApi';
 
 const TAG = 'pdf-templates';
 
+/** A gallery category (D21): Invoices, Receipts, Quotations… — a template's `kind` is its key. */
+export type PdfCategory = { key: string; name: string; description: string; order: number };
+
 /** The file's name from Content-Disposition — the UTF-8 `filename*` first. */
 const nameOf = (header: string | null) => {
 	const star = /filename\*=UTF-8''([^;]+)/i.exec(header || '');
@@ -67,9 +70,22 @@ export const pdfTemplatesApi = mainApi.injectEndpoints({
 			query: body => ({ url: 'pdf-templates/settings', method: 'PUT', body }),
 			invalidatesTags: routeTags(`${TAG}-settings`),
 		}),
-		getPdfGallery: builder.query<{ templates: any[]; builtIn: boolean }, void>({
+		getPdfGallery: builder.query<{ templates: any[]; builtIn: boolean; newStarters?: number; categories: PdfCategory[] }, void>({
 			query: () => 'pdf-templates/gallery',
 			providesTags: routeTags(TAG),
+		}),
+		// Gallery categories (D21): everyone reads them; the super admin keeps them.
+		getPdfCategories: builder.query<{ categories: PdfCategory[]; canEdit: boolean }, void>({
+			query: () => 'pdf-templates/categories',
+			providesTags: routeTags(TAG),
+		}),
+		savePdfCategory: builder.mutation<PdfCategory, Partial<PdfCategory> & { key?: string }>({
+			query: ({ key, ...body }) => (key ? { url: `pdf-templates/categories/${key}`, method: 'PUT', body } : { url: 'pdf-templates/categories', method: 'POST', body }),
+			invalidatesTags: routeTags(TAG),
+		}),
+		deletePdfCategory: builder.mutation<{ removed: number; templatesLeft: number }, string>({
+			query: key => ({ url: `pdf-templates/categories/${key}`, method: 'DELETE' }),
+			invalidatesTags: routeTags(TAG),
 		}),
 		addPdfStarters: builder.mutation<{ added: number }, void>({
 			query: () => ({ url: 'pdf-templates/gallery/starters', method: 'POST' }),
@@ -117,6 +133,9 @@ export const {
 	useSavePdfSettingsMutation,
 	useGetPdfGalleryQuery,
 	useAddPdfStartersMutation,
+	useGetPdfCategoriesQuery,
+	useSavePdfCategoryMutation,
+	useDeletePdfCategoryMutation,
 	useGetPdfFieldsQuery,
 	useGuessPdfMappingMutation,
 	useUsePdfTemplateMutation,

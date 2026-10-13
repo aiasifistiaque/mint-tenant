@@ -25,6 +25,7 @@ export type PdfTemplate = {
 	_id?: string;
 	name: string;
 	description?: string;
+	/** Its gallery category's key (D21): invoice, receipt, quotation… */
 	kind: string;
 	route: string;
 	alias: string;
@@ -54,15 +55,6 @@ export const pageSize = (t: Pick<PdfTemplate, 'page'>): [number, number] => {
 	const [w, h] = PAGE_SIZES[t.page?.size] || PAGE_SIZES.A4;
 	return t.page?.orientation === 'landscape' ? [h, w] : [w, h];
 };
-
-export const KINDS: { value: string; label: string }[] = [
-	{ value: 'invoice', label: 'Invoice' },
-	{ value: 'bill', label: 'Bill' },
-	{ value: 'receipt', label: 'Receipt' },
-	{ value: 'quote', label: 'Quote' },
-	{ value: 'statement', label: 'Statement' },
-	{ value: 'other', label: 'Other' },
-];
 
 export const BLOCKS: { type: BlockType; label: string; hint: string }[] = [
 	{ type: 'text', label: 'Text', hint: 'A heading or paragraph; fields go in as {{…}}' },

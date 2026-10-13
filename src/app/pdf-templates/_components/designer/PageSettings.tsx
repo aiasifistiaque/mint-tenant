@@ -4,7 +4,8 @@ import { FC } from 'react';
 import { Box, Button, Flex, Input, Text, Textarea } from '@chakra-ui/react';
 import { Plus, X } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
-import { FieldTree, KINDS, PdfTemplate } from '@/components/library/pdf/types';
+import { FieldTree, PdfTemplate } from '@/components/library/pdf/types';
+import { useGetPdfCategoriesQuery } from '@/components/library';
 import { Color, Num, Pick, Row, Section, Toggle } from './controls';
 import { DocLink } from '../ui';
 
@@ -24,6 +25,13 @@ const PageSettings: FC<{
 	const margin = (i: number, v: number | undefined) => page({ margin: t.page.margin.map((m, j) => (j === i ? v ?? 0 : m)) as any });
 	const lists = t.lists || [];
 	const setList = (i: number, p: any) => set({ lists: lists.map((l, j) => (j === i ? { ...l, ...p } : l)) });
+	// The gallery's categories (D21); a template outside them shows as Other.
+	const { data: cats } = useGetPdfCategoriesQuery();
+	const categories = cats?.categories || [];
+	const categoryOptions: [string, string][] = [
+		...categories.map(c => [c.key, c.name] as [string, string]),
+		...(t.kind && !categories.some(c => c.key === t.kind) ? [[t.kind, `Other (${t.kind})`] as [string, string]] : []),
+	];
 
 	return (
 		<Box>
@@ -35,10 +43,10 @@ const PageSettings: FC<{
 						onChange={e => set({ name: e.target.value })}
 					/>
 				</Row>
-				<Row label='Kind'>
+				<Row label='Category'>
 					<Pick
 						value={t.kind}
-						options={KINDS.map(k => [k.value, k.label])}
+						options={categoryOptions}
 						onChange={v => set({ kind: v })}
 					/>
 				</Row>

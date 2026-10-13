@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Box, Button, Flex, Grid, IconButton, Link, Text } from '@chakra-ui/react';
-import { BookOpen, Building2, Copy, Eye, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
+import { BookOpen, Building2, Copy, Eye, Plus, Sparkles, Star, Tags, Trash2 } from 'lucide-react';
 import {
 	Layout,
 	useAddPdfStartersMutation,
@@ -23,6 +23,7 @@ import NewTemplateDialog from './_components/NewTemplateDialog';
 import SettingsDialog from './_components/SettingsDialog';
 import AiDialog from './_components/AiDialog';
 import Thumb from './_components/Thumb';
+import { CategoriesDialog, CategoryChips, inCategory } from './_components/Categories';
 import { DocLink, GUIDE, ICON, LIST_HREF, designerHref, errorOf, openPreview } from './_components/ui';
 
 /**
@@ -47,6 +48,11 @@ const PdfTemplatesPage = () => {
 	const [duplicate] = useDuplicatePdfTemplateMutation();
 	const [makeDefault] = useSetDefaultPdfTemplateMutation();
 	const [addStarters, { isLoading: adding }] = useAddPdfStartersMutation();
+	// The gallery by category (D21); the super admin keeps the categories.
+	const [category, setCategory] = useState('');
+	const [editingCategories, setEditingCategories] = useState(false);
+	const categories = gallery?.categories || [];
+	const categoryName = (key?: string) => categories.find(c => c.key === key)?.name;
 
 	const templates: PdfTemplate[] = data?.templates || [];
 	const titleOf = useMemo(() => {
@@ -116,6 +122,13 @@ const PdfTemplatesPage = () => {
 								colorPalette='green'
 								variant='subtle'>
 								Default
+							</Badge>
+						)}
+						{!own && categoryName(t.kind) && (
+							<Badge
+								size='xs'
+								variant='subtle'>
+								{categoryName(t.kind)}
 							</Badge>
 						)}
 						{!IS_TENANT_PANEL && own && t.gallery?.published && (
@@ -265,7 +278,7 @@ const PdfTemplatesPage = () => {
 						? 'The built-in starters show until you add templates to the gallery. Add them to edit them, or switch any of your templates to “In the gallery” in its designer.'
 						: 'What every project sees when it makes a template: your templates switched to “In the gallery”.'}
 				</Text>
-				{!IS_TENANT_PANEL && gallery?.builtIn && (
+				{!IS_TENANT_PANEL && (gallery?.builtIn || !!gallery?.newStarters) && (
 					<Button
 						size='xs'
 						variant='outline'
@@ -276,12 +289,27 @@ const PdfTemplatesPage = () => {
 							return r;
 						}, 'The built-in starters are your templates now — edit them like any other')}>
 						<Plus {...ICON} />
-						Add the built-in starters
+						{gallery?.builtIn ? 'Add the built-in starters' : `Add ${gallery?.newStarters} new built-in starter${gallery?.newStarters === 1 ? '' : 's'}`}
+					</Button>
+				)}
+				{!IS_TENANT_PANEL && (
+					<Button
+						size='xs'
+						variant='outline'
+						onClick={() => setEditingCategories(true)}>
+						<Tags {...ICON} />
+						Categories
 					</Button>
 				)}
 				<DocLink section='gallery' />
 			</Flex>
-			{grid((gallery?.templates || []).map(t => card(t, false)))}
+			<CategoryChips
+				categories={categories}
+				templates={gallery?.templates || []}
+				value={category}
+				onChange={setCategory}
+			/>
+			{grid(inCategory(gallery?.templates || [], categories, category).map(t => card(t, false)))}
 		</Flex>
 	);
 
@@ -298,7 +326,7 @@ const PdfTemplatesPage = () => {
 						{ href: LIST_HREF(), title: 'PDF Templates' },
 					]}
 					title='PDF Templates'
-					meta='Invoices, bills and receipts your records download as PDFs'
+					meta='Invoices, receipts and quotations your records download as PDFs'
 					actions={
 						<>
 							<Button
@@ -381,6 +409,10 @@ const PdfTemplatesPage = () => {
 				route={ai?.route}
 				onClose={() => setAi(null)}
 				onReload={refetch}
+			/>
+			<CategoriesDialog
+				open={editingCategories}
+				onClose={() => setEditingCategories(false)}
 			/>
 			<SettingsDialog
 				open={editingSettings}

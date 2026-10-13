@@ -18,6 +18,7 @@ import { mainRoute, modelLabel, useLinkModels } from '@/app/builder/_components/
 import { toaster } from '@/components/ui/toaster';
 import Shell from './Shell';
 import Thumb from './Thumb';
+import { CategoryChips, inCategory } from './Categories';
 import { DocLink, ICON, Labeled, designerHref, errorOf } from './ui';
 
 type Step = 'start' | 'page' | 'match';
@@ -43,6 +44,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 	const [route, setRoute] = useState(presetRoute || '');
 	const [name, setName] = useState('');
 	const [mapping, setMapping] = useState<Record<string, any>>({});
+	const [category, setCategory] = useState('');
 	const [guess, { data: guessed, isLoading: guessing }] = useGuessPdfMappingMutation();
 	const { data: tree } = useGetPdfFieldsQuery(route, { skip: !route || step !== 'match' }) as { data?: FieldTree };
 	const [create, { isLoading: creating }] = useCreatePdfTemplateMutation();
@@ -55,6 +57,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 		setRoute(presetRoute || '');
 		setName('');
 		setMapping({});
+		setCategory('');
 	}, [open, presetRoute]);
 
 	const starters: PdfTemplate[] = gallery?.templates || [];
@@ -74,7 +77,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 					name: name.trim() || 'Untitled template',
 					route,
 					alias: aliasOf(pageTitle),
-					kind: 'other',
+					kind: 'invoice',
 					page: { size: 'A4', orientation: 'portrait', margin: [42, 42, 42, 42] },
 					style: { font: 'sans', size: 10, color: '#111827', muted: '#6b7280', accent: '#2563eb', lineHeight: 1.4 },
 					header: [],
@@ -282,27 +285,38 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 		</Flex>
 	);
 
+	const categories = gallery?.categories || [];
 	const startStep = (
-		<Grid
-			templateColumns={{ base: '1fr 1fr', md: 'repeat(3, 1fr)' }}
+		<Flex
+			direction='column'
 			gap={3}>
-			{galleryLoading && <Spinner size='sm' />}
-			{starters.map(s =>
-				card(
-					s._id!,
-					s.name,
-					s.description || '',
-					<Thumb
-						template={s}
-						settings={settings}
-						height={200}
-					/>,
-					s.kind && s.kind !== 'other' ? s.kind : undefined
-				)
-			)}
-			{card(BLANK, 'Blank', 'An empty page to build from scratch.', icon(FilePlus2))}
-			{onAi && card(AI, 'Build with your AI', 'Claude, ChatGPT or any MCP client lays it out from this page’s fields.', icon(Sparkles))}
-		</Grid>
+			<CategoryChips
+				categories={categories}
+				templates={starters}
+				value={category}
+				onChange={setCategory}
+			/>
+			<Grid
+				templateColumns={{ base: '1fr 1fr', md: 'repeat(3, 1fr)' }}
+				gap={3}>
+				{galleryLoading && <Spinner size='sm' />}
+				{inCategory(starters, categories, category).map(s =>
+					card(
+						s._id!,
+						s.name,
+						s.description || '',
+						<Thumb
+							template={s}
+							settings={settings}
+							height={200}
+						/>,
+						categories.find(c => c.key === s.kind)?.name
+					)
+				)}
+				{card(BLANK, 'Blank', 'An empty page to build from scratch.', icon(FilePlus2))}
+				{onAi && card(AI, 'Build with your AI', 'Claude, ChatGPT or any MCP client lays it out from this page’s fields.', icon(Sparkles))}
+			</Grid>
+		</Flex>
 	);
 
 	const pageStep = (
