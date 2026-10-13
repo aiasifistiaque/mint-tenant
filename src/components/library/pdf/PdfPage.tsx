@@ -28,7 +28,10 @@ export type PdfPageProps = {
 	scope: Scope;
 	mode?: 'values' | 'fields';
 	selected?: string | null;
-	onSelect?: (id: string) => void;
+	/** With ⇧ / ⌘ click, more blocks selected alongside (PT-29) — outlined dashed. */
+	alsoSelected?: string[];
+	/** `add`: ⇧ / ⌘ was held — add it to the selection (or take it out). */
+	onSelect?: (id: string, add?: boolean) => void;
 	/** Zoom: 1 = 1pt per pt (a page is about 800px wide). */
 	scale?: number;
 	/** The page's height grows with its body (designer) or stays one page (thumbnail). */
@@ -237,10 +240,11 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 	if (!shown && !editing) return null;
 	if (b.type === 'pageBreak' && !editing) return null;
 	const selected = ctx.selected === b.id;
+	const also = !selected && !!ctx.alsoSelected?.includes(b.id);
 	const select = (e: MouseEvent) => {
 		if (!ctx.onSelect) return;
 		e.stopPropagation();
-		ctx.onSelect(b.id);
+		ctx.onSelect(b.id, e.shiftKey || e.metaKey || e.ctrlKey);
 	};
 	return (
 		<div
@@ -266,8 +270,8 @@ const BlockView: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 				position: 'relative',
 				cursor: editing ? 'pointer' : undefined,
 				opacity: shown ? 1 : 0.35,
-				outline: selected ? '1.5px solid #4f46e5' : undefined,
-				outlineOffset: selected ? 2 : undefined,
+				outline: selected ? '1.5px solid #4f46e5' : also ? '1.5px dashed #4f46e5' : undefined,
+				outlineOffset: selected || also ? 2 : undefined,
 				borderRadius: 2,
 			}}>
 			<BlockBody

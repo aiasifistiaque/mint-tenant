@@ -33,7 +33,10 @@ const PARTS: { part: Part; title: string; hint: string }[] = [
 type Props = {
 	template: PdfTemplate;
 	selected: string | null;
-	onSelect: (id: string) => void;
+	/** `add`: ⇧ / ⌘ click — add it to the selection (PT-29). */
+	onSelect: (id: string, add?: boolean) => void;
+	/** Selected alongside the main one. */
+	alsoSelected?: string[];
 	onAdd: (slot: Slot, index: number, type: BlockType) => void;
 	onMove: (id: string, slot: Slot, index: number) => void;
 };
@@ -77,7 +80,7 @@ export const AddMenu: FC<{ onPick: (type: BlockType) => void; label?: string; pa
 	</Menu.Root>
 );
 
-const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove }) => {
+const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove, alsoSelected = [] }) => {
 	const [drag, setDrag] = useState<string | null>(null);
 	const [over, setOver] = useState<string | null>(null);
 
@@ -111,7 +114,7 @@ const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove }) => 
 			{dropZone(slot, 0)}
 			{(blocks || []).map((b, i) => {
 				const Icon = ICONS[b.type] || FileText;
-				const isSel = selected === b.id;
+				const isSel = selected === b.id || alsoSelected.includes(b.id);
 				return (
 					<Box key={b.id}>
 						<Flex
@@ -156,7 +159,7 @@ const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove }) => 
 									setOver(null);
 								},
 							})}
-							onClick={() => onSelect(b.id)}>
+							onClick={(e: any) => onSelect(b.id, e.shiftKey || e.metaKey || e.ctrlKey)}>
 							<GripVertical
 								size={12}
 								style={{ opacity: 0.4, cursor: 'grab', flexShrink: 0 }}

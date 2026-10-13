@@ -200,6 +200,49 @@ export const relocateBlock = (t: PdfTemplate, id: string, slot: Slot, index: num
 	return insertBlock(without, slot, same && index > hit.index ? index - 1 : index, hit.block);
 };
 
+/** Whether `inner` sits somewhere inside `outer` (a box's or a column's blocks, any depth). */
+const contains = (outer: Block, innerId: string): boolean => {
+	const kids: Block[] = outer.type === 'box' ? outer.blocks || [] : outer.type === 'columns' ? (outer.columns || []).flatMap((c: any) => c.blocks || []) : [];
+	return kids.some(k => k.id === innerId || contains(k, innerId));
+};
+
+/** The selected ids in the template's order, leaving out any inside another selected block (it moves with it). */
+export const topSelected = (t: PdfTemplate, ids: string[]): string[] => {
+	const order: string[] = [];
+	walk(t, b => ids.includes(b.id) && order.push(b.id));
+	const blocks = order.map(id => findBlock(t, id)!.block);
+	return order.filter(id => !blocks.some(o => o.id !== id && contains(o, id)));
+};
+
+/**
+ * Moves several blocks together to one place (PT-29), in the template's
+ * order — never into one of themselves; a page break only into the body itself.
+ */
+export const relocateMany = (t: PdfTemplate, ids: string[], slot: Slot, index: number): PdfTemplate => {
+	const top = topSelected(t, ids);
+	const hits = top.map(id => findBlock(t, id)!);
+	if (!hits.length) return t;
+	if (slot.parent && hits.some(h => h.block.id === slot.parent || contains(h.block, slot.parent!))) return t;
+	if (hits.some(h => h.block.type === 'pageBreak') && (slot.part !== 'body' || slot.parent)) return t;
+	const sameList = (h: { slot: Slot }) => h.slot.part === slot.part && h.slot.parent === slot.parent && h.slot.column === slot.column;
+	const before = hits.filter(h => sameList(h) && h.index < index).length;
+	let next = t;
+	for (const h of hits) next = removeBlock(next, h.block.id);
+	return editList(next, slot, list => [...list.slice(0, index - before), ...hits.map(h => h.block), ...list.slice(index - before)]);
+};
+
+/** Wraps the selected blocks in a new box (or a row) where the first of them was (PT-29, ⌘G). */
+export const groupBlocks = (t: PdfTemplate, ids: string[], row = false): { template: PdfTemplate; id: string | null } => {
+	const top = topSelected(t, ids);
+	if (!top.length) return { template: t, id: null };
+	const first = findBlock(t, top[0])!;
+	if (top.some(id => findBlock(t, id)!.block.type === 'pageBreak')) return { template: t, id: null };
+	const group: Block = row ? { ...newRow(), blocks: [] } : { id: newId(), type: 'box', pad: 0, blocks: [] };
+	let next = insertBlock(t, first.slot, first.index, group);
+	next = relocateMany(next, top, { part: first.slot.part, parent: group.id }, 0);
+	return { template: next, id: group.id };
+};
+
 /** A deep copy with fresh ids — duplicating a block. */
 export const cloneBlock = (b: Block): Block => {
 	const c: Block = JSON.parse(JSON.stringify(b));

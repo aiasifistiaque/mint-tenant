@@ -105,15 +105,19 @@ export const dropAt = (t: PdfTemplate, target: Element | null, x: number, y: num
 
 /* ---------------------------------------------------------- copy / paste */
 
-/** A copied block on the system clipboard: JSON, so it pastes into another template or tab. */
-export const clipText = (b: Block) => JSON.stringify({ mintPdfBlock: b });
+/** Copied blocks on the system clipboard: JSON, so they paste into another template or tab. */
+export const clipText = (blocks: Block[]) => JSON.stringify({ mintPdfBlocks: blocks });
 
-/** A block from the clipboard's text, or null when it isn't one. */
-export const clipBlock = (text: string | undefined | null): Block | null => {
+const isBlock = (b: any) => b && typeof b === 'object' && BLOCKS.some(x => x.type === b.type);
+
+/** The blocks in the clipboard's text (one block copied before PT-29 too), or null when it holds none. */
+export const clipBlocks = (text: string | undefined | null): Block[] | null => {
 	if (!text || !text.includes('mintPdfBlock')) return null;
 	try {
-		const b = JSON.parse(text)?.mintPdfBlock;
-		return b && typeof b === 'object' && BLOCKS.some(x => x.type === b.type) ? b : null;
+		const j = JSON.parse(text);
+		const list = Array.isArray(j?.mintPdfBlocks) ? j.mintPdfBlocks : j?.mintPdfBlock ? [j.mintPdfBlock] : [];
+		const blocks = list.filter(isBlock);
+		return blocks.length ? blocks : null;
 	} catch {
 		return null;
 	}

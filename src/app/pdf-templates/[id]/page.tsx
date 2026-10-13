@@ -14,6 +14,8 @@ import {
 	ClipboardPaste,
 	Copy,
 	CornerLeftUp,
+	Columns2,
+	Group,
 	Eye,
 	FileDown,
 	Redo2,
@@ -57,6 +59,9 @@ import {
 	newBlock,
 	relocateBlock,
 	removeBlock,
+	groupBlocks,
+	relocateMany,
+	topSelected,
 	updateBlock,
 } from '@/components/library/pdf/types';
 import { mainRoute, modelLabel, useLinkModels } from '@/app/builder/_components/useLinkModels';
@@ -65,7 +70,7 @@ import Outline from '../_components/designer/Outline';
 import PageSettings from '../_components/designer/PageSettings';
 import Properties from '../_components/designer/Properties';
 import AddPanel from '../_components/designer/AddPanel';
-import { DRAG_TYPE, Drop, clipBlock, clipText, dropAt, pastePlace } from '../_components/designer/dnd';
+import { DRAG_TYPE, Drop, clipBlocks, clipText, dropAt, pastePlace } from '../_components/designer/dnd';
 import AiDialog from '../_components/AiDialog';
 import RealPdfDialog from '../_components/RealPdfDialog';
 import SettingsDialog from '../_components/SettingsDialog';
@@ -145,7 +150,28 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	const [t, setT] = useState<PdfTemplate | null>(null);
 	const [base, setBase] = useState<string>('');
 	const [hist, setHist] = useState<{ past: PdfTemplate[]; future: PdfTemplate[] }>({ past: [], future: [] });
-	const [selected, setSelected] = useState<string | null>(null);
+	const [selected, setPrimary] = useState<string | null>(null);
+	// ⇧ / ⌘ click: more blocks selected alongside the main one (PT-29).
+	const [also, setAlso] = useState<string[]>([]);
+	/** Selects one block (or none), dropping any others. */
+	const setSelected = (id: string | null) => {
+		setPrimary(id);
+		setAlso([]);
+	};
+	/** A click on a block: with ⇧ / ⌘ it's added to the selection (or taken out). */
+	const pick = (id: string | null, add?: boolean) => {
+		if (!id) return setSelected(null);
+		if (!add || !selected) return setSelected(id);
+		if (id === selected) {
+			setPrimary(also[also.length - 1] ?? null);
+			return setAlso(also.slice(0, -1));
+		}
+		if (also.includes(id)) return setAlso(also.filter(x => x !== id));
+		setAlso([...also, selected]);
+		setPrimary(id);
+	};
+	const allSelected = selected ? [...also, selected] : [];
+	const multi = also.length > 0;
 	const [tab, setTab] = useState<'add' | 'pieces' | 'layers'>('add');
 	const [mode, setMode] = useState<'values' | 'fields'>('values');
 	const [zoom, setZoom] = useState(1);
@@ -247,6 +273,9 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	);
 	const ctx = useMemo(() => (t ? { template: t, tree } : null), [t, tree]);
 	const sel = t ? findBlock(t, selected) : null;
+	useEffect(() => {
+		if (t && also.some(id => !findBlock(t, id))) setAlso(a => a.filter(id => !!findBlock(t, id)));
+	}, [t]);
 	// Where the selected block sits: a row runs left to right (D19).
 	const place = t && sel ? placeOf(t, sel.slot) : null;
 	const inRow = place?.flow === 'row';
@@ -267,6 +296,19 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		edit(x => removeBlock(x, bid));
 		setSelected(null);
 	};
+	/** Deletes every selected block. */
+	const removeAll = (ids: string[]) => {
+		edit(x => ids.reduce((acc, id) => removeBlock(acc, id), x));
+		setSelected(null);
+	};
+	/** Wraps the selected blocks in a box or a row (⌘G). */
+	const group = (row = false) => {
+		if (!t) return;
+		const { template, id: gid } = groupBlocks(t, allSelected, row);
+		if (!gid) return;
+		edit(() => template);
+		setSelected(gid);
+	};
 	const duplicate = () => {
 		if (!sel) return;
 		const c = cloneBlock(sel.block);
@@ -278,7 +320,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
 	/* ------------------------------------------- drag on the page (D20) */
 	// What is being dragged: a block on the page, or a new one from the Add panel.
-	const dragRef = useRef<{ id?: string; block: Block } | null>(null);
+	const dragRef = useRef<{ id?: string; block: Block; ids?: string[] } | null>(null);
 	const [dragging, setDragging] = useState(false);
 	const [drop, setDrop] = useState<Drop | null>(null);
 	const endDrag = () => {
@@ -290,7 +332,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		window.addEventListener('dragend', endDrag);
 		return () => window.removeEventListener('dragend', endDrag);
 	}, []);
-	const startDrag = (e: DragEvent, what: { id?: string; block: Block }) => {
+	const startDrag = (e: DragEvent, what: { id?: string; block: Block; ids?: string[] }) => {
 		e.dataTransfer.setData(DRAG_TYPE, what.id || 'new');
 		e.dataTransfer.effectAllowed = what.id ? 'move' : 'copy';
 		dragRef.current = what;
@@ -300,9 +342,10 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	const onDragBlock = useCallback(
 		(bid: string, e: DragEvent) => {
 			const hit = t && findBlock(t, bid);
-			if (hit) startDrag(e, { id: bid, block: hit.block });
+			// A selected block drags the whole selection along (PT-29).
+			if (hit) startDrag(e, { id: bid, block: hit.block, ids: also.length && allSelected.includes(bid) ? allSelected : undefined });
 		},
-		[t]
+		[t, selected, also]
 	);
 	const onDragOver = (e: DragEvent) => {
 		const d = dragRef.current;
@@ -321,31 +364,39 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 		if (!d || !drop) return endDrag();
 		e.preventDefault();
 		const { slot, index } = drop;
-		if (d.id) edit(x => relocateBlock(x, d.id!, slot, index));
+		if (d.ids) edit(x => relocateMany(x, d.ids!, slot, index));
+		else if (d.id) edit(x => relocateBlock(x, d.id!, slot, index));
 		else edit(x => insertBlock(x, slot, index, d.block));
-		setSelected(d.block.id);
+		if (!d.ids) setSelected(d.block.id);
 		endDrag();
 	};
 
 	/* --------------------------------------------- copy / cut / paste (D20) */
-	const [clip, setClip] = useState<Block | null>(null);
-	const copyBlock = (b: Block) => {
-		setClip(b);
-		navigator.clipboard?.writeText(clipText(b)).catch(() => {});
-		toaster.create({ type: 'info', title: 'Copied', description: 'Select a box (or a block) and press ⌘V — it goes inside the box, or after the block.' });
+	const [clip, setClip] = useState<Block[] | null>(null);
+	/** The selected blocks (the whole selection, in the template's order). */
+	const selectedBlocks = (): Block[] => (t ? topSelected(t, allSelected).map(id => findBlock(t, id)!.block) : []);
+	const copyBlocks = (blocks: Block[]) => {
+		if (!blocks.length) return;
+		setClip(blocks);
+		navigator.clipboard?.writeText(clipText(blocks)).catch(() => {});
+		toaster.create({ type: 'info', title: blocks.length > 1 ? `Copied ${blocks.length} blocks` : 'Copied', description: 'Select a box (or a block) and press ⌘V — it goes inside the box, or after the block.' });
 	};
-	const paste = (b: Block) => {
-		if (!t) return;
-		const c = cloneBlock(b);
-		const { slot, index } = pastePlace(t, selected, c);
-		edit(x => insertBlock(x, slot, index, c));
-		setSelected(c.id);
-		reveal(c.id);
+	const paste = (blocks: Block[]) => {
+		if (!t || !blocks.length) return;
+		const copies = blocks.map(cloneBlock);
+		const { slot, index } = pastePlace(t, selected, copies[0]);
+		edit(x => copies.reduce((acc, c, i) => insertBlock(acc, slot, index + i, c), x));
+		if (copies.length === 1) setSelected(copies[0].id);
+		else {
+			setPrimary(copies[copies.length - 1].id);
+			setAlso(copies.slice(0, -1).map(c => c.id));
+		}
+		reveal(copies[0].id);
 	};
 
 	// Keys: undo / redo, delete the selected block, save — not while typing.
 	const keyRef = useRef<any>(null);
-	keyRef.current = { undo, redo, selected, sel, remove, doSave: () => doSave(), copyBlock, paste };
+	keyRef.current = { undo, redo, selected, sel, remove, removeAll, group, multi, allSelected, selectedBlocks, doSave: () => doSave(), copyBlocks, paste };
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			const k = keyRef.current;
@@ -360,6 +411,13 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 			if (mod && e.key.toLowerCase() === 'z') {
 				e.preventDefault();
 				e.shiftKey ? k.redo() : k.undo();
+			} else if (mod && e.key.toLowerCase() === 'g' && k.selected) {
+				// ⌘G: the selection into a box; ⇧⌘G into a row (PT-29).
+				e.preventDefault();
+				k.group(e.shiftKey);
+			} else if ((e.key === 'Delete' || e.key === 'Backspace') && k.multi) {
+				e.preventDefault();
+				k.removeAll(k.allSelected);
 			} else if ((e.key === 'Delete' || e.key === 'Backspace') && k.selected && k.sel) {
 				e.preventDefault();
 				k.remove(k.selected);
@@ -375,16 +433,17 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 			const k = keyRef.current;
 			if (busy() || !k.sel || String(window.getSelection() || '').trim()) return;
 			e.preventDefault();
-			e.clipboardData?.setData('text/plain', clipText(k.sel.block));
-			k.copyBlock(k.sel.block);
-			if (cut) k.remove(k.sel.block.id);
+			const blocks: Block[] = k.selectedBlocks();
+			e.clipboardData?.setData('text/plain', clipText(blocks));
+			k.copyBlocks(blocks);
+			if (cut) k.removeAll(blocks.map((b: Block) => b.id));
 		};
 		const onPaste = (e: ClipboardEvent) => {
 			if (busy()) return;
-			const b = clipBlock(e.clipboardData?.getData('text/plain'));
-			if (!b) return;
+			const blocks = clipBlocks(e.clipboardData?.getData('text/plain'));
+			if (!blocks) return;
 			e.preventDefault();
-			keyRef.current.paste(b);
+			keyRef.current.paste(blocks);
 		};
 		const copy = onCopy(false);
 		const cut = onCopy(true);
@@ -425,7 +484,48 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 			</Layout>
 		);
 
-	const blockBar = sel && (
+	// Several selected (PT-29): the bar on the main one acts on all of them.
+	const multiBar = sel && multi && (
+		<Flex
+			align='center'
+			bg={ACCENT}
+			color='white'
+			borderRadius='4px'
+			px={1}
+			py={0.5}
+			gap={0.5}
+			boxShadow='0 2px 6px rgba(0,0,0,.18)'
+			whiteSpace='nowrap'>
+			<Text
+				fontSize='11px'
+				fontWeight='600'
+				px={1}>
+				{allSelected.length} selected
+			</Text>
+			<BarButton
+				label='Group in a box (⌘G)'
+				onClick={() => group(false)}>
+				<Group size={13} />
+			</BarButton>
+			<BarButton
+				label='Group in a row — side by side (⇧⌘G)'
+				onClick={() => group(true)}>
+				<Columns2 size={13} />
+			</BarButton>
+			<BarButton
+				label='Copy them (⌘C)'
+				onClick={() => copyBlocks(selectedBlocks())}>
+				<ClipboardCopy size={13} />
+			</BarButton>
+			<BarButton
+				label='Delete them'
+				onClick={() => removeAll(allSelected)}>
+				<Trash2 size={13} />
+			</BarButton>
+		</Flex>
+	);
+
+	const blockBar = sel && !multi && (
 		<Flex
 			align='center'
 			bg={ACCENT}
@@ -466,12 +566,12 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 			</BarButton>
 			<BarButton
 				label='Copy (⌘C) — paste it inside a box or another template'
-				onClick={() => copyBlock(sel.block)}>
+				onClick={() => copyBlocks([sel.block])}>
 				<ClipboardCopy size={13} />
 			</BarButton>
 			{clip && (sel.block.type === 'box' || sel.block.type === 'columns') && (
 				<BarButton
-					label={`Paste inside (⌘V) — the copied ${labelOf(clip).toLowerCase()}`}
+					label={`Paste inside (⌘V) — ${clip.length > 1 ? `the ${clip.length} copied blocks` : `the copied ${labelOf(clip[0]).toLowerCase()}`}`}
 					onClick={() => paste(clip)}>
 					<ClipboardPaste size={13} />
 				</BarButton>
@@ -736,9 +836,10 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 										<Outline
 											template={t}
 											selected={selected}
-											onSelect={setSelected}
+											onSelect={pick}
+											alsoSelected={also}
 											onAdd={(slot, index, type) => addAt(slot, index, newBlock(type, t.alias))}
-											onMove={(bid, slot, index) => edit(x => relocateBlock(x, bid, slot, index))}
+											onMove={(bid, slot, index) => edit(x => (multi && allSelected.includes(bid) ? relocateMany(x, allSelected, slot, index) : relocateBlock(x, bid, slot, index)))}
 										/>
 										<Box mt={4}>
 											<DocLink section='blocks' />
@@ -770,10 +871,11 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 									scope={scope}
 									mode={mode}
 									selected={selected}
-									onSelect={i => setSelected(i || null)}
+									onSelect={(i, add) => pick(i || null, add)}
+									alsoSelected={also}
 									scale={scale}
 									onFix={path => openBusiness(path)}
-									blockBar={dragging ? null : blockBar}
+									blockBar={dragging ? null : multiBar || blockBar}
 									onDragBlock={onDragBlock}
 									showEmptyParts={dragging}
 								/>
@@ -803,7 +905,89 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
 						{/* Right: the selected block, or the document */}
 						<Side side='right'>
-							{sel ? (
+							{sel && multi ? (
+								<Box>
+									<Text
+										fontSize='sm'
+										fontWeight='600'>
+										{allSelected.length} blocks selected
+									</Text>
+									<Text
+										fontSize='xs'
+										color='fg.muted'
+										mb={3}>
+										⇧ or ⌘ click adds or takes out a block. Drag any of them and they all move — into a box or a column too.
+									</Text>
+									<Flex
+										direction='column'
+										gap={2}>
+										<Button
+											size='sm'
+											variant='outline'
+											justifyContent='flex-start'
+											onClick={() => group(false)}>
+											<Group {...ICON} />
+											Group in a box
+											<Text
+												as='span'
+												ml='auto'
+												color='fg.subtle'
+												fontSize='xs'>
+												⌘G
+											</Text>
+										</Button>
+										<Button
+											size='sm'
+											variant='outline'
+											justifyContent='flex-start'
+											onClick={() => group(true)}>
+											<Columns2 {...ICON} />
+											Group in a row — side by side
+											<Text
+												as='span'
+												ml='auto'
+												color='fg.subtle'
+												fontSize='xs'>
+												⇧⌘G
+											</Text>
+										</Button>
+										<Button
+											size='sm'
+											variant='outline'
+											justifyContent='flex-start'
+											onClick={() => copyBlocks(selectedBlocks())}>
+											<ClipboardCopy {...ICON} />
+											Copy
+											<Text
+												as='span'
+												ml='auto'
+												color='fg.subtle'
+												fontSize='xs'>
+												⌘C
+											</Text>
+										</Button>
+										<Button
+											size='sm'
+											variant='outline'
+											justifyContent='flex-start'
+											color='red.500'
+											_dark={{ color: 'red.300' }}
+											onClick={() => removeAll(allSelected)}>
+											<Trash2 {...ICON} />
+											Delete them
+										</Button>
+										<Button
+											size='sm'
+											variant='ghost'
+											onClick={() => setSelected(null)}>
+											Clear the selection (Esc)
+										</Button>
+									</Flex>
+									<Box mt={4}>
+										<DocLink section='moving' />
+									</Box>
+								</Box>
+							) : sel ? (
 								<Properties
 									key={sel.block.id}
 									block={sel.block}
