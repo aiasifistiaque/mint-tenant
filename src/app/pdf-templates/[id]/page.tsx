@@ -292,7 +292,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 								disabled={!t?.route}
 								onClick={() => setAi(true)}>
 								<Sparkles {...ICON} />
-								Change with AI
+								Change with your AI
 							</Button>
 							<Button
 								size='sm'
@@ -556,7 +556,8 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 					open={ai}
 					onClose={() => setAi(false)}
 					template={t}
-					onChanged={next => edit(x => ({ ...x, ...next, _id: x._id, route: x.route, isDefault: x.isDefault, gallery: x.gallery }))}
+					dirty={dirty}
+					onReload={refetch}
 				/>
 			)}
 			{t && (

@@ -72,10 +72,6 @@ export const pdfTemplatesApi = mainApi.injectEndpoints({
 			query: body => ({ url: 'pdf-templates/use', method: 'POST', body }),
 			invalidatesTags: routeTags(TAG),
 		}),
-		/** Build with AI: a template for a page, or `template` changed — unsaved. */
-		aiPdfTemplate: builder.mutation<{ template: any; summary: string; warnings: string[] }, { prompt: string; route: string; template?: any }>({
-			query: body => ({ url: 'pdf-templates/ai', method: 'POST', body }),
-		}),
 		/** A template drawn by the server with sample data — `{ url }` to show, revoke when done. */
 		renderPdfSample: builder.mutation<{ url: string }, { template: any; data?: any; tz?: string }>({
 			query: body => ({ url: 'pdf-templates/render', method: 'POST', body, responseHandler: asObjectUrl }),
@@ -109,7 +105,6 @@ export const {
 	useRenderPdfSampleMutation,
 	useRenderPdfRecordsMutation,
 	useGetPdfRecordDataQuery,
-	useAiPdfTemplateMutation,
 } = pdfTemplatesApi;
 
 /** The viewer's time zone, so dates print as they read them. */

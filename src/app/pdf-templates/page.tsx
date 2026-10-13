@@ -303,7 +303,7 @@ const PdfTemplatesPage = () => {
 								variant='outline'
 								onClick={() => setAi({})}>
 								<Sparkles {...ICON} />
-								Build with AI
+								Build with your AI
 							</Button>
 							<Button
 								size='sm'
@@ -370,6 +370,7 @@ const PdfTemplatesPage = () => {
 				open={!!ai}
 				route={ai?.route}
 				onClose={() => setAi(null)}
+				onReload={refetch}
 			/>
 			<SettingsDialog
 				open={editingSettings}

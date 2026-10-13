@@ -301,7 +301,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 				)
 			)}
 			{card(BLANK, 'Blank', 'An empty page to build from scratch.', icon(FilePlus2))}
-			{onAi && card(AI, 'Build with AI', 'Describe it — AI lays it out from this page’s fields.', icon(Sparkles))}
+			{onAi && card(AI, 'Build with your AI', 'Claude, ChatGPT or any MCP client lays it out from this page’s fields.', icon(Sparkles))}
 		</Grid>
 	);
 
