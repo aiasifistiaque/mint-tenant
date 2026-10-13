@@ -1,4 +1,4 @@
-export { useWorkspace, openProject, leaveProject } from './useWorkspace';
+export { useWorkspace, useOpenAnyProject, openProject, leaveProject } from './useWorkspace';
 export { can } from './can';
 export { ADMIN_ONLY_PAGES } from './pages';
 export { default as PanelGuard } from './PanelGuard';

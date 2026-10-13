@@ -8,18 +8,21 @@ import { MenuContainer } from '../menu';
 import { useAppDispatch } from '../hooks';
 import { refreshAuth, useSwitchOrganizationMutation } from '../store';
 import { HOME, rememberProject } from '../config/lib/constants/panel';
-import { openProject, useWorkspace } from './useWorkspace';
+import { useOpenAnyProject, useWorkspace } from './useWorkspace';
+import type { ProjectRef } from '../store/services/tenantApi';
 
 /**
  * The tenant panel's "where am I": the open project (or the organization when
- * none is open) in the navbar, and a menu to open another project, see them
- * all, or switch organization. Switching organization trades the token for one
- * in that organization (POST /org/switch/:id) and starts the panel over.
+ * none is open) in the navbar, and a menu to open another project — every
+ * organization's, each under its organization's name (WO-47) — see them all,
+ * or switch organization. Switching organization trades the token for one in
+ * that organization (POST /org/switch/:id) and starts the panel over.
  */
 const WorkspaceSwitcher: FC = () => {
 	const { organization, organizations, project, projects } = useWorkspace();
 	const dispatch = useAppDispatch();
 	const [switchOrg] = useSwitchOrganizationMutation();
+	const { open } = useOpenAnyProject();
 
 	if (!organization) return null;
 
@@ -34,6 +37,11 @@ const WorkspaceSwitcher: FC = () => {
 	};
 
 	const others = organizations.filter(o => o._id !== organization._id);
+	// The open organization first, then every other one with projects this account opens there.
+	const groups: { _id: string; name: string; guest?: boolean; projects: ProjectRef[] }[] = [
+		{ _id: organization._id, name: organization.name, guest: organizations.find(o => o._id === organization._id)?.guest, projects },
+		...others.filter(o => o.projects?.length).map(o => ({ _id: o._id, name: o.name, guest: o.guest, projects: o.projects || [] })),
+	];
 
 	return (
 		<Menu.Root positioning={{ placement: 'bottom-end', gutter: 8 }}>
@@ -93,36 +101,64 @@ const WorkspaceSwitcher: FC = () => {
 				p='6px'
 				gap={0}
 				w='264px'
+				maxH='min(560px, 75vh)'
+				overflowY='auto'
 				boxShadow={undefined}>
 				<MenuItemStyle compact>
-					<Text {...groupCss}>Projects</Text>
-					{projects.length ? (
-						projects.map(p => (
-							<CustomMenuItem
-								key={p._id}
-								value={`project-${p._id}`}
-								icon={p.type === 'website' ? <Globe size={15} /> : <LayoutGrid size={15} />}
-								onClick={() => p._id !== project?._id && openProject(p.publicSlug)}>
-								<Flex
-									flex={1}
-									align='center'
-									justify='space-between'
-									gap={2}
-									minW={0}>
-									<Text truncate>{p.name}</Text>
-									{p._id === project?._id && <Check size={14} />}
-								</Flex>
-							</CustomMenuItem>
-						))
-					) : (
-						<Text
-							px={2}
-							py={1.5}
-							fontSize='12.5px'
-							color='fg.muted'>
-							No projects yet
-						</Text>
-					)}
+					{groups.map((g, i) => (
+						<Box key={g._id}>
+							{i > 0 && <Menu.Separator {...separatorCss} />}
+							<Flex
+								align='baseline'
+								justify='space-between'
+								gap={2}
+								pe={2}>
+								<Text
+									{...groupCss}
+									truncate>
+									{g.name}
+								</Text>
+								{g.guest && (
+									<Text
+										{...groupCss}
+										flexShrink={0}
+										textTransform='none'
+										letterSpacing='0'
+										fontWeight='400'>
+										Invited
+									</Text>
+								)}
+							</Flex>
+							{g.projects.length ? (
+								g.projects.map(p => (
+									<CustomMenuItem
+										key={p._id}
+										value={`project-${p._id}`}
+										icon={p.type === 'website' ? <Globe size={15} /> : <LayoutGrid size={15} />}
+										onClick={() => p._id !== project?._id && open(g._id, p.publicSlug)}>
+										<Flex
+											flex={1}
+											align='center'
+											justify='space-between'
+											gap={2}
+											minW={0}>
+											<Text truncate>{p.name}</Text>
+											{p._id === project?._id && <Check size={14} />}
+										</Flex>
+									</CustomMenuItem>
+								))
+							) : (
+								<Text
+									px={2}
+									py={1.5}
+									fontSize='12.5px'
+									color='fg.muted'>
+									No projects yet
+								</Text>
+							)}
+						</Box>
+					))}
+					<Menu.Separator {...separatorCss} />
 					<CustomMenuItem
 						value='all-projects'
 						icon={<FolderKanban size={15} />}

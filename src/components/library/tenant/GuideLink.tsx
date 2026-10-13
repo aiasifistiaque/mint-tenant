@@ -21,6 +21,7 @@ const GUIDE_OF: Record<string, string> = {
 	'project-access': 'organization',
 	projects: 'projects',
 	'project-settings': 'projects',
+	'project-people': 'organization',
 	templates: 'templates',
 	'start-from': 'templates',
 	'template-questions': 'templates',

@@ -23,6 +23,7 @@ import { Panel } from '../cl';
 import { openProject, useWorkspace } from './useWorkspace';
 import GuideLink from './GuideLink';
 import Workspaces from './Workspaces';
+import OtherOrgProjects from './OtherOrgProjects';
 import FirstSteps from './FirstSteps';
 import { Menu } from '@chakra-ui/react';
 import CustomMenuItem, { MenuItemStyle } from '../menu/CustomMenuItem';
@@ -679,6 +680,8 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 					)}
 				</Panel>
 			)}
+			{/* Projects in this account's other organizations, under their names (WO-47). */}
+			<OtherOrgProjects />
 			<Workspaces />
 			<ProjectDialog
 				open={creating}

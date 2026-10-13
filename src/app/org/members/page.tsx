@@ -272,6 +272,14 @@ const MemberRow: FC<{ m: Member; me: boolean; canManage: boolean; roles: { value
 							You
 						</Badge>
 					)}
+					{m.guest && (
+						<Badge
+							size='sm'
+							variant='outline'
+							title='Invited into projects, not the whole organization — giving them a role here or every project makes them a full member'>
+							Project guest
+						</Badge>
+					)}
 					{m.user?.twoFactorEnabled && (
 						<Box
 							color='green.fg'
@@ -411,7 +419,8 @@ const Invitations: FC = () => {
 						<Text
 							fontSize='12.5px'
 							color={i.expired ? 'orange.fg' : 'fg.muted'}>
-							{i.role?.name} · {i.allProjects ? 'all projects' : `${i.projects.length} project${i.projects.length === 1 ? '' : 's'}`} ·{' '}
+							{i.role?.name} ·{' '}
+							{i.project ? `${i.project.name} only` : i.allProjects ? 'all projects' : `${i.projects.length} project${i.projects.length === 1 ? '' : 's'}`} ·{' '}
 							{i.expired ? 'expired' : `expires ${date(i.expiresAt)}`}
 							{i.invitedBy ? ` · by ${i.invitedBy.name}` : ''}
 						</Text>

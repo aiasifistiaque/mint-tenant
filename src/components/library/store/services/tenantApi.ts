@@ -9,8 +9,22 @@ import { BACKEND } from '../../config/lib/constants/panel';
  * API (config/lib/constants/panel.ts picks the base per request).
  */
 
-export type OrgRef = { _id: string; name: string; slug: string; logo?: string; role?: string; system?: SystemRole };
-export type SystemRole = 'owner' | 'admin' | 'member' | null;
+/** A project in another organization's list (WO-47): enough to show it and open it. */
+export type ProjectRef = { _id: string; name: string; publicSlug: string; type: ProjectType; description?: string };
+
+export type OrgRef = {
+	_id: string;
+	name: string;
+	slug: string;
+	logo?: string;
+	role?: string;
+	system?: SystemRole;
+	/** Invited into its projects only (WO-47). */
+	guest?: boolean;
+	/** The projects this account opens there (auth/self, WO-47). */
+	projects?: ProjectRef[];
+};
+export type SystemRole = 'owner' | 'admin' | 'member' | 'developer' | null;
 
 export type Onboarding = {
 	businessName?: string;
@@ -70,6 +84,8 @@ export type TenantProject = {
 	preview?: { expiresAt: string; from: 'draft' | 'published' };
 	/** A website template's starter code, filled for this project (docs/templates T-10). */
 	starter?: { repoUrl: string; framework?: string; deployUrl?: string; env: { key: string; value: string }[] };
+	/** What this account may do in it, when its role here isn't the organization one (auth/self, WO-47). */
+	permissions?: string[];
 	createdAt?: string;
 };
 
@@ -77,6 +93,9 @@ export type Member = ProjectAccess & {
 	_id: string;
 	user: { _id: string; name: string; email: string; image?: string; twoFactorEnabled?: boolean };
 	role: { _id: string; name: string; system: SystemRole };
+	/** Invited into projects, not the organization (WO-47), and their role in each. */
+	guest?: boolean;
+	projectRoles?: { project: string; role: string }[];
 	status: 'active' | 'removed';
 	joinedAt: string;
 };
@@ -95,6 +114,8 @@ export type Invitation = ProjectAccess & {
 	email: string;
 	name?: string;
 	role?: { _id: string; name: string };
+	/** An invitation into one project (WO-47). */
+	project?: { _id: string; name: string } | null;
 	invitedBy?: { _id: string; name: string } | null;
 	expiresAt: string;
 	expired: boolean;
@@ -112,6 +133,8 @@ export type InvitationInfo = {
 	name?: string;
 	organization: { name: string; logo?: string };
 	role?: string;
+	/** Into one project (WO-47), named in `projects`. */
+	project?: boolean;
 	allProjects: boolean;
 	projects: string[];
 	existingAccount: boolean;
@@ -126,10 +149,28 @@ export type MyInvitation = {
 	organization: { _id: string; name: string; logo?: string };
 	role?: string;
 	invitedBy?: string;
+	/** Into one project (WO-47), named in `projects`. */
+	project?: boolean;
 	allProjects: boolean;
 	projects: string[];
 	expiresAt: string;
 };
+
+/** Someone who opens the current project (its People page, WO-47). */
+export type ProjectPerson = {
+	_id: string;
+	user: { _id: string; name: string; email: string; image?: string };
+	/** Their role here: the project's own, or their organization role. */
+	role: { _id: string; name: string; system: SystemRole };
+	organizationRole: { _id: string; name: string; system: SystemRole };
+	/** 'organization': opens every project; 'project': this one was given to them. */
+	access: 'organization' | 'project';
+	guest: boolean;
+	joinedAt: string;
+};
+
+/** The roles a project's invitation gives (WO-47). */
+export type ProjectInviteRole = 'member' | 'developer';
 
 export type RegisterBody = {
 	name: string;
@@ -537,7 +578,8 @@ export const tenantApi = mainApi.injectEndpoints({
 		getTenantInvitation: builder.query<InvitationInfo, string>({
 			query: token => `invitations/${token}`,
 		}),
-		acceptTenantInvitation: builder.mutation<{ token: string; message: string }, { token: string; name?: string; phone?: string; password?: string }>({
+		/** `project`: a project's invitation (WO-47) — its address, to open next. */
+		acceptTenantInvitation: builder.mutation<{ token: string; message: string; project?: string | null }, { token: string; name?: string; phone?: string; password?: string }>({
 			query: ({ token, ...body }) => ({ url: `invitations/${token}/accept`, method: 'POST', body }),
 		}),
 
@@ -546,7 +588,7 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: () => 'invitations/for-me',
 			providesTags: ['tenant-invitations', 'self'],
 		}),
-		acceptMyInvitation: builder.mutation<{ token: string; message: string }, string>({
+		acceptMyInvitation: builder.mutation<{ token: string; message: string; project?: string | null }, string>({
 			query: id => ({ url: `invitations/for-me/${id}/accept`, method: 'POST' }),
 		}),
 		declineMyInvitation: builder.mutation<{ message: string }, string>({
@@ -588,6 +630,34 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 
 		/* ------------------------------------- inside the open project */
+		/** Who opens the project, its pending invitations, and the roles it invites with (WO-47). */
+		getProjectPeople: builder.query<
+			{ doc: ProjectPerson[]; invitations: Invitation[]; roles: { _id: string; name: string; system: ProjectInviteRole; description?: string }[] },
+			void
+		>({
+			query: () => 'people',
+			providesTags: ['tenant-people'],
+		}),
+		inviteToProject: builder.mutation<Invitation & { added?: boolean; message?: string }, { email: string; name?: string; role: ProjectInviteRole }>({
+			query: body => ({ url: 'people/invitations', method: 'POST', body }),
+			invalidatesTags: ['tenant-people', 'tenant-invitations', 'tenant-members'],
+		}),
+		resendProjectInvitation: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `people/invitations/${id}/resend`, method: 'POST' }),
+			invalidatesTags: ['tenant-people'],
+		}),
+		cancelProjectInvitation: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `people/invitations/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-people', 'tenant-invitations'],
+		}),
+		setProjectRole: builder.mutation<{ message: string }, { id: string; role: ProjectInviteRole }>({
+			query: ({ id, ...body }) => ({ url: `people/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-people', 'tenant-members'],
+		}),
+		removeFromProject: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `people/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-people', 'tenant-members'],
+		}),
 		getAnalyticsSummary: builder.query<{ current: AnalyticsTotals; previous: AnalyticsTotals; from: string; to: string }, AnalyticsRange>({
 			query: r => `analytics/summary?${rangeQuery(r)}`,
 			providesTags: ['tenant-analytics'],
@@ -775,6 +845,12 @@ export const {
 	useGetMyInvitationsQuery,
 	useAcceptMyInvitationMutation,
 	useDeclineMyInvitationMutation,
+	useGetProjectPeopleQuery,
+	useInviteToProjectMutation,
+	useResendProjectInvitationMutation,
+	useCancelProjectInvitationMutation,
+	useSetProjectRoleMutation,
+	useRemoveFromProjectMutation,
 	useSendEmailCodeMutation,
 	useVerifyEmailMutation,
 	useGetProjectsQuery,

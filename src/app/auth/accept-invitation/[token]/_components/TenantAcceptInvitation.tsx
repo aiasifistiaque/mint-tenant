@@ -12,13 +12,15 @@ import {
 	useAppDispatch,
 	useGetTenantInvitationQuery,
 } from '@/components/library';
+import { rememberProject } from '@/components/library/config/lib/constants/panel';
 
 /**
  * Joining an organization from an emailed invitation (tenant panel —
  * /tenant/api/invitations/:token). Someone new makes their account here; an
  * existing account proves it's theirs with its password — or, already signed
  * in to it, joins in one click (WO-24). Either way they land in the
- * organization that invited them, with the projects it gives (WO-22).
+ * organization that invited them, with the projects it gives (WO-22) — or,
+ * invited into one project (WO-47), straight in that project.
  */
 const TenantAcceptInvitation: FC = () => {
 	const { token } = useParams<{ token: string }>();
@@ -29,6 +31,9 @@ const TenantAcceptInvitation: FC = () => {
 	const existing = !!invitation?.existingAccount;
 	const oneClick = !!invitation?.signedInAsInvitee;
 	const projects = invitation ? (invitation.allProjects ? 'every project' : invitation.projects.join(', ') || 'no projects yet') : '';
+	// Into one project (WO-47): "Shop in Acme".
+	const where = invitation ? (invitation.project ? `${invitation.projects[0] || 'a project'} in ${invitation.organization.name}` : invitation.organization.name) : '';
+	const joinAs = invitation ? (invitation.project ? `you'll join ${where} as ${invitation.role}` : `you'll join as ${invitation.role}, with ${projects}`) : '';
 	const mismatch = !existing && form.confirm.length > 0 && form.password !== form.confirm;
 
 	const set = (k: keyof typeof form) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -39,7 +44,11 @@ const TenantAcceptInvitation: FC = () => {
 		const res = await accept(
 			oneClick ? { token } : { token, password: form.password, ...(!existing && { name: (form.name || invitation?.name || '').trim(), phone: form.phone }) }
 		);
-		if ('data' in res && res.data?.token) dispatch(login({ token: res.data.token }));
+		if ('data' in res && res.data?.token) {
+			// A project's invitation opens that project (the proxy follows the remembered project).
+			if (res.data.project) rememberProject(res.data.project);
+			dispatch(login({ token: res.data.token }));
+		}
 	};
 
 	if (!loadingInfo && (isError || !invitation))
@@ -60,17 +69,17 @@ const TenantAcceptInvitation: FC = () => {
 
 	return (
 		<LoginContainer
-			title={invitation ? `Join ${invitation.organization.name}` : 'Join'}
+			title={invitation ? `Join ${invitation.project ? invitation.projects[0] || invitation.organization.name : invitation.organization.name}` : 'Join'}
 			subtitle={
 				invitation
 					? oneClick
-						? `You're signed in as ${invitation.email}. You'll join as ${invitation.role}, with ${projects}.`
+						? `You're signed in as ${invitation.email}. ${joinAs[0].toUpperCase()}${joinAs.slice(1)}.`
 						: existing
-						? `Sign in to accept — you'll join as ${invitation.role}, with ${projects}.`
-						: `Create your account — you'll join as ${invitation.role}, with ${projects}.`
+						? `Sign in to accept — ${joinAs}.`
+						: `Create your account — ${joinAs}.`
 					: undefined
 			}
-			submitLabel={oneClick ? `Join ${invitation?.organization.name || ''}`.trim() : existing ? 'Sign in and join' : 'Create account and join'}
+			submitLabel={oneClick ? `Join ${(invitation?.project ? invitation.projects[0] : invitation?.organization.name) || ''}`.trim() : existing ? 'Sign in and join' : 'Create account and join'}
 			isLoading={isLoading || loadingInfo}
 			handleSubmit={submit}>
 			<VInput

@@ -11,6 +11,8 @@ const RECORD_KEY = /^(view|create|edit|delete)-(.+)$/;
 
 export const can = (permissions: string[] = [], key: string) => {
 	if (permissions.includes('*') || permissions.includes(key)) return true;
+	// create-projects is its own key, not "create" on a model called projects.
+	if (key === 'create-projects') return false;
 	const record = key.match(RECORD_KEY);
 	if (!record) return false;
 	const [, action, route] = record;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useGetSelfQuery } from '../store';
+import { useAppDispatch } from '../hooks';
+import { refreshAuth, useGetSelfQuery, useSwitchOrganizationMutation } from '../store';
 import { IS_TENANT_PANEL, getProjectSlug, rememberProject } from '../config/lib/constants/panel';
 import type { OrgRef, TenantProject } from '../store/services/tenantApi';
 import { can } from './can';
@@ -16,13 +17,15 @@ export const useWorkspace = ({ skip = false }: { skip?: boolean } = {}) => {
 	const projects: TenantProject[] = self?.projects || [];
 	const slug = getProjectSlug();
 	const project = projects.find(p => p.publicSlug === slug) || null;
-	const permissions: string[] = self?.permissions || [];
+	// A project's own role (WO-47) decides what this account can do inside it.
+	const permissions: string[] = project?.permissions || self?.permissions || [];
+	const organizations = (self?.organizations || []) as OrgRef[];
 	return {
 		self,
 		isLoading,
 		isFetching,
 		organization: self?.organization || null,
-		organizations: (self?.organizations || []) as OrgRef[],
+		organizations,
 		role: self?.role || null,
 		permissions,
 		can: (key: string) => can(permissions, key),
@@ -30,7 +33,29 @@ export const useWorkspace = ({ skip = false }: { skip?: boolean } = {}) => {
 		project,
 		/** The address names a project this account can't see (deleted, archived, another organization). */
 		staleProject: !!slug && !!self && !project,
+		/** …and the organization it's in, when it's one of this account's others (WO-47). */
+		projectElsewhere: (!!slug && !!self && !project && organizations.find(o => o._id !== self?.organization?._id && o.projects?.some(p => p.publicSlug === slug))) || null,
 	};
+};
+
+/**
+ * Opens a project in any of this account's organizations (WO-47): one in
+ * another organization trades the token for one there first
+ * (POST /org/switch/:id), then opens it.
+ */
+export const useOpenAnyProject = () => {
+	const { organization } = useWorkspace();
+	const dispatch = useAppDispatch();
+	const [switchOrg, switching] = useSwitchOrganizationMutation();
+	const open = async (orgId: string, slug: string, page = '') => {
+		if (!organization || orgId === organization._id) return openProject(slug, page);
+		const res = await switchOrg(orgId);
+		if ('data' in res && res.data?.token) {
+			dispatch(refreshAuth(res.data.token));
+			openProject(slug, page);
+		}
+	};
+	return { open, opening: switching.isLoading ? switching.originalArgs : null };
 };
 
 /**

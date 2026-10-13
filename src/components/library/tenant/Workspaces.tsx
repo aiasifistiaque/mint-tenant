@@ -30,11 +30,12 @@ const errorText = (e: any) => e?.data?.message || 'Something went wrong — try 
 
 const useEnter = () => {
 	const dispatch = useAppDispatch();
-	return (token?: string) => {
+	// `project`: a project's invitation (WO-47) opens that project.
+	return (token?: string, project?: string | null) => {
 		if (!token) return;
-		rememberProject(null);
+		rememberProject(project || null);
 		dispatch(refreshAuth(token));
-		window.location.href = HOME;
+		window.location.href = project ? `/${project}` : HOME;
 	};
 };
 
@@ -172,13 +173,13 @@ const InvitationsForYou: FC = () => {
 							fontSize='13.5px'
 							fontWeight='600'
 							truncate>
-							{i.organization.name}
+							{i.project ? `${i.projects[0] || 'A project'} · ${i.organization.name}` : i.organization.name}
 						</Text>
 						<Text
 							fontSize='12.5px'
 							color='fg.muted'
 							truncate>
-							{[i.invitedBy && `From ${i.invitedBy}`, i.role, i.allProjects ? 'all projects' : i.projects.join(', ') || 'no projects yet']
+							{[i.invitedBy && `From ${i.invitedBy}`, i.role, i.project ? 'this project only' : i.allProjects ? 'all projects' : i.projects.join(', ') || 'no projects yet']
 								.filter(Boolean)
 								.join(' · ')}
 						</Text>
@@ -203,7 +204,7 @@ const InvitationsForYou: FC = () => {
 						loading={accepting.isLoading && accepting.originalArgs === i._id}
 						onClick={async () => {
 							const res = await accept(i._id);
-							if ('data' in res) enter(res.data?.token);
+							if ('data' in res) enter(res.data?.token, res.data?.project);
 						}}>
 						Join
 					</Button>
