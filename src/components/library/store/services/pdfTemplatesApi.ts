@@ -9,10 +9,23 @@ import mainApi, { routeTags } from './mainApi';
 
 const TAG = 'pdf-templates';
 
-/** A PDF answer as an object URL for an iframe; an error answer as its JSON. */
+/** The file's name from Content-Disposition — the UTF-8 `filename*` first. */
+const nameOf = (header: string | null) => {
+	const star = /filename\*=UTF-8''([^;]+)/i.exec(header || '');
+	if (star) {
+		try {
+			return decodeURIComponent(star[1]);
+		} catch {
+			/* fall through */
+		}
+	}
+	return /filename="([^"]+)"/i.exec(header || '')?.[1] || '';
+};
+
+/** A PDF answer as an object URL for an iframe (and its file name); an error answer as its JSON. */
 const asObjectUrl = async (response: Response) => {
 	if (!response.ok) return response.json().catch(() => ({ message: 'Could not make the PDF' }));
-	return { url: URL.createObjectURL(await response.blob()) };
+	return { url: URL.createObjectURL(await response.blob()), name: nameOf(response.headers.get('Content-Disposition')) };
 };
 
 export const pdfTemplatesApi = mainApi.injectEndpoints({
@@ -73,7 +86,7 @@ export const pdfTemplatesApi = mainApi.injectEndpoints({
 			invalidatesTags: routeTags(TAG),
 		}),
 		/** A template drawn by the server with sample data — `{ url }` to show, revoke when done. */
-		renderPdfSample: builder.mutation<{ url: string }, { template: any; data?: any; tz?: string }>({
+		renderPdfSample: builder.mutation<{ url: string; name?: string }, { template: any; data?: any; tz?: string; dummy?: boolean }>({
 			query: body => ({ url: 'pdf-templates/render', method: 'POST', body, responseHandler: asObjectUrl }),
 		}),
 		/** A page's records drawn with a template — `{ url }` to show. */

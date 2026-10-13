@@ -30,6 +30,21 @@ export const DocLink: FC<{ section: string; label?: string }> = ({ section, labe
 export const LIST_HREF = () => projectHref('/pdf-templates');
 export const designerHref = (id: string) => projectHref(`/pdf-templates/${id}`);
 
+/** Preview (PT-18): the real PDF in its own tab, every field filled with sample data. */
+export const previewHref = (id: string) => projectHref(`/pdf-templates/${encodeURIComponent(id)}/preview`);
+/** Where the designer leaves its working copy for the preview tab (same origin, so the new tab reads it). */
+export const previewDraftKey = (id: string) => `MINT_PDF_PREVIEW_${id}`;
+/** Opens the preview — of the saved template, or of `draft` (the designer's unsaved copy). */
+export const openPreview = (id: string, draft?: any) => {
+	if (draft)
+		try {
+			localStorage.setItem(previewDraftKey(id), JSON.stringify(draft));
+		} catch {
+			/* storage full or blocked: the saved copy shows instead */
+		}
+	window.open(`${previewHref(id)}${draft ? '?draft=1' : ''}`, '_blank');
+};
+
 export const ICON = { size: 14, strokeWidth: 1.75 };
 
 /** Why a request failed, in the server's words. */

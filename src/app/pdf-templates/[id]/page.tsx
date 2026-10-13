@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Spinner, Text } from '@chakra-ui/react';
-import { Braces, Eye, FileDown, Redo2, Save, Sparkles, Star, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Braces, Eye, FileDown, Redo2, Save, ScanEye, Sparkles, Star, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import {
 	Layout,
 	useGetAllQuery,
@@ -42,7 +42,7 @@ import PageSettings from '../_components/designer/PageSettings';
 import Properties from '../_components/designer/Properties';
 import AiDialog from '../_components/AiDialog';
 import RealPdfDialog from '../_components/RealPdfDialog';
-import { DocLink, ICON, LIST_HREF, errorOf } from '../_components/ui';
+import { DocLink, ICON, LIST_HREF, errorOf, openPreview } from '../_components/ui';
 
 const INSTANCE: Record<string, string> = { number: 'Number', date: 'Date', boolean: 'Boolean' };
 const MAX_HISTORY = 100;
@@ -293,6 +293,15 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 								onClick={() => setAi(true)}>
 								<Sparkles {...ICON} />
 								Change with your AI
+							</Button>
+							<Button
+								size='sm'
+								variant='outline'
+								disabled={!t}
+								title='The PDF in a new tab, every field filled with sample data'
+								onClick={() => t && openPreview(id, dirty ? t : undefined)}>
+								<ScanEye {...ICON} />
+								Preview
 							</Button>
 							<Button
 								size='sm'

@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Box, Button, Flex, Grid, IconButton, Link, Text } from '@chakra-ui/react';
-import { BookOpen, Building2, Copy, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
+import { BookOpen, Building2, Copy, Eye, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
 import {
 	Layout,
 	useAddPdfStartersMutation,
@@ -23,7 +23,7 @@ import NewTemplateDialog from './_components/NewTemplateDialog';
 import SettingsDialog from './_components/SettingsDialog';
 import AiDialog from './_components/AiDialog';
 import Thumb from './_components/Thumb';
-import { DocLink, GUIDE, ICON, LIST_HREF, designerHref, errorOf } from './_components/ui';
+import { DocLink, GUIDE, ICON, LIST_HREF, designerHref, errorOf, openPreview } from './_components/ui';
 
 /**
  * PDF templates (backend docs/pdf-templates): this panel's (or project's)
@@ -135,9 +135,16 @@ const PdfTemplatesPage = () => {
 						{own ? t.description || `${t.page?.size || 'A4'} · ${t.kind}` : t.description}
 					</Text>
 				</Box>
-				{own && (
-					<Flex gap={0.5}>
-						{!t.isDefault && t.route && (
+				<Flex gap={0.5}>
+					<IconButton
+						size='2xs'
+						variant='ghost'
+						aria-label='Preview'
+						title='Preview — the PDF in a new tab, every field filled with sample data'
+						onClick={() => openPreview(t._id!)}>
+						<Eye {...ICON} />
+					</IconButton>
+					{own && !t.isDefault && t.route && (
 							<IconButton
 								size='2xs'
 								variant='ghost'
@@ -147,6 +154,7 @@ const PdfTemplatesPage = () => {
 								<Star {...ICON} />
 							</IconButton>
 						)}
+					{own && (
 						<IconButton
 							size='2xs'
 							variant='ghost'
@@ -155,6 +163,8 @@ const PdfTemplatesPage = () => {
 							onClick={() => act(() => duplicate(t._id!).unwrap(), 'Copied')}>
 							<Copy {...ICON} />
 						</IconButton>
+					)}
+					{own && (
 						<IconButton
 							size='2xs'
 							variant='ghost'
@@ -165,8 +175,8 @@ const PdfTemplatesPage = () => {
 							onClick={() => setRemoving(t)}>
 							<Trash2 {...ICON} />
 						</IconButton>
-					</Flex>
-				)}
+					)}
+				</Flex>
 			</Flex>
 		</Box>
 	);
