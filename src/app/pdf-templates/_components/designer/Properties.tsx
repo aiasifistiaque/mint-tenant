@@ -31,7 +31,7 @@ import { ModelField } from '@/app/builder/_components/filterTypes';
 import { Block, FILLERS, Place, flattenFields, labelOf } from '@/components/library/pdf/types';
 import { PickerContext } from './FieldPicker';
 import TokenText from './TokenText';
-import { ALIGN, Color, IconOption, IconPick, Num, Pick, Row, Section, Toggle, WEIGHT } from './controls';
+import { ALIGN, Color, FONT, IconOption, IconPick, Num, Pick, Row, Section, Toggle, WEIGHT } from './controls';
 import { DocLink, ICON } from '../ui';
 
 type Props = {
@@ -99,9 +99,16 @@ const fillHint = (place: Place) =>
 
 const small = { size: 12, strokeWidth: 1.75 };
 
-/** Size, weight, colour, alignment — what text blocks, tables and rows share. */
+/** Font, size, weight, colour, alignment — what text blocks, tables and rows share. */
 const TextStyle: FC<{ b: Block; set: (p: Partial<Block>) => void; align?: boolean; more?: boolean }> = ({ b, set, align = true, more = true }) => (
 	<>
+		<Row label='Font'>
+			<Pick
+				value={b.font ?? ''}
+				options={[['', 'Page’s font'], ...FONT]}
+				onChange={v => set({ font: v || undefined })}
+			/>
+		</Row>
 		<Row label='Size'>
 			<Num
 				value={b.size}

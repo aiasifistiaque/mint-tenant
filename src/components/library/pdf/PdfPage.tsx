@@ -226,6 +226,8 @@ const textCss = (ctx: Ctx, b: any, over: Partial<{ size: number; weight: number;
 	const s = ctx.t.style;
 	const size = over.size ?? b.size ?? s.size;
 	return {
+		// A block's own font (PT-34); the page's is inherited from the sheet.
+		...(b.font && FAMILY[b.font] && { fontFamily: FAMILY[b.font] }),
 		fontSize: pt(size),
 		fontWeight: over.weight ?? b.weight ?? 400,
 		fontStyle: b.italic ? 'italic' : 'normal',

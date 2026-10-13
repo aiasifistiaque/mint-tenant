@@ -230,6 +230,15 @@ export const ALIGN: IconOption[] = [
 	{ value: 'center', label: 'Centre', icon: AlignCenter },
 	{ value: 'right', label: 'Right', icon: AlignRight },
 ];
+/** The fonts a template can print in (backend fonts.ts). */
+export const FONT: [string, string][] = [
+	['sans', 'Geist (sans)'],
+	['mono', 'Geist Mono'],
+	['helvetica', 'Helvetica'],
+	['times', 'Times'],
+	['courier', 'Courier'],
+];
+
 export const WEIGHT: [string, string][] = [
 	['400', 'Regular'],
 	['500', 'Medium'],

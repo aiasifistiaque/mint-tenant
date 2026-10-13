@@ -6,7 +6,7 @@ import { Plus, X } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import { FieldTree, PdfTemplate } from '@/components/library/pdf/types';
 import { useGetPdfCategoriesQuery } from '@/components/library';
-import { Color, Num, Pick, Row, Section, Toggle } from './controls';
+import { Color, FONT, Num, Pick, Row, Section, Toggle } from './controls';
 import { DocLink } from '../ui';
 
 /**
@@ -140,13 +140,7 @@ const PageSettings: FC<{
 				<Row label='Font'>
 					<Pick
 						value={t.style.font}
-						options={[
-							['sans', 'Geist (sans)'],
-							['mono', 'Geist Mono'],
-							['helvetica', 'Helvetica'],
-							['times', 'Times'],
-							['courier', 'Courier'],
-						]}
+						options={FONT}
 						onChange={v => style({ font: v as any })}
 					/>
 				</Row>
