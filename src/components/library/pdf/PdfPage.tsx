@@ -658,6 +658,8 @@ const FreeView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) =
 				zIndex: b.behind && !selected ? 0 : 3,
 				cursor: editing ? 'move' : undefined,
 				touchAction: editing ? 'none' : undefined,
+				// Dragging it mustn't select the words it passes over.
+				userSelect: editing ? 'none' : undefined,
 			}}>
 			<BlockView
 				b={b}

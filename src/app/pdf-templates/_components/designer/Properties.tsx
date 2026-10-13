@@ -918,8 +918,7 @@ const Properties: FC<Props> = ({ block: b, onChange: set, ctx, conditionFields, 
 					</Button>
 				</Section>
 			) : (
-				b.type !== 'pageBreak' &&
-				!place.parent && (
+				b.type !== 'pageBreak' && (
 					<Flex
 						align='center'
 						gap={2}

@@ -294,6 +294,8 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	// Where the selected block sits: a row runs left to right (D19).
 	const place = t && sel ? placeOf(t, sel.slot) : null;
 	const inRow = place?.flow === 'row';
+	// Placed freely (D22): their order is which sits on top.
+	const isFree = place?.part === 'free' && !sel?.slot.parent;
 
 	// Add → Place freely (D22): new blocks go on the page where they're dropped (a click: the top-left margin).
 	const [freeMode, setFreeMode] = useState(false);
@@ -478,6 +480,14 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 				window.removeEventListener('pointermove', move);
 				window.removeEventListener('pointerup', up);
 				setGuides(null);
+				if (!moved) return;
+				// The click that ends a drag lands wherever the pointer is — on the page it would unselect the block.
+				const swallow = (ev: MouseEvent) => {
+					ev.stopPropagation();
+					ev.preventDefault();
+				};
+				window.addEventListener('click', swallow, { capture: true, once: true });
+				setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
 			};
 			window.addEventListener('pointermove', move);
 			window.addEventListener('pointerup', up);
@@ -693,12 +703,12 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 				</BarButton>
 			)}
 			<BarButton
-				label={inRow ? 'Move left' : 'Move up'}
+				label={isFree ? 'Send backward — under the placed blocks after it' : inRow ? 'Move left' : 'Move up'}
 				onClick={() => edit(x => moveBlock(x, sel.block.id, -1))}>
 				{inRow ? <ArrowLeft size={13} /> : <ArrowUp size={13} />}
 			</BarButton>
 			<BarButton
-				label={inRow ? 'Move right' : 'Move down'}
+				label={isFree ? 'Bring forward — over the placed blocks before it' : inRow ? 'Move right' : 'Move down'}
 				onClick={() => edit(x => moveBlock(x, sel.block.id, 1))}>
 				{inRow ? <ArrowRight size={13} /> : <ArrowDown size={13} />}
 			</BarButton>
