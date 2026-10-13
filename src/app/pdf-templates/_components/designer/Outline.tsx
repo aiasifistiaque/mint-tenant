@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, DragEvent, useState } from 'react';
+import { FC, DragEvent, useEffect, useRef, useState } from 'react';
 import { Box, Button, Flex, Menu, Portal, Text } from '@chakra-ui/react';
 import { Box as BoxIcon, Columns3, FileText, GripVertical, Image, LayoutList, Minus, MoveVertical, Plus, Scissors, Table2 } from 'lucide-react';
 import { BLOCKS, Block, BlockType, Part, PdfTemplate, Slot, blockSummary } from '@/components/library/pdf/types';
@@ -84,6 +84,14 @@ export const AddMenu: FC<{ onPick: (type: BlockType) => void; label?: string; pa
 const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove, alsoSelected = [] }) => {
 	const [drag, setDrag] = useState<string | null>(null);
 	const [over, setOver] = useState<string | null>(null);
+	const root = useRef<HTMLDivElement>(null);
+
+	// Selected on the page (or already selected when Layers opens): bring its row into view.
+	// `nearest` leaves a row that's already showing where it is — a click here doesn't jump.
+	useEffect(() => {
+		if (!selected) return;
+		root.current?.querySelector(`[data-layer="${CSS.escape(selected)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+	}, [selected]);
 
 	const dropZone = (slot: Slot, index: number) => {
 		const key = `${slot.part}|${slot.parent || ''}|${slot.column ?? ''}|${index}`;
@@ -119,6 +127,9 @@ const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove, alsoS
 				return (
 					<Box key={b.id}>
 						<Flex
+							data-layer={b.id}
+							// Scrolled to (selected on the page): a little room above / below it.
+							scrollMarginBlock='8px'
 							draggable
 							onDragStart={(e: DragEvent) => {
 								e.dataTransfer.effectAllowed = 'move';
@@ -230,6 +241,7 @@ const Outline: FC<Props> = ({ template, selected, onSelect, onAdd, onMove, alsoS
 
 	return (
 		<Flex
+			ref={root}
 			direction='column'
 			gap={3}>
 			{PARTS.map(p => (
