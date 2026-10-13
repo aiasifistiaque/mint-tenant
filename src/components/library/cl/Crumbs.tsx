@@ -28,6 +28,9 @@ const Crumbs: FC<{ data: Crumb[] }> = ({ data }) => (
 		as='nav'
 		aria-label='Breadcrumb'
 		align='center'
+		// As tall as the sidebar's Find field (32px), so a trail that opens a
+		// page sits centred on it.
+		minH='32px'
 		gap={1.5}
 		flexWrap='wrap'
 		minW={0}>

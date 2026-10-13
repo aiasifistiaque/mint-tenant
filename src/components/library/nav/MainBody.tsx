@@ -22,7 +22,9 @@ const MainBody = ({ children, grow = false, bare = false }: { children: ReactNod
 		</Flex>
 	) : (
 	<Flex
-		pt={{ base: 2, md: 1 }}
+		// The page's first row starts level with the sidebar's first item (its
+		// Find field): the same 16px under the navbar.
+		pt={padding.SIDEBAR_SEARCH_TOP}
 		flexDir='column'
 		gap={4}
 		// `clip`, not `hidden`: hidden makes this a scroll container (and turns

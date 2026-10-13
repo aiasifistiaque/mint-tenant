@@ -60,7 +60,10 @@ const BackButton: FC = () => {
 
 const NavActions = memo(function NavActions({ sidebarData }: { sidebarData: any }) {
 	return (
-		<Align gap={1}>
+		<Align
+			gap={1}
+			flexShrink={0}
+			ml={2}>
 			{/* Dark mode is a switch in the account menu (SelfMenu), under Themes. */}
 			{/* <ColorMode
 				size={ICON_SIZE}
@@ -149,13 +152,23 @@ const Layout: FC<LayoutProps> = ({
 					px={PX}
 					w={showMenu ? 'full' : sizes.HOME_NAV_MAX_WIDTH}
 					left={showMenu ? 0 : sizes.HOME_NAV_LEFT}>
-					<SpaceBetween>
+					{/* The title gives way to the buttons on the right: one line, cut
+					    short when it must, and gone on a phone, where the page's own
+					    heading says the same thing. */}
+					<SpaceBetween
+						flex={1}
+						minW={0}>
 						<Flex
 							align='center'
 							gap={1.5}
 							minW={0}>
 							<BackButton />
-							<Heading {...titleCss}>{title}</Heading>
+							<Heading
+								{...titleCss}
+								display={{ base: 'none', sm: 'block' }}
+								truncate>
+								{title}
+							</Heading>
 						</Flex>
 					</SpaceBetween>
 					<NavActions sidebarData={data} />
