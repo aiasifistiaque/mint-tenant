@@ -11,6 +11,21 @@ const LIVE_TAGS = ['builder', 'schema', 'config', 'route', 'filters'];
  * The route builder: a route's settings and config files as DB drafts, and
  * publishing them. See backend library/controllers/builder.
  */
+/** A component (backend docs/cms D3): `uid` is `category.name`; `usedBy` the model fields using it. */
+export type ModelComponent = {
+	_id: string;
+	uid: string;
+	category: string;
+	name: string;
+	title: string;
+	description: string;
+	icon: string;
+	fields: any[];
+	version: number;
+	usedBy: { _id: string; title: string; route: string; field: string; repeatable: boolean }[];
+	updatedAt?: string;
+};
+
 export const builderApi = mainApi.injectEndpoints({
 	overrideExisting: false,
 	endpoints: builder => ({
@@ -135,6 +150,24 @@ export const builderApi = mainApi.injectEndpoints({
 			invalidatesTags: LIVE_TAGS,
 		}),
 
+		// Components (backend docs/cms D3): groups of fields any model uses once or as a list.
+		getModelComponents: builder.query<{ doc: ModelComponent[]; total: number }, void>({
+			query: () => 'builder/components',
+			providesTags: ['builder'],
+		}),
+		getModelComponent: builder.query<ModelComponent, string>({
+			query: id => `builder/components/${id}`,
+			providesTags: ['builder'],
+		}),
+		saveModelComponent: builder.mutation<ModelComponent & { refreshed?: { _id: string; title: string; route: string }[] }, { id?: string; body: any }>({
+			query: ({ id, body }) => ({ url: id ? `builder/components/${id}` : 'builder/components', method: id ? 'PUT' : 'POST', body }),
+			invalidatesTags: LIVE_TAGS,
+		}),
+		deleteModelComponent: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `builder/components/${id}`, method: 'DELETE' }),
+			invalidatesTags: LIVE_TAGS,
+		}),
+
 		// Features: several models and their links at once (backend features.service.ts).
 		getFeatureCatalog: builder.query<{ models: any[]; categories: { _id: string; name: string }[] }, void>({
 			query: () => 'builder/features/catalog',
@@ -201,6 +234,10 @@ export const {
 	useSetBuilderStateMutation,
 	useSetBuilderSourceMutation,
 	useGetBuiltModelsQuery,
+	useGetModelComponentsQuery,
+	useGetModelComponentQuery,
+	useSaveModelComponentMutation,
+	useDeleteModelComponentMutation,
 	useGetBuiltModelQuery,
 	useGetModelBuilderOptionsQuery,
 	useCheckModelNameQuery,

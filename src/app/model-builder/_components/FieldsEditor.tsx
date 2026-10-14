@@ -3,7 +3,7 @@
 import { DragEvent, FC, ReactNode, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text } from '@chakra-ui/react';
 import { AlertTriangle, Calculator, ChevronUp, ListTree, GripVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import { radius } from '@/components/library';
+import { radius, useGetModelComponentsQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import {
 	ARRAY_KINDS,
@@ -385,6 +385,9 @@ const OptionsInput: FC<{
 };
 
 const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed }) => {
+	// The project's components, for a field of kind Component (docs/cms D3); not asked for inside a section or a component.
+	const { data: componentData } = useGetModelComponentsQuery(undefined, { skip: !!sub });
+	const components = componentData?.doc || [];
 	// The section whose fields are being edited.
 	const [sectionFor, setSectionFor] = useState<string | null>(null);
 	const sectionField = sectionFor ? fields.find(f => f.uid === sectionFor) : undefined;
@@ -433,6 +436,10 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			...(!canBeUnique(kind) && { unique: false }),
 			// A formula is calculated: never required, no default.
 			...(kind === 'formula' && { required: false }),
+			// A component field starts on the first component, once (docs/cms D3).
+			...(kind === 'component'
+				? { component: f.component || components[0]?.uid, unique: false, fields: undefined, required: false }
+				: { component: undefined, repeatable: undefined }),
 			// An address is always unique, made from the first text field unless one is picked.
 			...(kind === 'uid'
 				? { unique: true, from: f.from || fields.find(x => x.uid !== f.uid && UID_SOURCES.includes(x.kind) && x.key)?.key }
@@ -469,6 +476,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				// The same starting point changeKind gives a row switched to the kind.
 				showInTable: kind !== 'section',
 				...(kind === 'uid' && { unique: true, from: fields.find(x => UID_SOURCES.includes(x.kind) && x.key)?.key }),
+				...(kind === 'component' && { component: components[0]?.uid }),
 				...(isSection && { fields: sectionPreset(kind) }),
 			},
 		]);
@@ -661,6 +669,42 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 									</Dropdown>
 									{error?.on === 'ref' && <FieldMessage>{error.message}</FieldMessage>}
 								</Box>
+							)}
+							{f.kind === 'component' && (
+								<Flex
+									gap={2}
+									wrap='wrap'>
+									<Box w='190px'>
+										<Dropdown
+											size='xs'
+											placeholder={components.length ? 'Pick a component' : 'No components yet'}
+											invalid={error?.on === 'component'}
+											value={f.component || ''}
+											onChange={v => set(f.uid, { component: v })}
+											items={components.map(c => ({ value: c.uid, label: c.title }))}
+										/>
+										{error?.on === 'component' && <FieldMessage>{error.message}</FieldMessage>}
+										{!components.length && (
+											<Text
+												fontSize='11.5px'
+												color='fg.muted'
+												mt={1}>
+												Make one under Build → Components.
+											</Text>
+										)}
+									</Box>
+									<Box w='110px'>
+										<Dropdown
+											size='xs'
+											value={f.repeatable ? 'list' : 'one'}
+											onChange={v => set(f.uid, { repeatable: v === 'list' })}
+											items={[
+												{ value: 'one', label: 'One' },
+												{ value: 'list', label: 'A list' },
+											]}
+										/>
+									</Box>
+								</Flex>
 							)}
 							{f.kind === 'uid' && (
 								<Box w='200px'>
@@ -872,13 +916,13 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 									</Grid>
 								</Group>
 
-								{(f.kind === 'number' || hasLength(f.kind)) && (
-									<Group title={f.kind === 'number' ? 'Limits' : 'Length'}>
+								{(f.kind === 'number' || hasLength(f.kind) || (f.kind === 'component' && f.repeatable)) && (
+									<Group title={f.kind === 'number' ? 'Limits' : f.kind === 'component' ? 'How many' : 'Length'}>
 										<Grid
 											templateColumns={{ base: '1fr 1fr', md: 'repeat(3, minmax(0, 1fr))' }}
 											gap={3}>
 											<Box>
-												<Small>{f.kind === 'number' ? 'Lowest allowed' : 'Fewest characters'}</Small>
+												<Small>{f.kind === 'number' ? 'Lowest allowed' : f.kind === 'component' ? 'At least' : 'Fewest characters'}</Small>
 												<Input
 													size='sm'
 													type='number'
@@ -889,7 +933,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 												/>
 											</Box>
 											<Box>
-												<Small>{f.kind === 'number' ? 'Highest allowed' : 'Most characters'}</Small>
+												<Small>{f.kind === 'number' ? 'Highest allowed' : f.kind === 'component' ? 'At most' : 'Most characters'}</Small>
 												<Input
 													size='sm'
 													type='number'

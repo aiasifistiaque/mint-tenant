@@ -53,6 +53,7 @@ const GUIDE_OF: Record<string, string> = {
 	'api-try': 'public-api',
 	'api-keys': 'public-api',
 	'api-logs': 'public-api',
+	'models-components': 'models',
 	'api-reference': 'public-api',
 	reference: 'public-api',
 	filters: 'public-api',

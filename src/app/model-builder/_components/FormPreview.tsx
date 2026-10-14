@@ -157,6 +157,16 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 					<Lock {...ICON} />
 				</Box_>
 			);
+		case 'component':
+			return (
+				<Box_ muted>
+					<Text
+						fontSize='inherit'
+						truncate>
+						{f.component ? `${f.repeatable ? 'A list of ' : ''}${f.component}` : 'Pick a component'}
+					</Text>
+				</Box_>
+			);
 		case 'uid':
 			return (
 				<Box_>

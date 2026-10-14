@@ -31,6 +31,7 @@ export type FieldKind =
 	| 'references'
 	| 'section'
 	| 'sectionlist'
+	| 'component'
 	| 'password';
 
 export const KINDS: { value: FieldKind; label: string; hint: string; group: string; hidden?: boolean }[] = [
@@ -91,6 +92,12 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 		hint: 'Rows of the same fields, as many as needed — an invoice’s items. You choose the fields of a row; its number fields can be added up in formulas (sum(items.total))',
 		group: 'Sections',
 	},
+	{
+		value: 'component',
+		label: 'Component',
+		hint: 'A group of fields made once under Build → Components and used by any model — a button, an SEO block, a card. One, or a list',
+		group: 'Sections',
+	},
 ];
 
 export const KIND_GROUPS = ['Text', 'Values', 'Choices', 'Media', 'Links', 'Sections'];
@@ -112,6 +119,8 @@ export const SUB_KINDS: FieldKind[] = [
 	'image',
 	'file',
 ];
+/** What a component's own fields can be — the backend's COMPONENT_KINDS. */
+export const COMPONENT_KINDS: FieldKind[] = [...SUB_KINDS, 'editor', 'images', 'files', 'video', 'tags', 'multiselect'];
 
 export const kindLabel = (kind?: string) => KINDS.find(k => k.value === kind)?.label || kind || '—';
 
@@ -123,12 +132,12 @@ export const ENUM_KINDS: FieldKind[] = ['text', 'number', 'select', 'multiselect
 export const NEEDS_OPTIONS: FieldKind[] = ['select', 'multiselect'];
 /** Kinds stored as a list — their default is a list too. */
 export const ARRAY_KINDS: FieldKind[] = ['multiselect', 'tags', 'images', 'files', 'references'];
-export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password', 'uid'];
+export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password', 'uid', 'component'];
 /** What an address (uid) can be made from — the same list as the backend's UID_SOURCES. */
 export const UID_SOURCES: FieldKind[] = ['text', 'email', 'url', 'select', 'textarea'];
 /** Shown as dots — its key may say what it holds (password, pin, token). Same as the backend's SECRET_KINDS. */
 export const SECRET_KINDS: FieldKind[] = ['password'];
-const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'password', ...ARRAY_KINDS, ...SECTION_KINDS];
+const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'password', 'component', ...ARRAY_KINDS, ...SECTION_KINDS];
 export const canBeUnique = (kind: FieldKind) => !CANT_BE_UNIQUE.includes(kind);
 export const hasLength = (kind: FieldKind) => ['text', 'email', 'url', 'textarea', 'editor'].includes(kind);
 export const hasOptions = (f: Pick<EditableField, 'kind' | 'options'>) =>
@@ -170,6 +179,9 @@ export type EditableField = {
 	addLabel?: string;
 	/** An address (uid): the field it's made from, e.g. `title`. */
 	from?: string;
+	/** A component field: its component's uid, and whether it's a list (with min/max). */
+	component?: string;
+	repeatable?: boolean;
 	/** Editor-only: the key follows the label until it's typed by hand. */
 	keyTouched?: boolean;
 };
@@ -248,8 +260,20 @@ export const toServer = (fields: EditableField[]): any[] =>
 		if (!REFERENCE_KINDS.includes(f.kind)) delete out.ref;
 		if (SECTION_KINDS.includes(f.kind)) out.fields = toServer(f.fields || []);
 		else delete out.fields;
-		if (f.kind !== 'sectionlist' || !out.addLabel) delete out.addLabel;
+		if ((f.kind !== 'sectionlist' && !(f.kind === 'component' && f.repeatable)) || !out.addLabel) delete out.addLabel;
 		if (f.kind !== 'uid' || !out.from) delete out.from;
+		if (f.kind !== 'component') {
+			delete out.component;
+			delete out.repeatable;
+		} else {
+			delete out.options;
+			if (!out.repeatable) {
+				delete out.repeatable;
+				delete out.min;
+				delete out.max;
+				delete out.addLabel;
+			} else if (out.addLabel) out.addLabel = String(out.addLabel);
+		}
 		if (f.kind === 'uid') out.unique = true;
 		if (f.kind !== 'formula') delete out.formula;
 		else {
@@ -277,7 +301,7 @@ const defaultValues = (f: EditableField): string[] =>
 	f.default === undefined || f.default === null || f.default === '' ? [] : (Array.isArray(f.default) ? f.default : [f.default]).map(String);
 
 /** Which input a field problem is about — where it's shown, and which input turns red. */
-export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields' | 'from';
+export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields' | 'from' | 'component';
 export type FieldError = { message: string; on: FieldErrorOn };
 
 /** What a formula may use: the model's fields, and which hold numbers. */
@@ -342,6 +366,7 @@ export const validateFields = (
 			const first = f.fields.find(x => inner[x.uid]);
 			if (first) return fail(f.uid, 'fields', `${first.label || first.key || 'A field'}: ${inner[first.uid].message}`);
 		}
+		if (f.kind === 'component' && !f.component) return fail(f.uid, 'component', 'Pick its component');
 		if (f.kind === 'uid' && f.from) {
 			const src = fields.find(x => x.key === f.from);
 			if (!src || !UID_SOURCES.includes(src.kind)) return fail(f.uid, 'from', 'Make it from a text field of this model, or let it be typed');
