@@ -99,6 +99,51 @@ export type TenantProject = {
 	fromTemplate?: { name: string; version?: number; appliedAt?: string };
 };
 
+/* Automations (backend docs/automations). */
+export type AutomationEvent = 'create' | 'update' | 'delete';
+export type AutomationCondition = { field: string; op: string; value?: any };
+export type AutomationSet = { field: string; value?: any; from?: string; clear?: boolean };
+export type AutomationAction =
+	| { type: 'notify'; to: { people?: string[]; actor?: boolean }; title: string; message?: string }
+	| { type: 'email'; to: { people?: string[]; actor?: boolean; fields?: string[]; emails?: string[] }; subject: string; body: string }
+	| { type: 'webhook'; url: string }
+	| { type: 'update'; target: string; set: AutomationSet[] }
+	| { type: 'create'; route: string; set: AutomationSet[] };
+export type Automation = {
+	_id: string;
+	name: string;
+	description?: string;
+	enabled: boolean;
+	route: string;
+	on: AutomationEvent[];
+	changed: string[];
+	when: AutomationCondition[];
+	match: 'all' | 'any';
+	actions: AutomationAction[];
+	stats: { runs: number; failures: number; lastRunAt?: string; lastStatus?: string; lastError?: string };
+	/** Signs its webhook calls — only from GET /:id and saves. */
+	secret?: string;
+	createdAt?: string;
+	updatedAt?: string;
+};
+export type AutomationInput = Omit<Automation, '_id' | 'stats' | 'secret' | 'createdAt' | 'updatedAt'>;
+export type AutomationStep = { type: string; ok: boolean; detail: string };
+export type AutomationRun = {
+	_id: string;
+	automation: string | null;
+	name: string;
+	route: string;
+	record: string | null;
+	recordName: string;
+	event: AutomationEvent;
+	status: 'success' | 'failed' | 'skipped';
+	steps: AutomationStep[];
+	error: string;
+	depth: number;
+	actorName: string;
+	createdAt: string;
+};
+
 /** A comment on a record (WO-49). `mentions`: the people it @mentions, by the names they had then. */
 export type RecordComment = {
 	_id: string;
@@ -654,6 +699,48 @@ export const tenantApi = mainApi.injectEndpoints({
 			invalidatesTags: ['tenant-projects', 'self', 'tenant-org'],
 		}),
 
+		/* --------------------------------- automations (docs/automations) */
+		getAutomations: builder.query<{ doc: Automation[]; total: number }, void>({
+			query: () => 'automations',
+			providesTags: ['automations'],
+		}),
+		getAutomation: builder.query<Automation, string>({
+			query: id => `automations/${id}`,
+			providesTags: ['automations'],
+		}),
+		getAutomationRuns: builder.query<{ doc: AutomationRun[] }, { automation?: string; status?: string; limit?: number } | void>({
+			query: arg => {
+				const q = new URLSearchParams();
+				if (arg?.automation) q.set('automation', arg.automation);
+				if (arg?.status) q.set('status', arg.status);
+				q.set('limit', String(arg?.limit || 100));
+				return `automations/runs?${q}`;
+			},
+			providesTags: ['automations'],
+		}),
+		createAutomation: builder.mutation<Automation, AutomationInput>({
+			query: body => ({ url: 'automations', method: 'POST', body }),
+			invalidatesTags: ['automations'],
+		}),
+		updateAutomation: builder.mutation<Automation, { id: string } & AutomationInput>({
+			query: ({ id, ...body }) => ({ url: `automations/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['automations'],
+		}),
+		toggleAutomation: builder.mutation<Automation, { id: string; enabled: boolean }>({
+			query: ({ id, enabled }) => ({ url: `automations/${id}`, method: 'PATCH', body: { enabled } }),
+			invalidatesTags: ['automations'],
+		}),
+		testAutomation: builder.mutation<
+			{ record: { _id: string; name: string }; event: AutomationEvent; conditions: boolean; status: string; steps: AutomationStep[]; error?: string },
+			{ id: string; record: string; event?: AutomationEvent }
+		>({
+			query: ({ id, ...body }) => ({ url: `automations/${id}/test`, method: 'POST', body }),
+		}),
+		deleteAutomation: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `automations/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['automations'],
+		}),
+
 		/* --------------------------------- comments on a record (WO-49) */
 		getRecordComments: builder.query<
 			{ doc: RecordComment[]; total: number; settings: { comments: boolean; mentions: boolean }; canModerate: boolean },
@@ -898,6 +985,14 @@ export const {
 	useDeclineMyInvitationMutation,
 	useGetProjectPeopleQuery,
 	useGetRecordCommentsQuery,
+	useGetAutomationsQuery,
+	useGetAutomationQuery,
+	useGetAutomationRunsQuery,
+	useCreateAutomationMutation,
+	useUpdateAutomationMutation,
+	useToggleAutomationMutation,
+	useTestAutomationMutation,
+	useDeleteAutomationMutation,
 	useGetMentionableQuery,
 	useAddRecordCommentMutation,
 	useUpdateRecordCommentMutation,
