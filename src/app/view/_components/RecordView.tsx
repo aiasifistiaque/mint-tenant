@@ -1,5 +1,6 @@
 'use client';
 
+import PublishControls, { PublishBadge } from '@/components/library/components/view/record/PublishControls';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { Column, CreateModal, ViewTabTable, HistoryTimeline, Layout } from '@/components/library';
 import { ConsoleTabs, PageHeader } from '@/components/library/cl';
@@ -51,7 +52,7 @@ export type RecordViewProps = {
  */
 const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions, children }: RecordViewProps) => {
 	const rv = useRecordView({ slug, id });
-	const { name, code, recordTitle, routeTitle, single, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
+	const { name, code, recordTitle, routeTitle, single, drafts, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
 	// Like the edit dialog's header: the code, then how fresh the record is.
 	const updated = ago(updatedAt);
 	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`].filter(Boolean).join(' · ') || undefined;
@@ -119,11 +120,30 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 						{ href: '#', title: recordTitle },
 					]}
 					title={title || recordTitle}
-					badge={badge ?? <StatusPill value={status} />}
+					badge={
+						badge ??
+						(drafts ? (
+							<PublishBadge
+								status={drafts.status}
+								publishedAt={drafts.publishedAt}
+							/>
+						) : (
+							<StatusPill value={status} />
+						))
+					}
 					meta={meta ?? defaultMeta}
 					actions={
 						<>
 							{actions}
+							{/* Drafts and publishing (docs/cms D5). */}
+							{drafts && (
+								<PublishControls
+									path={slug}
+									id={id}
+									status={drafts.status}
+									canEdit={canEdit}
+								/>
+							)}
 							{/* The page's PDF templates (docs/pdf-templates) — nothing when it has none. */}
 							<DownloadPdfButton
 								route={slug}

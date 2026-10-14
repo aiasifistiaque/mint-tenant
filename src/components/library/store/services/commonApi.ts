@@ -164,6 +164,11 @@ export const userApi = mainApi.injectEndpoints({
 				}
 			},
 		}),
+		// Drafts and publishing (backend docs/cms D5): POST /<route>/<id>/publish | unpublish | discard.
+		publishRecordAction: builder.mutation<any, { path: string; id: string; action: 'publish' | 'unpublish' | 'discard' }>({
+			query: ({ path, id, action }): any => ({ url: `${path}/${id}/${action}`, method: 'POST', body: {} }),
+			invalidatesTags: (result, error, { path }: any) => routeTags(path, 'history'),
+		}),
 		updateById: builder.mutation<
 			any,
 			{ path: string; id: string; body: any; invalidate?: string[] }
@@ -227,6 +232,7 @@ export const {
 	useGetByIdQuery,
 	useGetDocumentHistoryQuery,
 	useUpdateByIdMutation,
+	usePublishRecordActionMutation,
 	useGetAllQuery,
 	useDeleteByIdMutation,
 	usePostMutation,

@@ -6,7 +6,7 @@ import { useCheckModelNameQuery } from '@/components/library';
 import { Dropdown, Panel } from '@/components/library/cl';
 import { DocLink } from '@/app/builder/_components/ui';
 import { ToneTitle } from '@/app/builder/_components/areas';
-import { Hash, ListChecks, Lock, NotebookPen, Tag } from 'lucide-react';
+import { Hash, ListChecks, Lock, NotebookPen, Send, Tag } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import FieldsEditor, { LinkTarget } from './FieldsEditor';
 import {
@@ -35,6 +35,8 @@ export type ModelWorking = {
 	displayField: string;
 	/** Many records, or a single type holding exactly one (docs/cms D2). */
 	kind: 'collection' | 'single';
+	/** Records stay drafts until published (docs/cms D5). */
+	draftAndPublish: boolean;
 	code: { enabled: boolean; prefix: string; padding: number; start: number };
 	/** Per-record access: an owner, a privacy and an access list on every record. */
 	access: { enabled: boolean; default: string };
@@ -50,6 +52,7 @@ export const emptyModel = (): ModelWorking => ({
 	description: '',
 	displayField: '',
 	kind: 'collection',
+	draftAndPublish: false,
 	code: { enabled: false, prefix: '', padding: 4, start: 1 },
 	access: { enabled: false, default: 'private' },
 	fields: [{ uid: newUid(), key: 'name', label: 'Name', kind: 'text', required: true, showInTable: true, keyTouched: true }],
@@ -64,6 +67,7 @@ export const modelFromDoc = (doc: any): ModelWorking => ({
 	description: doc.description || '',
 	displayField: doc.displayField || '',
 	kind: doc.kind === 'single' ? 'single' : 'collection',
+	draftAndPublish: !!doc.draftAndPublish,
 	code: { enabled: false, prefix: '', padding: 4, start: 1, ...(doc.code || {}) },
 	access: { enabled: !!doc.access?.enabled, default: doc.access?.default || 'private' },
 	fields: fromServer(doc.fields),
@@ -77,6 +81,7 @@ export const modelBody = (w: ModelWorking) => ({
 	description: w.description,
 	displayField: w.displayField,
 	kind: w.kind,
+	draftAndPublish: w.draftAndPublish,
 	code: { ...w.code, prefix: w.code.prefix.trim() },
 	// Privacy is chosen per record, in the form; new records start Private.
 	access: { enabled: w.access.enabled, default: 'private' },
@@ -389,6 +394,48 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					gap={4}>
 					{nameFields}
 				</Grid>
+			</Panel>
+			)}
+
+			{show('numbers') && (
+			<Panel
+				title={
+					<ToneTitle
+						icon={Send}
+						palette='green'>
+						Drafts and publishing
+					</ToneTitle>
+				}
+				subtitle='Changes stay drafts until someone publishes them — your site and API show only what’s published.'
+				actions={<DocLink section='models-drafts' />}>
+				<Flex
+					direction='column'
+					gap={2}>
+					<Switch.Root
+						size='sm'
+						checked={working.draftAndPublish}
+						onCheckedChange={e => set({ draftAndPublish: e.checked })}>
+						<Switch.HiddenInput />
+						<Switch.Control>
+							<Switch.Thumb />
+						</Switch.Control>
+						<Switch.Label fontSize='sm'>Records are drafts until published</Switch.Label>
+					</Switch.Root>
+					{!isNew && working.draftAndPublish && !base?.draftAndPublish && records > 0 && (
+						<Text
+							fontSize='xs'
+							color='fg.muted'>
+							The {records} record{records === 1 ? '' : 's'} there now will be published as they are, so nothing leaves your site.
+						</Text>
+					)}
+					{!isNew && !working.draftAndPublish && base?.draftAndPublish && (
+						<Text
+							fontSize='xs'
+							color='orange.fg'>
+							Turning it off puts every record live as it is now — drafts included.
+						</Text>
+					)}
+				</Flex>
 			</Panel>
 			)}
 

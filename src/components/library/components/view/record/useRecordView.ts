@@ -104,6 +104,17 @@ const useRecordView = ({ slug, id, skip = false }: { slug: string; id: string; s
 		// A single type's one record goes by the page's own title (docs/cms D2).
 		recordTitle: (routeInfo?.single && routeTitle) || name || code || id,
 		single: !!routeInfo?.single,
+		/** Drafts and publishing (docs/cms D5): the page has it on, and where this record stands. */
+		drafts: routeInfo?.draftAndPublish
+			? {
+					publishedAt: (doc?._publishedAt as string | undefined) || null,
+					status: !doc?._publishedAt
+						? ('draft' as const)
+						: doc?.updatedAt && doc?._publishedFrom && new Date(doc.updatedAt).getTime() > new Date(doc._publishedFrom).getTime()
+						? ('modified' as const)
+						: ('published' as const),
+			  }
+			: null,
 		routeTitle,
 		/** For the header's status pill and "Updated …" line. */
 		status: typeof doc?.status === 'string' ? doc.status : undefined,
