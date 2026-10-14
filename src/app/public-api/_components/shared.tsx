@@ -4,7 +4,7 @@ import { FC, ReactNode } from 'react';
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Box, Flex, Text } from '@chakra-ui/react';
-import { BookOpen, KeyRound, Globe, LayoutGrid, Route, UserRound } from 'lucide-react';
+import { BookOpen, KeyRound, Globe, LayoutGrid, Route, ScrollText, UserRound } from 'lucide-react';
 import { BACKEND, projectHref } from '@/components/library/config/lib/constants/panel';
 import { TONES, Tone } from '@/theme/tones';
 import type { EndpointAction, EndpointWho } from '@/components/library/store/services/apiBuilderApi';
@@ -12,14 +12,14 @@ import type { EndpointAction, EndpointWho } from '@/components/library/store/ser
 /**
  * Pieces every API page shares (backend docs/api-builder D11): where the API
  * lives, how a method and a "who" look, what each action does, and the strip
- * of tabs between the four pages.
+ * of tabs between the five pages.
  */
 
 /** The API's public address: the backend's root, without /tenant/api. */
 export const publicBase = () => BACKEND.replace(/\/tenant\/api\/?$/, '');
 export const apiBase = (publicSlug?: string) => (publicSlug ? `${publicBase()}/public/api/${publicSlug}` : '');
 
-/** An API page's address in this project: '' Overview, '/endpoints', '/endpoints/<id>', '/keys', '/reference'. */
+/** An API page's address in this project: '' Overview, '/endpoints', '/endpoints/<id>', '/keys', '/logs', '/reference'. */
 export const apiHref = (sub = '') => projectHref(`/public-api${sub}`);
 
 export const errorOf = (e: any, fallback = 'Couldn’t save — try again.') => ({ message: e?.data?.message || fallback, on: e?.data?.on as string | undefined });
@@ -128,10 +128,11 @@ const TABS = [
 	{ sub: '', label: 'Overview', icon: LayoutGrid },
 	{ sub: '/endpoints', label: 'Endpoints', icon: Route },
 	{ sub: '/keys', label: 'Keys', icon: KeyRound },
+	{ sub: '/logs', label: 'Logs', icon: ScrollText },
 	{ sub: '/reference', label: 'Reference', icon: BookOpen },
 ];
 
-/** The four API pages, as tabs under the page's header. */
+/** The API pages, as tabs under the page's header. */
 export const ApiTabs: FC = () => {
 	const pathname = usePathname() || '';
 	const here = pathname.replace(/\/+$/, '');

@@ -24,6 +24,7 @@ import RuleEditor from '../../_components/RuleEditor';
 import ApiTester, { Trial } from '../../_components/ApiTester';
 import ExampleRequest from '../../_components/ExampleRequest';
 import { exampleOf } from '../../_components/api';
+import { ApiLogs } from '../../_components/logs';
 
 /**
  * API → Endpoints → one endpoint (backend docs/api-builder AB-04): who can call
@@ -66,6 +67,11 @@ export default function EndpointPage() {
 	const [remove, removing] = useDeleteApiEndpointMutation();
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [tab, setTab] = useState('access');
+	// ?tab=logs (from a log's "Open the endpoint", or a shared link).
+	useEffect(() => {
+		const t = new URLSearchParams(window.location.search).get('tab');
+		if (t) setTab(t);
+	}, []);
 	const [error, setError] = useState<{ message: string; on?: string } | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const [trial, setTrial] = useState<Trial | null>(null);
@@ -244,6 +250,7 @@ export default function EndpointPage() {
 								...(isList ? [{ value: 'filters', label: 'Filters' }] : []),
 								{ value: 'try', label: 'Try it' },
 								{ value: 'code', label: 'Code' },
+								{ value: 'logs', label: 'Logs' },
 								{ value: 'details', label: 'Details' },
 							]}>
 							<Tabs.Content value='access'>
@@ -603,6 +610,11 @@ export default function EndpointPage() {
 										</Box>
 									)}
 								</Section>
+							</Tabs.Content>
+
+							<Tabs.Content value='logs'>
+								{/* Mounted only while open: it polls when Live is on. */}
+								{tab === 'logs' && <ApiLogs endpointId={id} />}
 							</Tabs.Content>
 
 							<Tabs.Content value='details'>

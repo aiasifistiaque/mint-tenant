@@ -2,7 +2,8 @@ import mainApi from './mainApi';
 
 /**
  * The API builder (backend docs/api-builder): the project's public API as
- * endpoints — the overview, endpoints (made, generated, changed), server keys.
+ * endpoints — the overview, endpoints (made, generated, changed), server keys,
+ * and the request logs (AB-06; read-only, refetched rather than tagged).
  * Backend: routes-tenant/apiBuilder.router.ts at /p/:project/api-builder.
  * Saving an endpoint changes its model's `publicApi` summary too, so the
  * model lists (`builder`) refetch.
@@ -72,6 +73,52 @@ export type ServerKey = {
 	secret?: string;
 };
 
+/** One call to the API, as its request log keeps it (AB-06) — never bodies, tokens or addresses. */
+export type ApiLog = {
+	_id: string;
+	at: string;
+	method: string;
+	path: string;
+	/** Without the `?`; secret-looking values shown as •••. */
+	query: string;
+	status: number;
+	ms: number | null;
+	endpoint: { _id: string; name: string } | null;
+	who: EndpointWho;
+	customer: { _id: string; email: string } | null;
+	key: { _id: string; name: string } | null;
+	error: string;
+	code: string;
+	origin: string;
+	client: string;
+};
+
+export type ApiLogPeriod = 1 | 24 | 168;
+export type ApiLogFilters = {
+	hours: ApiLogPeriod;
+	/** ok, errors, 4xx, 5xx, or a status code. */
+	status?: string;
+	/** An endpoint's id, or "none": calls no endpoint answered. */
+	endpoint?: string;
+	method?: string;
+	who?: string;
+	q?: string;
+};
+
+export type ApiLogSummary = {
+	hours: ApiLogPeriod;
+	total: number;
+	errors: number;
+	avgMs: number | null;
+	p95Ms: number | null;
+	series: { at: string; ok: number; errors: number }[];
+	topErrors: { status: number; code: string; error: string; endpoint: string; count: number; last: string }[];
+	topEndpoints: { _id: string; name: string; calls: number; errors: number; avgMs: number }[];
+};
+
+const logQuery = (f: Partial<ApiLogFilters> & { limit?: number }) =>
+	new URLSearchParams(Object.entries(f).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString();
+
 export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).injectEndpoints({
 	endpoints: builder => ({
 		getApiBuilderOverview: builder.query<ApiBuilderOverview, void>({
@@ -121,6 +168,17 @@ export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).in
 			query: id => ({ url: `api-builder/keys/${id}`, method: 'DELETE' }),
 			invalidatesTags: [TAG],
 		}),
+		getApiRequestLogs: builder.query<{ doc: ApiLog[]; hasMore: boolean }, ApiLogFilters & { limit?: number }>({
+			query: f => `api-builder/logs?${logQuery(f)}`,
+			keepUnusedDataFor: 10,
+		}),
+		getApiRequestLogSummary: builder.query<ApiLogSummary, ApiLogFilters>({
+			query: f => `api-builder/logs/summary?${logQuery(f)}`,
+			keepUnusedDataFor: 10,
+		}),
+		getApiRequestLog: builder.query<ApiLog, string>({
+			query: id => `api-builder/logs/${id}`,
+		}),
 	}),
 });
 
@@ -136,4 +194,7 @@ export const {
 	useGetServerKeysQuery,
 	useCreateServerKeyMutation,
 	useRevokeServerKeyMutation,
+	useGetApiRequestLogsQuery,
+	useGetApiRequestLogSummaryQuery,
+	useGetApiRequestLogQuery,
 } = apiBuilderApi;

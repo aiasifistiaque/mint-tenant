@@ -14,6 +14,7 @@ import { useGetApiBuilderOverviewQuery, useGetApiEndpointsQuery } from '@/compon
 import { MONO_CAPS } from '@/theme/tones';
 import { ApiTabs, MethodBadge, WhoBadge, apiBase, apiHref, publicBase } from './_components/shared';
 import GenerateDialog from './_components/GenerateDialog';
+import { LogsGlance } from './_components/logs';
 
 /**
  * API → Overview (backend docs/api-builder D11): the project's API at a
@@ -158,6 +159,7 @@ export default function ApiOverviewPage() {
 								label='Calls'
 								value={data.calls.toLocaleString()}
 								hint='to every endpoint, ever'
+								href={apiHref('/logs')}
 							/>
 							<StatTile
 								label='Server keys'
@@ -172,6 +174,8 @@ export default function ApiOverviewPage() {
 								href={pagePath('customers')}
 							/>
 						</Grid>
+
+						{!!e!.total && <LogsGlance />}
 
 						{!e!.total && (
 							<Panel
