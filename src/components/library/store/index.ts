@@ -32,5 +32,6 @@ export * from './services/supportApi';
 export * from './services/tenantApi';
 export * from './services/templatesApi';
 export * from './services/pdfTemplatesApi';
+export * from './services/apiBuilderApi';
 
 export * from './store';
