@@ -175,13 +175,12 @@ const CreateModal = (props: CreateModalProps) => {
 					</DialogHeader>
 					<DialogCloseButton top={{ base: 4, md: 5 }} />
 
-					<DialogBody
-						px={{ base: 0, md: 6 }}
-						pt={{ base: 4, md: 5 }}>
+					{/* The body's own side padding (DialogBody: 16px on a phone, 24px up), like
+					    CreateModal — the form's sections reach 4px into it for focus rings, so
+					    with none they ran edge to edge and scrolled sideways on a phone. */}
+					<DialogBody pt={{ base: 4, md: 5 }}>
 						{pageRoute?.guidelines && (
-							<Flex
-								mb={4}
-								px={{ base: 4, md: 0 }}>
+							<Flex mb={4}>
 								<GuidelinesLink
 									guidelines={pageRoute.guidelines}
 									onOpen={() => setShowGuidelines(true)}
