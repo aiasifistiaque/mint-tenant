@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, useState } from 'react';
 import { Badge, Box, Button, Center, Field, Flex, Input, Skeleton, Text } from '@chakra-ui/react';
-import { MailPlus, RotateCw, UserMinus, Users } from 'lucide-react';
+import { MailPlus, RotateCw, UserMinus } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -26,11 +26,13 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import type { ProjectInviteRole, ProjectPerson } from '@/components/library/store/services/tenantApi';
 
 /**
- * Who works in the open project (tenant panel, WO-47), and inviting someone
- * into it as Member or Developer. Someone new joins the organization as a
- * guest who opens this project only, and sees it on their dashboard under
- * this organization's name; someone already in the organization gets it at
- * once. For the owner, admins and roles with Invite to projects.
+ * The open project's members (tenant panel, WO-47; sidebar Project → Members,
+ * WO-48): everyone in the project sees who works in it. The owner, admins and
+ * roles with Invite to projects also invite someone into it as Member or
+ * Developer, change their role or take the project away, and see pending
+ * invitations. Someone new joins the organization as a guest who opens this
+ * project only, and sees it on their dashboard under this organization's
+ * name; someone already in the organization gets it at once.
  */
 
 const errorText = (e: any) => e?.data?.message || 'Something went wrong — try again.';
@@ -168,11 +170,12 @@ const InviteDialog: FC<{ open: boolean; onClose: () => void; projectName: string
 	);
 };
 
-const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string }> = ({ p, me, projectName }) => {
+const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string; canManage: boolean }> = ({ p, me, projectName, canManage }) => {
 	const [setRole, setting] = useSetProjectRoleMutation();
 	const [remove, removing] = useRemoveFromProjectMutation();
 	const [confirm, setConfirm] = useState(false);
 	const given = p.access === 'project';
+	const changeable = canManage && given;
 
 	return (
 		<Flex
@@ -227,7 +230,7 @@ const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string }> = ({
 					{p.user?.email} · {given ? `given this project ${date(p.joinedAt)}` : `${p.organizationRole?.name} — opens every project`}
 				</Text>
 			</Box>
-			{given && (p.role?.system === 'member' || p.role?.system === 'developer') ? (
+			{changeable && (p.role?.system === 'member' || p.role?.system === 'developer') ? (
 				<Box w='140px'>
 					<Dropdown
 						value={p.role.system}
@@ -246,7 +249,7 @@ const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string }> = ({
 					{p.role?.name}
 				</Text>
 			)}
-			{given && !me && (
+			{changeable && !me && (
 				<Button
 					size='xs'
 					variant='ghost'
@@ -277,9 +280,10 @@ const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string }> = ({
 };
 
 export default function ProjectPeoplePage() {
-	const { self, project, can } = useWorkspace();
-	const allowed = can('invite-to-projects') || can('manage-members');
-	const { data, isLoading } = useGetProjectPeopleQuery(undefined, { skip: !allowed });
+	const { self, project } = useWorkspace();
+	const { data, isLoading } = useGetProjectPeopleQuery(undefined, { skip: !project });
+	// The server says who may change them (WO-48): everyone else sees the list only.
+	const canManage = !!data?.canManage;
 	const [resend, resending] = useResendProjectInvitationMutation();
 	const [cancel] = useCancelProjectInvitationMutation();
 	const [inviting, setInviting] = useState(false);
@@ -288,13 +292,12 @@ export default function ProjectPeoplePage() {
 
 	return (
 		<Layout
-			title='People'
+			title='Members'
 			path='project-people'>
-			{!allowed ? (
+			{!project ? (
 				<EmptyState
-					icon={<Users size={20} />}
-					title='Only for people who invite'
-					description='The owner, admins and roles with “Invite to projects” manage who works in a project.'
+					title='Open a project first'
+					description='Each project has its own members.'
 				/>
 			) : (
 				<Flex
@@ -302,19 +305,21 @@ export default function ProjectPeoplePage() {
 					gap={4}
 					pt={2}>
 					<Panel
-						title='People'
+						title='Members'
 						subtitle={data ? `${data.doc.length} ${data.doc.length === 1 ? 'person opens' : 'people open'} ${name}` : undefined}
 						actions={
 							<Flex
 								align='center'
 								gap={3}>
 								<GuideLink section='project-people' />
-								<Button
-									size='xs'
-									onClick={() => setInviting(true)}>
-									<MailPlus size={14} />
-									Invite
-								</Button>
+								{canManage && (
+									<Button
+										size='xs'
+										onClick={() => setInviting(true)}>
+										<MailPlus size={14} />
+										Invite
+									</Button>
+								)}
 							</Flex>
 						}
 						flush>
@@ -335,6 +340,7 @@ export default function ProjectPeoplePage() {
 									p={p}
 									me={p.user?._id === self?._id}
 									projectName={name}
+									canManage={canManage}
 								/>
 							))
 						)}

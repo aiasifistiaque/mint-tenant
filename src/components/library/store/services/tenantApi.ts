@@ -87,6 +87,14 @@ export type TenantProject = {
 	/** What this account may do in it, when its role here isn't the organization one (auth/self, WO-47). */
 	permissions?: string[];
 	createdAt?: string;
+	/* Only from GET /projects/:id (WO-48): */
+	updatedAt?: string;
+	/** How many people open it. */
+	people?: number;
+	createdBy?: { _id: string; name: string } | null;
+	organizationName?: string;
+	/** The template it was built from (docs/templates T-03). */
+	fromTemplate?: { name: string; version?: number; appliedAt?: string };
 };
 
 export type Member = ProjectAccess & {
@@ -630,9 +638,9 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 
 		/* ------------------------------------- inside the open project */
-		/** Who opens the project, its pending invitations, and the roles it invites with (WO-47). */
+		/** Who opens the project (everyone in it, WO-48); for those who manage it, its pending invitations and the roles it invites with (WO-47). */
 		getProjectPeople: builder.query<
-			{ doc: ProjectPerson[]; invitations: Invitation[]; roles: { _id: string; name: string; system: ProjectInviteRole; description?: string }[] },
+			{ doc: ProjectPerson[]; invitations: Invitation[]; roles: { _id: string; name: string; system: ProjectInviteRole; description?: string }[]; canManage?: boolean },
 			void
 		>({
 			query: () => 'people',
@@ -640,7 +648,8 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 		inviteToProject: builder.mutation<Invitation & { added?: boolean; message?: string }, { email: string; name?: string; role: ProjectInviteRole }>({
 			query: body => ({ url: 'people/invitations', method: 'POST', body }),
-			invalidatesTags: ['tenant-people', 'tenant-invitations', 'tenant-members'],
+			// tenant-projects: Settings counts the project's members (WO-48).
+			invalidatesTags: ['tenant-people', 'tenant-invitations', 'tenant-members', 'tenant-projects'],
 		}),
 		resendProjectInvitation: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `people/invitations/${id}/resend`, method: 'POST' }),
@@ -656,7 +665,7 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 		removeFromProject: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `people/${id}`, method: 'DELETE' }),
-			invalidatesTags: ['tenant-people', 'tenant-members'],
+			invalidatesTags: ['tenant-people', 'tenant-members', 'tenant-projects'],
 		}),
 		getAnalyticsSummary: builder.query<{ current: AnalyticsTotals; previous: AnalyticsTotals; from: string; to: string }, AnalyticsRange>({
 			query: r => `analytics/summary?${rangeQuery(r)}`,
