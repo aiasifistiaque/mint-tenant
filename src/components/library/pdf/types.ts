@@ -34,7 +34,22 @@ export type PdfTemplate = {
 	/** Draft or published (PT-33): only published ones are offered on the page's Download PDF. None = published (older ones). */
 	status?: 'draft' | 'published';
 	page: { size: 'A4' | 'Letter' | 'Legal' | 'A5'; orientation: 'portrait' | 'landscape'; margin: [number, number, number, number] };
-	style: { font: 'sans' | 'mono' | 'helvetica' | 'times' | 'courier'; size: number; color: string; muted: string; accent: string; lineHeight: number };
+	/** The theme (D24, theme.ts): body + heading font; colour roles blocks can name ("accent", "soft"…) instead of a hex. */
+	style: {
+		font: string;
+		heading?: string;
+		size: number;
+		color: string;
+		muted: string;
+		accent: string;
+		onAccent?: string;
+		soft?: string;
+		dark?: string;
+		line?: string;
+		lineHeight: number;
+		palette?: string;
+		pairing?: string;
+	};
 	lists: { name: string; route: string; foreignField: string; sort?: string; limit?: number }[];
 	header: Block[];
 	body: Block[];

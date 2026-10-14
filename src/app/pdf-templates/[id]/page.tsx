@@ -70,6 +70,8 @@ import { mainRoute, modelLabel, useLinkModels } from '@/app/builder/_components/
 import { toaster } from '@/components/ui/toaster';
 import Outline from '../_components/designer/Outline';
 import PageSettings from '../_components/designer/PageSettings';
+import ThemePanel, { ThemeBar } from '../_components/designer/ThemePanel';
+import { ThemeStyleContext } from '../_components/designer/controls';
 import Properties from '../_components/designer/Properties';
 import AddPanel from '../_components/designer/AddPanel';
 import { DRAG_TYPE, Drop, clipBlocks, clipText, dropAt, pagePoint, pastePlace } from '../_components/designer/dnd';
@@ -188,7 +190,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 	};
 	const allSelected = selected ? [...also, selected] : [];
 	const multi = also.length > 0;
-	const [tab, setTab] = useState<'add' | 'pieces' | 'layers'>('add');
+	const [tab, setTab] = useState<'add' | 'pieces' | 'layers' | 'theme'>('add');
 	const [mode, setMode] = useState<'values' | 'fields'>('values');
 	const [zoom, setZoom] = useState(1);
 	// null: not picked yet (the first record shows); '': Sample data, picked.
@@ -1086,6 +1088,11 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 						templateColumns={{ base: '1fr', lg: '280px minmax(0, 1fr) 330px' }}>
 						{/* Left: what to add, and the layers */}
 						<Side side='left'>
+							<ThemeBar
+								template={t}
+								on={tab === 'theme'}
+								onClick={() => setTab(tab === 'theme' ? 'add' : 'theme')}
+							/>
 							<ConsoleTabs
 								value={tab}
 								onChange={v => setTab(v as any)}
@@ -1097,7 +1104,12 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 								{null}
 							</ConsoleTabs>
 							<Box pt={3}>
-								{tab !== 'layers' ? (
+								{tab === 'theme' ? (
+									<ThemePanel
+										template={t}
+										onChange={next => edit(() => next)}
+									/>
+								) : tab !== 'layers' ? (
 									<AddPanel
 										section={tab === 'add' ? 'blocks' : 'pieces'}
 										where={freeMode ? 'on the page — drag it to where it goes' : sel ? `after the selected ${labelOf(sel.block).toLowerCase()}` : 'at the end of the body — select a block to add after it'}
@@ -1186,6 +1198,7 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 						</Box>
 
 						{/* Right: the selected block, or the document */}
+						<ThemeStyleContext.Provider value={t.style as any}>
 						<Side side='right'>
 							{sel && multi ? (
 								<Box>
@@ -1301,10 +1314,12 @@ const DesignerPage = ({ params }: { params: Promise<{ id: string }> }) => {
 										set={p => edit(x => ({ ...x, ...p }))}
 										pages={pages}
 										tree={tree}
+										onTheme={() => setTab('theme')}
 									/>
 								</Box>
 							)}
 						</Side>
+						</ThemeStyleContext.Provider>
 					</Grid>
 				)}
 			</Flex>

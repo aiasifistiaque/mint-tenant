@@ -98,7 +98,7 @@ export const pdfTemplatesApi = mainApi.injectEndpoints({
 		guessPdfMapping: builder.mutation<any, { from: string; route: string }>({
 			query: body => ({ url: 'pdf-templates/guess', method: 'POST', body }),
 		}),
-		usePdfTemplate: builder.mutation<any, { from: string; route: string; mapping?: any; name?: string }>({
+		usePdfTemplate: builder.mutation<any, { from: string; route: string; mapping?: any; name?: string; look?: string; palette?: string; pairing?: string }>({
 			query: body => ({ url: 'pdf-templates/use', method: 'POST', body }),
 			invalidatesTags: routeTags(TAG),
 		}),

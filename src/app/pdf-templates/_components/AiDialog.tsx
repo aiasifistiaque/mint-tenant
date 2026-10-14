@@ -27,7 +27,7 @@ const promptFor = ({ ask, route, page, template }: { ask: string; route: string;
 		: [
 				`Use the e-mint connector to make a PDF template for my “${page}” page (route ${route}).`,
 				ask.trim() || 'Ask me what it should look like.',
-				'Read describe_pdf_templates and get_pdf_fields for the page first. Start from a gallery design with use_pdf_starter if one is close, or write it yourself. Show me your plan, then save it with save_pdf_template and give me the designer link.',
+				'Read describe_pdf_templates and get_pdf_fields for the page first. Start from a gallery design with use_pdf_starter if one is close, or write it yourself. Use theme colour roles and the heading font, and offer me two or three looks (palette + fonts) to choose from. Show me your plan, then save it with save_pdf_template and give me the designer link.',
 		  ].join('\n\n');
 
 /**

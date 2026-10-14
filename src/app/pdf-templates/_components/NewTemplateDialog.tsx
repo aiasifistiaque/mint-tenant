@@ -18,10 +18,12 @@ import { mainRoute, modelLabel, useLinkModels } from '@/app/builder/_components/
 import { toaster } from '@/components/ui/toaster';
 import Shell from './Shell';
 import Thumb from './Thumb';
+import LookPicker from './LookPicker';
+import { applyLook } from '@/components/library/pdf/theme';
 import { CategoryChips, inCategory } from './Categories';
 import { DocLink, ICON, Labeled, designerHref, errorOf } from './ui';
 
-type Step = 'start' | 'page' | 'match';
+type Step = 'start' | 'look' | 'page' | 'match';
 const BLANK = 'blank';
 const AI = 'ai';
 
@@ -45,6 +47,8 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 	const [name, setName] = useState('');
 	const [mapping, setMapping] = useState<Record<string, any>>({});
 	const [category, setCategory] = useState('');
+	// The look picked (D24): '' = as designed.
+	const [look, setLook] = useState('');
 	const [guess, { data: guessed, isLoading: guessing }] = useGuessPdfMappingMutation();
 	const { data: tree } = useGetPdfFieldsQuery(route, { skip: !route || step !== 'match' }) as { data?: FieldTree };
 	const [create, { isLoading: creating }] = useCreatePdfTemplateMutation();
@@ -58,6 +62,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 		setName('');
 		setMapping({});
 		setCategory('');
+		setLook('');
 	}, [open, presetRoute]);
 
 	const starters: PdfTemplate[] = gallery?.templates || [];
@@ -69,11 +74,13 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 		if (step === 'start') {
 			if (from === AI && onAi) return onAi(route);
 			setName(starter?.name || '');
-			return setStep('page');
+			setLook(from === BLANK ? 'studio' : '');
+			return setStep('look');
 		}
+		if (step === 'look') return setStep('page');
 		if (from === BLANK) {
 			try {
-				const doc = await create({
+				const blank: any = {
 					name: name.trim() || 'Untitled template',
 					route,
 					alias: aliasOf(pageTitle),
@@ -81,9 +88,10 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 					page: { size: 'A4', orientation: 'portrait', margin: [42, 42, 42, 42] },
 					style: { font: 'sans', size: 10, color: '#111827', muted: '#6b7280', accent: '#2563eb', lineHeight: 1.4 },
 					header: [],
-					body: [{ type: 'text', text: `{{${aliasOf(pageTitle)}._id}}`, size: 18, weight: 600 }],
+					body: [{ type: 'text', text: `{{${aliasOf(pageTitle)}._id}}`, size: 18, weight: 600, font: 'heading', color: 'accent' }],
 					footer: [],
-				}).unwrap();
+				};
+				const doc = await create(look ? applyLook(blank, { look }).template : blank).unwrap();
 				onClose();
 				router.push(designerHref(doc._id));
 			} catch (e) {
@@ -102,7 +110,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 
 	const finish = async () => {
 		try {
-			const doc = await use({ from, route, mapping, name: name.trim() || starter?.name }).unwrap();
+			const doc = await use({ from, route, mapping, name: name.trim() || starter?.name, ...(look && { look }) }).unwrap();
 			toaster.create({ type: 'success', title: `${doc.name} is ready`, description: doc.isDefault ? 'It’s this page’s Download PDF now.' : undefined });
 			onClose();
 			router.push(designerHref(doc._id));
@@ -239,7 +247,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 			onClick={() => setFrom(id)}
 			onDoubleClick={() => {
 				setFrom(id);
-				setTimeout(() => (id === AI && onAi ? onAi(route) : (setName(starters.find(s => s._id === id)?.name || ''), setStep('page'))));
+				setTimeout(() => (id === AI && onAi ? onAi(route) : (setName(starters.find(s => s._id === id)?.name || ''), setLook(id === BLANK ? 'studio' : ''), setStep('look'))));
 			}}>
 			{body}
 			<Box p={3}>
@@ -319,6 +327,15 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 		</Flex>
 	);
 
+	const lookStep = (
+		<LookPicker
+			base={from === BLANK ? undefined : starter}
+			settings={settings}
+			value={look}
+			onChange={setLook}
+		/>
+	);
+
 	const pageStep = (
 		<Flex
 			direction='column'
@@ -361,6 +378,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 
 	const titles: Record<Step, string> = {
 		start: 'New PDF template',
+		look: 'Pick a look',
 		page: from === BLANK ? 'A blank template' : `Use “${starter?.name || 'template'}”`,
 		match: 'Match its data to your fields',
 	};
@@ -368,6 +386,11 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 		start: (
 			<>
 				Start from a design and make it yours, or from nothing. <DocLink section='start' />
+			</>
+		),
+		look: (
+			<>
+				Colours and fonts for the whole page — mix and match more in the designer’s Theme tab. <DocLink section='themes' />
 			</>
 		),
 		page: 'Which page’s records it prints.',
@@ -384,7 +407,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 			onClose={onClose}
 			title={titles[step]}
 			description={descriptions[step]}
-			maxW={step === 'start' ? '980px' : '640px'}
+			maxW={step === 'start' || step === 'look' ? '980px' : '640px'}
 			footer={
 				<>
 					{step !== 'start' && (
@@ -394,7 +417,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 							px={3}
 							variant='ghost'
 							mr='auto'
-							onClick={() => setStep(step === 'match' ? 'page' : 'start')}>
+							onClick={() => setStep(step === 'match' ? 'page' : step === 'page' ? 'look' : 'start')}>
 							Back
 						</Button>
 					)}
@@ -428,7 +451,7 @@ const NewTemplateDialog: FC<{ open: boolean; onClose: () => void; route?: string
 					)}
 				</>
 			}>
-			{step === 'start' ? startStep : step === 'page' ? pageStep : matchStep}
+			{step === 'start' ? startStep : step === 'look' ? lookStep : step === 'page' ? pageStep : matchStep}
 		</Shell>
 	);
 };

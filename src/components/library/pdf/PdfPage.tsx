@@ -1,11 +1,12 @@
 'use client';
 
-import { CSSProperties, DragEvent, FC, Fragment, MouseEvent, PointerEvent, ReactNode, memo } from 'react';
+import { CSSProperties, DragEvent, FC, Fragment, MouseEvent, PointerEvent, ReactNode, memo, useEffect } from 'react';
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import { meets } from '../functions/fieldLocks';
 import { Scope, fill, valueOf } from './tokens';
 import { Block, PdfTemplate, pageSize } from './types';
+import { resolveTheme, roleColors } from './theme';
 
 /**
  * A PDF template drawn in HTML — the designer's page and the gallery's
@@ -107,6 +108,40 @@ const FAMILY: Record<string, string> = {
 	helvetica: 'Helvetica, Arial, sans-serif',
 	times: '"Times New Roman", Times, serif',
 	courier: '"Courier New", Courier, monospace',
+	// The theme families (D24): public/fonts/pdf/fonts.css, the same fonts the server embeds.
+	inter: "'Pdf Inter', sans-serif",
+	dmsans: "'Pdf DM Sans', sans-serif",
+	manrope: "'Pdf Manrope', sans-serif",
+	montserrat: "'Pdf Montserrat', sans-serif",
+	poppins: "'Pdf Poppins', sans-serif",
+	plexsans: "'Pdf IBM Plex Sans', sans-serif",
+	grotesk: "'Pdf Space Grotesk', sans-serif",
+	playfair: "'Pdf Playfair Display', serif",
+	garamond: "'Pdf EB Garamond', serif",
+	merriweather: "'Pdf Merriweather', serif",
+	sourceserif: "'Pdf Source Serif 4', serif",
+	crimson: "'Pdf Crimson Pro', serif",
+	plexserif: "'Pdf IBM Plex Serif', serif",
+};
+/** A family's CSS stack (theme pickers show their names in it). */
+export const fontStack = (key?: string) => FAMILY[key || 'sans'] || FAMILY.sans;
+
+/** The theme fonts' @font-face rules, added to the document once (each file loads only when a page uses it). */
+export const usePdfFonts = () =>
+	useEffect(() => {
+		if (document.getElementById('pdf-theme-fonts')) return;
+		const link = document.createElement('link');
+		link.id = 'pdf-theme-fonts';
+		link.rel = 'stylesheet';
+		link.href = '/fonts/pdf/fonts.css';
+		document.head.appendChild(link);
+	}, []);
+
+/** The template as it's drawn: colour roles → hex, `font: 'heading'` → the heading family, every role on the style (theme.ts). */
+export const themedTemplate = (t: PdfTemplate): PdfTemplate => {
+	if (!t?.style) return t;
+	const r = resolveTheme(t as any) as PdfTemplate;
+	return { ...r, style: { ...r.style, ...roleColors(r.style as any), color: r.style.color, muted: r.style.muted } as any };
 };
 const HAIRLINE = '#e5e7eb';
 const ZEBRA = '#f6f7f9';
@@ -468,7 +503,7 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 			const px = b.padX ?? b.pad ?? 10;
 			const py = b.padY ?? b.pad ?? 10;
 			const sides: string[] | null = Array.isArray(b.borderSides) && b.borderSides.length ? b.borderSides : null;
-			const line = b.border ? `${pt(b.border)} solid ${b.borderColor || HAIRLINE}` : undefined;
+			const line = b.border ? `${pt(b.border)} solid ${b.borderColor || ctx.t.style.line || HAIRLINE}` : undefined;
 			const reach = bleed && b.bg ? bleed : null;
 			return (
 				<div
@@ -503,7 +538,7 @@ const BlockBody: FC<{ b: Block; ctx: Ctx; scope: Scope; flow: Flow; bleed?: Blee
 			);
 		}
 		case 'divider':
-			return <div style={{ height: 0, borderTop: `${pt(b.thickness ?? 0.75)} ${b.dashed ? 'dashed' : 'solid'} ${b.color || HAIRLINE}` }} />;
+			return <div style={{ height: 0, borderTop: `${pt(b.thickness ?? 0.75)} ${b.dashed ? 'dashed' : 'solid'} ${b.color || ctx.t.style.line || HAIRLINE}` }} />;
 		case 'spacer': {
 			// A height in a stack, a width in a row (the wrapper's flex basis); hatched in the designer when it fills.
 			const fills = Number(b.grow) > 0 && !!ctx.onSelect;
@@ -564,14 +599,14 @@ const FieldsView: FC<{ b: any; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) =
 								background: r.bar ? s.accent : undefined,
 								padding: r.bar ? '6pt 8pt' : 0,
 							}}>
-							<div style={{ ...textCss(ctx, b, { size, weight: bold ? 600 : b.weight ?? 400, color: r.bar ? '#ffffff' : bold ? b.color ?? s.color : s.muted, align: 'left', upper: false, spacing: 0 }), flex: `0 0 calc(${(b.labelWidth ?? 0.5) * 100}% - 3pt)` }}>
+							<div style={{ ...textCss(ctx, b, { size, weight: bold ? 600 : b.weight ?? 400, color: r.bar ? s.onAccent || '#ffffff' : bold ? b.color ?? s.color : s.muted, align: 'left', upper: false, spacing: 0 }), flex: `0 0 calc(${(b.labelWidth ?? 0.5) * 100}% - 3pt)` }}>
 								<Rich
 									text={r.label}
 									ctx={ctx}
 									scope={scope}
 								/>
 							</div>
-							<div style={{ ...textCss(ctx, b, { size, weight: bold ? 700 : b.weight ?? 400, color: r.bar ? '#ffffff' : b.color ?? s.color, align: b.align === 'right' ? 'right' : 'left', upper: false, spacing: 0 }), flex: '1 1 0', minWidth: 0 }}>
+							<div style={{ ...textCss(ctx, b, { size, weight: bold ? 700 : b.weight ?? 400, color: r.bar ? s.onAccent || '#ffffff' : b.color ?? s.color, align: b.align === 'right' ? 'right' : 'left', upper: false, spacing: 0 }), flex: '1 1 0', minWidth: 0 }}>
 								<Rich
 									text={r.value}
 									ctx={ctx}
@@ -602,8 +637,8 @@ const TableView: FC<{ b: any; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) =>
 		verticalAlign: 'top',
 		textAlign: align as any,
 		background: header ? b.headerBg : zebra ? ZEBRA : undefined,
-		border: grid ? `0.5pt solid ${b.lineColor || HAIRLINE}` : undefined,
-		borderBottom: grid ? `0.5pt solid ${b.lineColor || HAIRLINE}` : lines ? (header ? `0.75pt solid ${b.lineColor || s.color}` : `0.5pt solid ${b.lineColor || HAIRLINE}`) : undefined,
+		border: grid ? `0.5pt solid ${b.lineColor || s.line || HAIRLINE}` : undefined,
+		borderBottom: grid ? `0.5pt solid ${b.lineColor || s.line || HAIRLINE}` : lines ? (header ? `0.75pt solid ${b.lineColor || s.color}` : `0.5pt solid ${b.lineColor || s.line || HAIRLINE}`) : undefined,
 	});
 	const style = (header: boolean) => textCss(ctx, b, { weight: header ? 600 : b.weight ?? 400, color: header ? b.headerColor ?? s.color : b.color ?? s.color, upper: false, spacing: 0 });
 	return (
@@ -750,7 +785,9 @@ const FreeView: FC<{ b: Block; ctx: Ctx; scope: Scope }> = ({ b, ctx, scope }) =
 };
 
 const PdfPage: FC<PdfPageProps> = props => {
-	const { template: t, scope, scale = 1, clip } = props;
+	const { scope, scale = 1, clip } = props;
+	usePdfFonts();
+	const t = themedTemplate(props.template);
 	const [w, h] = pageSize(t);
 	const [mt, mr, mb, ml] = t.page?.margin || [40, 40, 40, 40];
 	const ctx: Ctx = { ...props, t };

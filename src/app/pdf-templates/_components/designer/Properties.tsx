@@ -105,7 +105,7 @@ const TextStyle: FC<{ b: Block; set: (p: Partial<Block>) => void; align?: boolea
 		<Row label='Font'>
 			<Pick
 				value={b.font ?? ''}
-				options={[['', 'Page’s font'], ...FONT]}
+				options={[['', 'Page’s font'], ['heading', 'Heading font (theme)'], ...FONT]}
 				onChange={v => set({ font: v || undefined })}
 			/>
 		</Row>

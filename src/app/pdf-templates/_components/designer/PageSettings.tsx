@@ -6,7 +6,8 @@ import { Plus, X } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import { FieldTree, PdfTemplate } from '@/components/library/pdf/types';
 import { useGetPdfCategoriesQuery } from '@/components/library';
-import { Color, FONT, Num, Pick, Row, Section, Toggle } from './controls';
+import { Num, Pick, Row, Section, Toggle } from './controls';
+import { familyLabel, roleColors } from '@/components/library/pdf/theme';
 import { DocLink } from '../ui';
 
 /**
@@ -19,7 +20,9 @@ const PageSettings: FC<{
 	set: (patch: Partial<PdfTemplate>) => void;
 	pages: { value: string; label: string }[];
 	tree?: FieldTree;
-}> = ({ template: t, set, pages, tree }) => {
+	/** Opens the Theme tab (fonts and colours, D24). */
+	onTheme?: () => void;
+}> = ({ template: t, set, pages, tree, onTheme }) => {
 	const page = (p: Partial<PdfTemplate['page']>) => set({ page: { ...t.page, ...p } });
 	const style = (p: Partial<PdfTemplate['style']>) => set({ style: { ...t.style, ...p } });
 	const margin = (i: number, v: number | undefined) => page({ margin: t.page.margin.map((m, j) => (j === i ? v ?? 0 : m)) as any });
@@ -137,12 +140,44 @@ const PageSettings: FC<{
 			</Section>
 
 			<Section title='Look'>
-				<Row label='Font'>
-					<Pick
-						value={t.style.font}
-						options={FONT}
-						onChange={v => style({ font: v as any })}
-					/>
+				{/* Fonts and colours live in the Theme tab (D24); here what it is, and the way there. */}
+				<Row label='Theme'>
+					<Flex
+						align='center'
+						gap={2}
+						minW={0}>
+						<Flex
+							gap='3px'
+							flexShrink={0}>
+							{(['accent', 'dark', 'soft', 'text'] as const).map(r => (
+								<Box
+									key={r}
+									w='12px'
+									h='12px'
+									borderRadius='full'
+									borderWidth='1px'
+									borderColor='border'
+									style={{ background: roleColors(t.style as any)[r] }}
+								/>
+							))}
+						</Flex>
+						<Text
+							fontSize='xs'
+							truncate
+							flex='1'
+							minW={0}>
+							{familyLabel(t.style.heading || t.style.font)}
+							{(t.style.heading || t.style.font) !== t.style.font ? ` + ${familyLabel(t.style.font)}` : ''}
+						</Text>
+						{onTheme && (
+							<Button
+								size='2xs'
+								variant='outline'
+								onClick={onTheme}>
+								Change
+							</Button>
+						)}
+					</Flex>
 				</Row>
 				<Row label='Text size'>
 					<Num
@@ -161,26 +196,6 @@ const PageSettings: FC<{
 						step={0.05}
 						unit='×'
 						onChange={v => style({ lineHeight: v ?? 1.35 })}
-					/>
-				</Row>
-				<Row label='Text'>
-					<Color
-						value={t.style.color}
-						onChange={v => style({ color: v || '#111111' })}
-					/>
-				</Row>
-				<Row label='Muted'>
-					<Color
-						value={t.style.muted}
-						onChange={v => style({ muted: v || '#6b7280' })}
-					/>
-				</Row>
-				<Row
-					label='Accent'
-					hint='Filled bands in label/value rows.'>
-					<Color
-						value={t.style.accent}
-						onChange={v => style({ accent: v || '#2563eb' })}
 					/>
 				</Row>
 			</Section>

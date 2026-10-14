@@ -1,10 +1,11 @@
 'use client';
 
-import { FC, ReactNode } from 'react';
+import { FC, ReactNode, createContext, useContext } from 'react';
 import { Box, Flex, IconButton, Input, Switch, Text } from '@chakra-ui/react';
 import { AlignCenter, AlignLeft, AlignRight, LucideIcon } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
 import { Tooltip } from '@/components/ui/tooltip';
+import { FONT_FAMILIES, ROLES, ROLE_INFO, Role, ThemeStyle, isRole, roleColors } from '@/components/library/pdf/theme';
 
 /** The designer's small inputs: a label beside or above, values in pt. */
 
@@ -70,38 +71,92 @@ export const Num: FC<{ value: any; onChange: (v: number | undefined) => void; mi
 	</Flex>
 );
 
-export const Color: FC<{ value?: string; onChange: (v: string | undefined) => void; placeholder?: string }> = ({ value, onChange, placeholder = 'Default' }) => (
-	<Flex
-		align='center'
-		gap={1.5}>
-		<Box
-			as='label'
-			w='24px'
-			h='24px'
-			borderRadius='sm'
-			borderWidth='1px'
-			borderColor='border'
-			flexShrink={0}
-			cursor='pointer'
-			position='relative'
-			overflow='hidden'
-			style={{ background: value || 'transparent' }}>
-			<input
-				type='color'
-				value={value || '#000000'}
-				onChange={e => onChange(e.target.value)}
-				style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer' }}
-			/>
+/** The template's theme, for colour pickers to offer its roles (D24). */
+export const ThemeStyleContext = createContext<ThemeStyle | null>(null);
+
+const roleByName = (text: string): Role | undefined => {
+	const t = text.trim().toLowerCase();
+	return ROLES.find(r => r.toLowerCase() === t || ROLE_INFO[r].label.toLowerCase() === t);
+};
+
+/**
+ * A colour: a swatch (the system picker) and its hex — and, inside the
+ * designer, the theme's colours as dots (D24). A dot picked stores the role
+ * ("accent"), so the block follows the theme; a hex stays fixed.
+ * `roles={false}` for the theme's own colours.
+ */
+export const Color: FC<{ value?: string; onChange: (v: string | undefined) => void; placeholder?: string; roles?: boolean }> = ({ value, onChange, placeholder = 'Default', roles = true }) => {
+	const style = useContext(ThemeStyleContext);
+	const theme = roles && style ? roleColors(style) : null;
+	const role = isRole(value) ? value : undefined;
+	const shown = role ? theme?.[role] : value;
+	return (
+		<Box>
+			<Flex
+				align='center'
+				gap={1.5}>
+				<Box
+					as='label'
+					w='24px'
+					h='24px'
+					borderRadius='sm'
+					borderWidth='1px'
+					borderColor='border'
+					flexShrink={0}
+					cursor='pointer'
+					position='relative'
+					overflow='hidden'
+					style={{ background: shown || 'transparent' }}>
+					<input
+						type='color'
+						value={shown && shown.length === 7 ? shown : '#000000'}
+						onChange={e => onChange(e.target.value)}
+						style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer' }}
+					/>
+				</Box>
+				<Input
+					size='xs'
+					fontFamily={role ? undefined : 'mono'}
+					value={role ? `${ROLE_INFO[role].label} · theme` : value || ''}
+					placeholder={placeholder}
+					onChange={e => {
+						const text = e.target.value.replace(/ · theme$/, '');
+						onChange(roleByName(text) || text.trim() || undefined);
+					}}
+				/>
+			</Flex>
+			{theme && (
+				<Flex
+					gap='5px'
+					mt={1.5}
+					wrap='wrap'>
+					{ROLES.map(r => (
+						<Tooltip
+							key={r}
+							content={`${ROLE_INFO[r].label} — ${ROLE_INFO[r].hint}. Follows the theme.`}>
+							<Box
+								as='button'
+								aria-label={`Theme colour: ${ROLE_INFO[r].label}`}
+								aria-pressed={role === r}
+								w='16px'
+								h='16px'
+								borderRadius='full'
+								borderWidth='1px'
+								borderColor='border'
+								cursor='pointer'
+								outline={role === r ? '2px solid' : undefined}
+								outlineColor='blue.500'
+								outlineOffset='1px'
+								style={{ background: theme[r] }}
+								onClick={() => onChange(r)}
+							/>
+						</Tooltip>
+					))}
+				</Flex>
+			)}
 		</Box>
-		<Input
-			size='xs'
-			fontFamily='mono'
-			value={value || ''}
-			placeholder={placeholder}
-			onChange={e => onChange(e.target.value.trim() || undefined)}
-		/>
-	</Flex>
-);
+	);
+};
 
 export const Pick: FC<{ value: any; onChange: (v: string) => void; options: [string, string][] }> = ({ value, onChange, options }) => (
 	<Dropdown
@@ -230,14 +285,8 @@ export const ALIGN: IconOption[] = [
 	{ value: 'center', label: 'Centre', icon: AlignCenter },
 	{ value: 'right', label: 'Right', icon: AlignRight },
 ];
-/** The fonts a template can print in (backend fonts.ts). */
-export const FONT: [string, string][] = [
-	['sans', 'Geist (sans)'],
-	['mono', 'Geist Mono'],
-	['helvetica', 'Helvetica'],
-	['times', 'Times'],
-	['courier', 'Courier'],
-];
+/** The fonts a template can print in (theme.ts FONT_FAMILIES — backend fonts.ts embeds them). */
+export const FONT: [string, string][] = FONT_FAMILIES.map(f => [f.key, f.builtIn ? `${f.label} (built-in, Latin only)` : `${f.label} · ${f.group.toLowerCase()}`]);
 
 export const WEIGHT: [string, string][] = [
 	['400', 'Regular'],
