@@ -14,6 +14,7 @@ import {
 } from '../store';
 import { when } from '../cl/format';
 import { IS_TENANT_PANEL } from '../config/lib/constants/panel';
+import { notificationHref } from '../tenant/notificationHref';
 
 /**
  * The navbar bell, between search and the user menu. The badge is the unread
@@ -48,7 +49,8 @@ const NotificationMenu = ({ iconSize }: { iconSize?: number }) => {
 	const openOne = async (n: any) => {
 		setOpen(false);
 		if (!n.read) markRead({ id: n._id }).catch(() => {});
-		if (n.href) router.push(n.href);
+		const href = notificationHref(n);
+		if (href) router.push(href);
 	};
 
 	return (

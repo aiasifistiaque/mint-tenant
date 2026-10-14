@@ -13,6 +13,7 @@ import {
 	useMarkNotificationReadMutation,
 } from '@/components/library';
 import { EmptyState, ErrorState, PageHeader, Panel, TableSkeleton, when } from '@/components/library/cl';
+import { notificationHref } from '@/components/library/tenant/notificationHref';
 
 /**
  * The signed-in person's notifications, newest first — an admin's, or in the
@@ -51,7 +52,8 @@ const NotificationsPage = () => {
 
 	const open = async (n: any) => {
 		if (!n.read) await markRead({ id: n._id }).catch(() => {});
-		if (n.href) router.push(n.href);
+		const href = notificationHref(n);
+		if (href) router.push(href);
 	};
 
 	return (

@@ -226,6 +226,15 @@ export type MyInvitation = {
 	expiresAt: string;
 };
 
+/** One invitation's own page (WO-50): what it offers, and whether it can still be answered. */
+export type MyInvitationDetail = MyInvitation & {
+	state: 'open' | 'accepted' | 'declined' | 'cancelled' | 'expired' | 'joined';
+	roleDescription?: string;
+	/** The project's address once it's theirs. */
+	address?: string | null;
+	createdAt?: string;
+};
+
 /** Someone who opens the current project (its People page, WO-47). */
 export type ProjectPerson = {
 	_id: string;
@@ -669,6 +678,10 @@ export const tenantApi = mainApi.injectEndpoints({
 		acceptMyInvitation: builder.mutation<{ token: string; message: string; project?: string | null }, string>({
 			query: id => ({ url: `invitations/for-me/${id}/accept`, method: 'POST' }),
 		}),
+		getMyInvitation: builder.query<{ verified: boolean; email: string; invitation: MyInvitationDetail | null }, string>({
+			query: id => `invitations/for-me/${id}`,
+			providesTags: ['tenant-invitations', 'self'],
+		}),
 		declineMyInvitation: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `invitations/for-me/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['tenant-invitations'],
@@ -1004,6 +1017,7 @@ export const {
 	useGetMyInvitationsQuery,
 	useAcceptMyInvitationMutation,
 	useDeclineMyInvitationMutation,
+	useGetMyInvitationQuery,
 	useGetProjectPeopleQuery,
 	useGetRecordCommentsQuery,
 	useGetAutomationsQuery,
