@@ -138,6 +138,7 @@ const tags: string[] = [
 	'tenant-roles',
 	'tenant-invitations',
 	'tenant-people',
+	'record-comments',
 	'tenant-projects',
 	'tenant-analytics',
 	'tenant-site',

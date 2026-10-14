@@ -8,7 +8,9 @@ import { Pencil } from 'lucide-react';
 import useRecordView from '@/components/library/components/view/record/useRecordView';
 import RecordOverview from '@/components/library/components/view/record/RecordOverview';
 import { StatusPill, ago } from '@/components/library/modals/CreateModal/CreateModal';
-import { HOME, pagePath } from '@/components/library/config/lib/constants/panel';
+import { HOME, IS_TENANT_PANEL, pagePath } from '@/components/library/config/lib/constants/panel';
+import RecordComments from '@/components/library/tenant/RecordComments';
+import { useGetRecordCommentsQuery } from '@/components/library/store/services/tenantApi';
 import { DownloadPdfButton } from '@/components/library/pdf/DownloadPdf';
 
 /** A page's own tab, shown ahead of Overview. */
@@ -55,7 +57,7 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`].filter(Boolean).join(' · ') || undefined;
 
 	// Tabs after Overview: records of other routes that link to this one, as
-	// set in the route builder's view, then History, which every record has.
+	// set in the route builder's view, then Comments (tenant projects), then History, which every record has.
 	// The open tab lives in `?tab=`.
 	const firstTab = pageTabs[0]?.value || 'overview';
 	const [tab, setTab] = useState(firstTab);
@@ -70,9 +72,13 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 		else url.searchParams.set('tab', t);
 		window.history.replaceState(null, '', url.toString());
 	};
+	// Comments (WO-49): tenant projects only, while the project has them on (or the record has some).
+	const { data: commentData } = useGetRecordCommentsQuery({ route: slug, record: id }, { skip: !IS_TENANT_PANEL });
+	const showComments = IS_TENANT_PANEL && !!commentData && (commentData.settings?.comments !== false || commentData.total > 0);
 	const openTab =
 		tab === 'overview' ||
 		tab === 'history' ||
+		(tab === 'comments' && showComments) ||
 		pageTabs.some(t => t.value === tab) ||
 		tabs.some(t => String(t.index) === tab)
 			? tab
@@ -151,6 +157,19 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 								</>
 							),
 						})),
+						...(showComments
+							? [
+									{
+										value: 'comments',
+										label: (
+											<>
+												Comments
+												{!!commentData?.total && countBadge(commentData.total)}
+											</>
+										),
+									},
+							  ]
+							: []),
 						{
 							value: 'history',
 							label: (
@@ -181,6 +200,14 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 							/>
 						</Tabs.Content>
 					))}
+					{showComments && (
+						<Tabs.Content value='comments'>
+							<RecordComments
+								route={slug}
+								record={id}
+							/>
+						</Tabs.Content>
+					)}
 					<Tabs.Content value='history'>
 						<HistoryTimeline id={id} />
 					</Tabs.Content>

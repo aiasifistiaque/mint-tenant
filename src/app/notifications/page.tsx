@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Button, Flex, IconButton, Text } from '@chakra-ui/react';
-import { Bell, Check, Inbox, KeyRound, MailPlus, Trash2, UserCheck, UserCog } from 'lucide-react';
+import { AtSign, Bell, Check, Inbox, KeyRound, MailPlus, Trash2, UserCheck, UserCog } from 'lucide-react';
 import { HOME, IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import {
 	Layout,
@@ -25,6 +25,7 @@ const PAGE_SIZE = 20;
 
 const ICONS: Record<string, any> = {
 	'access-granted': KeyRound,
+	mention: AtSign,
 	invitation: MailPlus,
 	'member-joined': UserCheck,
 	'member-changed': UserCog,

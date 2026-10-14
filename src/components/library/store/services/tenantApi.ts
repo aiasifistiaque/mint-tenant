@@ -76,6 +76,8 @@ export type TenantProject = {
 	color?: string;
 	domains?: string[];
 	mediaScope?: MediaScope;
+	/** Comments on records and @mentions in them (WO-49): both on unless turned off. */
+	collaboration?: { comments: boolean; mentions: boolean };
 	isActive: boolean;
 	models?: number;
 	/** Its business details — only from GET /projects/:id and PUT (the organization's until it has its own). */
@@ -96,6 +98,21 @@ export type TenantProject = {
 	/** The template it was built from (docs/templates T-03). */
 	fromTemplate?: { name: string; version?: number; appliedAt?: string };
 };
+
+/** A comment on a record (WO-49). `mentions`: the people it @mentions, by the names they had then. */
+export type RecordComment = {
+	_id: string;
+	route: string;
+	record: string;
+	author: { _id: string; name: string };
+	body: string;
+	mentions: { _id: string; name: string }[];
+	createdAt: string;
+	editedAt?: string | null;
+};
+export type MentionPerson = { _id: string; name: string; email: string };
+/** Who can be @mentioned on a record: everyone on the page, the private record's people, or no one (Only me). */
+export type Mentionable = { enabled: boolean; mode: 'everyone' | 'private' | 'none'; people: MentionPerson[]; blocked: MentionPerson[] };
 
 export type Member = ProjectAccess & {
 	_id: string;
@@ -637,6 +654,31 @@ export const tenantApi = mainApi.injectEndpoints({
 			invalidatesTags: ['tenant-projects', 'self', 'tenant-org'],
 		}),
 
+		/* --------------------------------- comments on a record (WO-49) */
+		getRecordComments: builder.query<
+			{ doc: RecordComment[]; total: number; settings: { comments: boolean; mentions: boolean }; canModerate: boolean },
+			{ route: string; record: string }
+		>({
+			query: ({ route, record }) => `comments?route=${encodeURIComponent(route)}&record=${record}`,
+			providesTags: ['record-comments'],
+		}),
+		getMentionable: builder.query<Mentionable, { route: string; record: string }>({
+			query: ({ route, record }) => `comments/mentionable?route=${encodeURIComponent(route)}&record=${record}`,
+			providesTags: ['record-comments'],
+		}),
+		addRecordComment: builder.mutation<RecordComment, { route: string; record: string; body: string; mentions: string[] }>({
+			query: body => ({ url: 'comments', method: 'POST', body }),
+			invalidatesTags: ['record-comments'],
+		}),
+		updateRecordComment: builder.mutation<RecordComment, { id: string; body: string; mentions: string[] }>({
+			query: ({ id, ...body }) => ({ url: `comments/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['record-comments'],
+		}),
+		deleteRecordComment: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `comments/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['record-comments'],
+		}),
+
 		/* ------------------------------------- inside the open project */
 		/** Who opens the project (everyone in it, WO-48); for those who manage it, its pending invitations and the roles it invites with (WO-47). */
 		getProjectPeople: builder.query<
@@ -855,6 +897,11 @@ export const {
 	useAcceptMyInvitationMutation,
 	useDeclineMyInvitationMutation,
 	useGetProjectPeopleQuery,
+	useGetRecordCommentsQuery,
+	useGetMentionableQuery,
+	useAddRecordCommentMutation,
+	useUpdateRecordCommentMutation,
+	useDeleteRecordCommentMutation,
 	useInviteToProjectMutation,
 	useResendProjectInvitationMutation,
 	useCancelProjectInvitationMutation,
