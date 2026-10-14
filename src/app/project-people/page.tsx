@@ -280,10 +280,11 @@ const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string; canMan
 };
 
 export default function ProjectPeoplePage() {
-	const { self, project } = useWorkspace();
-	const { data, isLoading } = useGetProjectPeopleQuery(undefined, { skip: !project });
-	// The server says who may change them (WO-48): everyone else sees the list only.
-	const canManage = !!data?.canManage;
+	const { self, project, can } = useWorkspace();
+	const { data, isLoading, error } = useGetProjectPeopleQuery(undefined, { skip: !project });
+	// The server says who may change them (WO-48): everyone else sees the list only. A backend from
+	// before WO-48 doesn't say — then the role decides, as it did (WO-47).
+	const canManage = data?.canManage ?? (can('invite-to-projects') || can('manage-members'));
 	const [resend, resending] = useResendProjectInvitationMutation();
 	const [cancel] = useCancelProjectInvitationMutation();
 	const [inviting, setInviting] = useState(false);
@@ -323,7 +324,15 @@ export default function ProjectPeoplePage() {
 							</Flex>
 						}
 						flush>
-						{isLoading ? (
+						{error ? (
+							<Text
+								role='alert'
+								p={4}
+								fontSize='13px'
+								color='red.fg'>
+								{errorText(error)}
+							</Text>
+						) : isLoading ? (
 							<Box p={4}>
 								{[0, 1, 2].map(i => (
 									<Skeleton
