@@ -61,11 +61,9 @@ const Footer = () => (
 	<Box
 		as='footer'
 		flexShrink={0}
-		// Pinned to the bottom of the window while the page scrolls under it;
-		// the page's own background so nothing shows through.
-		position='sticky'
-		bottom={0}
-		zIndex={2}
+		// At the end of the page, not pinned to the window: it scrolls in after
+		// the content. A short page still ends at the window's bottom edge —
+		// Layout gives the page at least a screen of height (minH 100vh).
 		bg='inherit'
 		borderTopWidth='1px'
 		borderColor='border.muted'
