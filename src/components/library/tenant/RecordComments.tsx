@@ -1,7 +1,7 @@
 'use client';
 
-import { FC, Fragment, KeyboardEvent, ReactNode, useMemo, useRef, useState } from 'react';
-import { Box, Button, Center, Flex, Skeleton, Text, Textarea } from '@chakra-ui/react';
+import { FC, Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
+import { Box, Button, Center, Flex, Link, Skeleton, Text, Textarea } from '@chakra-ui/react';
 import { AtSign, Lock, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { PromptDialog } from '../modals';
 import { EmptyState, when } from '../cl';
@@ -25,6 +25,12 @@ import { useWorkspace } from './useWorkspace';
  * record only its owner and the people it's shared with (the rest show, greyed
  * out, with why); for an Only me record no one. The server checks the same
  * and answers with the reason, which shows under the box.
+ *
+ * Replies (WO-53) work like Facebook's: one level under each comment, the
+ * last two showing and the rest behind "View earlier replies"; replying to a
+ * reply joins the same thread and starts with @their name. Links in a comment
+ * open in a new tab. A notification's link (`?comment=<id>`) opens the thread
+ * and scrolls to the comment.
  */
 
 const errorText = (e: any) => e?.data?.message || 'Something went wrong — try again.';
@@ -53,10 +59,49 @@ const nobodyReason = (m?: Mentionable): string | null => {
 
 const escapeRx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** The text with each @mention of the comment highlighted. */
+/** Web addresses in a comment: http(s)://… or www.… */
+const URL_RX = /((?:https?:\/\/|www\.)[^\s<>"]+)/gi;
+
+/** A typed address without the punctuation that ends its sentence ("see example.com." / "(at example.com)"). */
+const trimUrl = (raw: string) => {
+	let url = raw.replace(/[.,;:!?'"]+$/, '');
+	while (url.endsWith(')') && (url.match(/\(/g) || []).length < (url.match(/\)/g) || []).length) url = url.slice(0, -1).replace(/[.,;:!?'"]+$/, '');
+	return url;
+};
+
+/** Plain text with its web addresses as links that open in a new tab. */
+const Linked: FC<{ text: string }> = ({ text }) => {
+	const parts = text.split(URL_RX);
+	if (parts.length === 1) return <>{text}</>;
+	return (
+		<>
+			{parts.map((p, i) => {
+				if (i % 2 === 0) return <Fragment key={i}>{p}</Fragment>;
+				const url = trimUrl(p);
+				return (
+					<Fragment key={i}>
+						<Link
+							href={/^https?:\/\//i.test(url) ? url : `https://${url}`}
+							target='_blank'
+							rel='noopener noreferrer nofollow'
+							display='inline'
+							wordBreak='break-all'
+							// `[href]` outranks the panel's global `a:not(.chakra-button) { color: inherit }`.
+							css={{ '&[href]': { color: 'blue.fg', textDecoration: 'underline', textUnderlineOffset: '2px' } }}>
+							{url}
+						</Link>
+						{p.slice(url.length)}
+					</Fragment>
+				);
+			})}
+		</>
+	);
+};
+
+/** The text with each @mention of the comment highlighted, and its links clickable. */
 const Body: FC<{ body: string; mentions: RecordComment['mentions'] }> = ({ body, mentions }) => {
 	const names = mentions.map(m => m.name).filter(Boolean).sort((a, b) => b.length - a.length);
-	if (!names.length) return <>{body}</>;
+	if (!names.length) return <Linked text={body} />;
 	const parts = body.split(new RegExp(`(@(?:${names.map(escapeRx).join('|')}))`, 'g'));
 	return (
 		<>
@@ -73,7 +118,10 @@ const Body: FC<{ body: string; mentions: RecordComment['mentions'] }> = ({ body,
 						{p}
 					</Text>
 				) : (
-					<Fragment key={i}>{p}</Fragment>
+					<Linked
+						key={i}
+						text={p}
+					/>
 				)
 			)}
 		</>
@@ -88,10 +136,12 @@ type ComposerProps = {
 	onSubmit: (body: string, mentions: string[]) => Promise<any>;
 	onCancel?: () => void;
 	autoFocus?: boolean;
+	rows?: number;
+	placeholder?: string;
 };
 
 /** The writing box, with the @ list. Picked people are kept by name → id; only those still written go up. */
-const Composer: FC<ComposerProps> = ({ mentionable, initialBody = '', initialMentions = [], submitLabel, onSubmit, onCancel, autoFocus }) => {
+const Composer: FC<ComposerProps> = ({ mentionable, initialBody = '', initialMentions = [], submitLabel, onSubmit, onCancel, autoFocus, rows = 3, placeholder }) => {
 	const [body, setBody] = useState(initialBody);
 	const [picked, setPicked] = useState<Map<string, string>>(() => new Map(initialMentions.map(m => [m.name, m._id])));
 	const [query, setQuery] = useState<{ start: number; text: string } | null>(null);
@@ -99,6 +149,13 @@ const Composer: FC<ComposerProps> = ({ mentionable, initialBody = '', initialMen
 	const [error, setError] = useState('');
 	const [sending, setSending] = useState(false);
 	const ref = useRef<HTMLTextAreaElement>(null);
+	// Focused with the caret after what's there (a reply's @name, a comment being edited).
+	useEffect(() => {
+		if (!autoFocus || !ref.current) return;
+		const end = ref.current.value.length;
+		ref.current.focus();
+		ref.current.setSelectionRange(end, end);
+	}, [autoFocus]);
 
 	const nobody = nobodyReason(mentionable);
 	const matches = (list: MentionPerson[] = []) => {
@@ -193,11 +250,10 @@ const Composer: FC<ComposerProps> = ({ mentionable, initialBody = '', initialMen
 				<Textarea
 					ref={ref}
 					size='sm'
-					rows={3}
-					autoFocus={autoFocus}
+					rows={rows}
 					maxLength={5000}
 					value={body}
-					placeholder={nobody ? 'Write a comment' : 'Write a comment — type @ to mention someone'}
+					placeholder={placeholder || (nobody ? 'Write a comment' : 'Write a comment — type @ to mention someone')}
 					onChange={e => change(e.target.value)}
 					onKeyDown={keys}
 					onBlur={() => setTimeout(() => setQuery(null), 150)}
@@ -357,26 +413,55 @@ const Composer: FC<ComposerProps> = ({ mentionable, initialBody = '', initialMen
 	);
 };
 
-const CommentRow: FC<{ c: RecordComment; mine: boolean; canDelete: boolean; mentionable?: Mentionable }> = ({ c, mine, canDelete, mentionable }) => {
+type RowProps = {
+	c: RecordComment;
+	mine: boolean;
+	canDelete: boolean;
+	mentionable?: Mentionable;
+	/** A reply: smaller, under its comment. */
+	reply?: boolean;
+	/** How many replies go with it when it's deleted. */
+	replies?: number;
+	/** Opens the reply box under this comment's thread; absent while comments are off. */
+	onReply?: () => void;
+	/** The comment a notification pointed at: scrolled to and lit up. */
+	focused?: boolean;
+};
+
+const CommentRow: FC<RowProps> = ({ c, mine, canDelete, mentionable, reply, replies = 0, onReply, focused }) => {
 	const [editing, setEditing] = useState(false);
 	const [confirm, setConfirm] = useState(false);
+	const [lit, setLit] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
 	const [update] = useUpdateRecordCommentMutation();
 	const [remove, removing] = useDeleteRecordCommentMutation();
+	useEffect(() => {
+		if (!focused) return;
+		// After the tab has switched to Comments.
+		const t = setTimeout(() => {
+			ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			setLit(true);
+		}, 250);
+		const off = setTimeout(() => setLit(false), 2800);
+		return () => (clearTimeout(t), clearTimeout(off));
+	}, [focused]);
 	return (
 		<Flex
-			gap={3}
-			px={4}
-			py={3.5}
-			borderTopWidth='1px'
-			borderColor='border.muted'
-			_first={{ borderTopWidth: 0 }}
+			ref={ref}
+			gap={reply ? 2.5 : 3}
+			py={reply ? 2 : 0}
+			px={reply ? 2 : 0}
+			mx={reply ? -2 : 0}
+			borderRadius='lg'
+			bg={lit ? 'yellow.subtle' : undefined}
+			transition='background 0.6s'
 			id={`comment-${c._id}`}>
 			<Center
-				boxSize='32px'
+				boxSize={reply ? '26px' : '32px'}
 				flexShrink={0}
 				borderRadius='full'
 				bg='bg.muted'
-				fontSize='12px'
+				fontSize={reply ? '10.5px' : '12px'}
 				fontWeight='600'
 				color='fg.muted'>
 				{initials(c.author.name)}
@@ -389,7 +474,7 @@ const CommentRow: FC<{ c: RecordComment; mine: boolean; canDelete: boolean; ment
 					gap={2}
 					wrap='wrap'>
 					<Text
-						fontSize='13.5px'
+						fontSize={reply ? '13px' : '13.5px'}
 						fontWeight='600'>
 						{c.author.name}
 					</Text>
@@ -426,6 +511,7 @@ const CommentRow: FC<{ c: RecordComment; mine: boolean; canDelete: boolean; ment
 					<Box mt={2}>
 						<Composer
 							autoFocus
+							rows={reply ? 2 : 3}
 							mentionable={mentionable}
 							initialBody={c.body}
 							initialMentions={c.mentions}
@@ -439,16 +525,34 @@ const CommentRow: FC<{ c: RecordComment; mine: boolean; canDelete: boolean; ment
 						/>
 					</Box>
 				) : (
-					<Text
-						mt={1}
-						fontSize='13.5px'
-						whiteSpace='pre-wrap'
-						wordBreak='break-word'>
-						<Body
-							body={c.body}
-							mentions={c.mentions}
-						/>
-					</Text>
+					<>
+						<Text
+							mt={reply ? 0.5 : 1}
+							fontSize={reply ? '13px' : '13.5px'}
+							whiteSpace='pre-wrap'
+							wordBreak='break-word'>
+							<Body
+								body={c.body}
+								mentions={c.mentions}
+							/>
+						</Text>
+						{onReply && (
+							<Button
+								variant='plain'
+								size='xs'
+								h='auto'
+								minW={0}
+								p={0}
+								mt={1}
+								fontSize='12px'
+								fontWeight='600'
+								color='fg.muted'
+								_hover={{ color: 'fg', textDecoration: 'underline' }}
+								onClick={onReply}>
+								Reply
+							</Button>
+						)}
+					</>
 				)}
 			</Box>
 			<PromptDialog
@@ -458,12 +562,124 @@ const CommentRow: FC<{ c: RecordComment; mine: boolean; canDelete: boolean; ment
 					const res = await remove(c._id);
 					if ('data' in res) setConfirm(false);
 				}}
-				title='Delete this comment?'
-				description='It’s removed for everyone. This can’t be undone.'
+				title={reply ? 'Delete this reply?' : 'Delete this comment?'}
+				description={
+					replies
+						? `It’s removed for everyone, with its ${replies === 1 ? 'reply' : `${replies} replies`}. This can’t be undone.`
+						: 'It’s removed for everyone. This can’t be undone.'
+				}
 				loading={removing.isLoading}
 				confirmLabel='Delete'
 			/>
 		</Flex>
+	);
+};
+
+/** Replies showing before "View earlier replies". */
+const SHOWN_REPLIES = 2;
+
+type ThreadProps = {
+	top: RecordComment;
+	replies: RecordComment[];
+	selfId?: string;
+	canModerate: boolean;
+	mentionable?: Mentionable;
+	/** Comments are on: replies can be written. */
+	open: boolean;
+	focusId?: string | null;
+	onReply: (body: string, mentions: string[], parent: string) => Promise<any>;
+};
+
+/** One comment and its replies, Facebook-style: indented under it, with a reply box at the end when open. */
+const Thread: FC<ThreadProps> = ({ top, replies, selfId, canModerate, mentionable, open, focusId, onReply }) => {
+	const hidden = Math.max(0, replies.length - SHOWN_REPLIES);
+	const [all, setAll] = useState(false);
+	// A notification pointing at an earlier reply opens the whole thread.
+	useEffect(() => {
+		if (focusId && replies.slice(0, hidden).some(r => r._id === focusId)) setAll(true);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [focusId]);
+	// Who the reply box answers; a new pick remounts it with their @name.
+	const [replyTo, setReplyTo] = useState<{ key: number; name: string; mention?: MentionPerson } | null>(null);
+	const shown = all ? replies : replies.slice(hidden);
+	const startReply = (c: RecordComment) => {
+		// Replying to a reply: start with @their name, when they can be mentioned.
+		const person = c._id !== top._id && c.author._id !== selfId ? mentionable?.people.find(p => p._id === c.author._id) : undefined;
+		setReplyTo({ key: Date.now(), name: c.author.name, mention: mentionable?.enabled ? person : undefined });
+	};
+	const row = (c: RecordComment, reply: boolean) => (
+		<CommentRow
+			key={c._id}
+			c={c}
+			reply={reply}
+			replies={reply ? 0 : replies.length}
+			mine={c.author._id === selfId}
+			canDelete={c.author._id === selfId || canModerate}
+			mentionable={mentionable}
+			focused={c._id === focusId}
+			onReply={open ? () => startReply(c) : undefined}
+		/>
+	);
+	return (
+		<Box
+			px={4}
+			py={3.5}
+			borderTopWidth='1px'
+			borderColor='border.muted'
+			_first={{ borderTopWidth: 0 }}>
+			{row(top, false)}
+			{(replies.length > 0 || replyTo) && (
+				<Flex
+					direction='column'
+					gap={1}
+					mt={2}
+					ml={{ base: 5, md: 11 }}
+					pl={{ base: 3, md: 0 }}
+					borderLeftWidth={{ base: '2px', md: 0 }}
+					borderColor='border.muted'>
+					{hidden > 0 && !all && (
+						<Button
+							variant='plain'
+							size='xs'
+							h='auto'
+							p={0}
+							py={1}
+							alignSelf='flex-start'
+							fontSize='12.5px'
+							fontWeight='600'
+							color='fg.muted'
+							_hover={{ color: 'fg', textDecoration: 'underline' }}
+							onClick={() => setAll(true)}>
+							View {hidden === 1 ? '1 earlier reply' : `${hidden} earlier replies`}
+						</Button>
+					)}
+					{shown.map(c => row(c, true))}
+					{replyTo && (
+						<Box mt={1}>
+							<Composer
+								key={replyTo.key}
+								autoFocus
+								rows={2}
+								mentionable={mentionable}
+								initialBody={replyTo.mention ? `@${replyTo.mention.name} ` : ''}
+								initialMentions={replyTo.mention ? [{ _id: replyTo.mention._id, name: replyTo.mention.name }] : []}
+								placeholder={`Reply to ${replyTo.name}…`}
+								submitLabel='Reply'
+								onCancel={() => setReplyTo(null)}
+								onSubmit={async (body, mentions) => {
+									const res = await onReply(body, mentions, top._id);
+									if (res && 'data' in res) {
+										setReplyTo(null);
+										setAll(true);
+									}
+									return res;
+								}}
+							/>
+						</Box>
+					)}
+				</Flex>
+			)}
+		</Box>
 	);
 };
 
@@ -473,6 +689,9 @@ const RecordComments: FC<{ route: string; record: string }> = ({ route, record }
 	const on = data?.settings?.comments !== false;
 	const { data: mentionable } = useGetMentionableQuery({ route, record }, { skip: !data || !on });
 	const [add] = useAddRecordCommentMutation();
+	// The comment a notification links to (`?comment=<id>`).
+	const [focusId, setFocusId] = useState<string | null>(null);
+	useEffect(() => setFocusId(new URLSearchParams(window.location.search).get('comment')), []);
 
 	if (isLoading)
 		return (
@@ -495,6 +714,10 @@ const RecordComments: FC<{ route: string; record: string }> = ({ route, record }
 		);
 
 	const comments = data?.doc || [];
+	// Threads: top-level comments, oldest first, each with its replies (a reply whose comment is gone stands alone).
+	const ids = new Set(comments.map(c => c._id));
+	const tops = comments.filter(c => !c.parent || !ids.has(c.parent));
+	const repliesOf = (id: string) => comments.filter(c => c.parent === id);
 	return (
 		<Flex
 			direction='column'
@@ -507,13 +730,17 @@ const RecordComments: FC<{ route: string; record: string }> = ({ route, record }
 					borderColor='border'
 					borderRadius='xl'
 					bg='bg.panel'>
-					{comments.map(c => (
-						<CommentRow
+					{tops.map(c => (
+						<Thread
 							key={c._id}
-							c={c}
-							mine={c.author._id === self?._id}
-							canDelete={c.author._id === self?._id || !!data?.canModerate}
+							top={c}
+							replies={repliesOf(c._id)}
+							selfId={self?._id}
+							canModerate={!!data?.canModerate}
 							mentionable={mentionable}
+							open={on}
+							focusId={focusId}
+							onReply={(body, mentions, parent) => add({ route, record, body, mentions, parent })}
 						/>
 					))}
 				</Box>

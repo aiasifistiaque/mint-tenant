@@ -144,7 +144,10 @@ export type AutomationRun = {
 	createdAt: string;
 };
 
-/** A comment on a record (WO-49). `mentions`: the people it @mentions, by the names they had then. */
+/**
+ * A comment on a record (WO-49). `mentions`: the people it @mentions, by the names they had then.
+ * `parent`: the top-level comment it replies to (WO-53), null for a top-level one.
+ */
 export type RecordComment = {
 	_id: string;
 	route: string;
@@ -152,6 +155,7 @@ export type RecordComment = {
 	author: { _id: string; name: string };
 	body: string;
 	mentions: { _id: string; name: string }[];
+	parent?: string | null;
 	createdAt: string;
 	editedAt?: string | null;
 };
@@ -774,7 +778,7 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: ({ route, record }) => `comments/mentionable?route=${encodeURIComponent(route)}&record=${record}`,
 			providesTags: ['record-comments'],
 		}),
-		addRecordComment: builder.mutation<RecordComment, { route: string; record: string; body: string; mentions: string[] }>({
+		addRecordComment: builder.mutation<RecordComment, { route: string; record: string; body: string; mentions: string[]; parent?: string }>({
 			query: body => ({ url: 'comments', method: 'POST', body }),
 			invalidatesTags: ['record-comments'],
 		}),
