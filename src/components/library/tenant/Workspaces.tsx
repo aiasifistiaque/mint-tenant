@@ -28,7 +28,7 @@ import GuideLink from './GuideLink';
 
 const errorText = (e: any) => e?.data?.message || 'Something went wrong — try again.';
 
-const useEnter = () => {
+export const useEnter = () => {
 	const dispatch = useAppDispatch();
 	// `project`: a project's invitation (WO-47) opens that project.
 	return (token?: string, project?: string | null) => {
@@ -40,7 +40,7 @@ const useEnter = () => {
 };
 
 /** Proving the account reads its email, so invitations sent to it can show here. */
-const VerifyEmail: FC<{ email: string }> = ({ email }) => {
+export const VerifyEmail: FC<{ email: string }> = ({ email }) => {
 	const [send, sending] = useSendEmailCodeMutation();
 	const [verify, verifying] = useVerifyEmailMutation();
 	const [sent, setSent] = useState(false);

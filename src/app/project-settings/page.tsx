@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, ReactNode, useEffect, useState } from 'react';
 import NextLink from 'next/link';
-import { Box, Button, Field, Flex, Grid, Input, Link, Skeleton, Switch, Text, Textarea } from '@chakra-ui/react';
+import { Box, Button, Field, Flex, Grid, Input, Link, Skeleton, Text, Textarea } from '@chakra-ui/react';
 import { Layout, useGetTenantProjectQuery, useUpdateProjectMutation } from '@/components/library';
 import { CopyValue, EmptyState, Panel, date } from '@/components/library/cl';
 import { useWorkspace } from '@/components/library/tenant';
@@ -238,76 +238,6 @@ const BusinessPanel: FC<{ id: string; editable: boolean }> = ({ id, editable }) 
 	);
 };
 
-/** One switch with what it does. */
-const Toggle: FC<{ label: string; hint: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }> = ({ label, hint, checked, disabled, onChange }) => (
-	<Flex
-		align='center'
-		justify='space-between'
-		gap={4}>
-		<Box>
-			<Text
-				fontSize='13.5px'
-				fontWeight='600'>
-				{label}
-			</Text>
-			<Text
-				fontSize='12.5px'
-				color='fg.muted'>
-				{hint}
-			</Text>
-		</Box>
-		<Switch.Root
-			checked={checked}
-			disabled={disabled}
-			aria-label={label}
-			onCheckedChange={d => onChange(d.checked)}>
-			<Switch.HiddenInput />
-			<Switch.Control />
-		</Switch.Root>
-	</Flex>
-);
-
-/** Comments on records and @mentions in them (WO-49) — each switch saves on its own. */
-const CollaborationPanel: FC<{ id: string; editable: boolean }> = ({ id, editable }) => {
-	const { data: project } = useGetTenantProjectQuery(id);
-	const [save, { isLoading, error }] = useUpdateProjectMutation();
-	if (!project) return null;
-	const c = project.collaboration || { comments: true, mentions: true };
-	const set = (patch: Partial<typeof c>) => save({ id, collaboration: { ...c, ...patch } });
-	return (
-		<Panel
-			title='Comments and mentions'
-			subtitle='How people in this project talk about a record — on its Comments tab.'
-			actions={<GuideLink section='project-comments' />}>
-			<Flex
-				direction='column'
-				gap={4}>
-				<Toggle
-					label='Comments'
-					hint='A Comments tab on every record page. Turning it off keeps the comments already written, read-only.'
-					checked={c.comments}
-					disabled={!editable || isLoading}
-					onChange={v => set({ comments: v })}
-				/>
-				<Toggle
-					label='@mentions'
-					hint='Type @ in a comment to tell someone — they get a notification. Only people who can see the record can be mentioned: on a private record its owner and the people it’s shared with; on an Only me record no one.'
-					checked={c.comments && c.mentions}
-					disabled={!editable || isLoading || !c.comments}
-					onChange={v => set({ mentions: v })}
-				/>
-				{error && (
-					<Text
-						fontSize='13px'
-						color='red.fg'>
-						{errorText(error)}
-					</Text>
-				)}
-			</Flex>
-		</Panel>
-	);
-};
-
 const AboutPanel: FC<{ id: string }> = ({ id }) => {
 	const { data } = useGetTenantProjectQuery(id);
 	return data ? <About project={data} /> : <Skeleton h='200px' />;
@@ -331,6 +261,12 @@ export default function ProjectSettingsPage() {
 					/>
 				) : !project ? (
 					<Skeleton h='240px' />
+				) : !editable ? (
+					// Only for those who can change it (WO-50) — hidden from the sidebar for everyone else.
+					<EmptyState
+						title='For people who manage this project'
+						description='The owner, admins and roles that can manage projects see and change its settings.'
+					/>
 				) : (
 					<>
 						<AboutPanel id={project._id} />
@@ -339,10 +275,6 @@ export default function ProjectSettingsPage() {
 							editable={editable}
 						/>
 						<BusinessPanel
-							id={project._id}
-							editable={editable}
-						/>
-						<CollaborationPanel
 							id={project._id}
 							editable={editable}
 						/>

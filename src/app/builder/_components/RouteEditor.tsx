@@ -47,6 +47,7 @@ import PublishDialog from './PublishDialog';
 import LinkedRelationshipsPanel, { linkedProblems } from './LinkedRelationshipsPanel';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
 import { AREAS, AreaCard, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
+import CommentsPanel from './CommentsPanel';
 import { BULK_MENU_TYPES, DEFAULT_ROW_MENU, ROW_MENU_TYPES, validateMenu } from './menuTypes';
 import { HOME, IS_TENANT_PANEL, pagePath, projectHref } from '@/components/library/config/lib/constants/panel';
 
@@ -999,6 +1000,14 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						value={pageConfig?.guidelines}
 						disabled={!isGeneric}
 						onChange={guidelines => setRouteConfig({ guidelines })}
+					/>
+				)}
+
+				{IS_TENANT_PANEL && data.kind !== 'custom' && (
+					<CommentsPanel
+						value={pageConfig}
+						disabled={!isGeneric}
+						onChange={setRouteConfig}
 					/>
 				)}
 

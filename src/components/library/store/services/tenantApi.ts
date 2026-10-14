@@ -239,8 +239,16 @@ export type ProjectPerson = {
 	joinedAt: string;
 };
 
-/** The roles a project's invitation gives (WO-47). */
-export type ProjectInviteRole = 'member' | 'developer';
+/** The standard roles a project's invitation gives (WO-47, WO-50) — or a project role's id. */
+export type ProjectInviteRole = 'full' | 'member' | 'developer' | (string & {});
+
+/** A role offered in a project: a standard one, or the project's own with its per-model keys (WO-50). */
+export type ProjectRoleOption = { _id: string; name: string; system: string | null; description?: string; custom?: boolean; permissions?: string[] };
+
+/** What a project's own role can name (WO-50): each model, the media library, History. */
+export type ProjectRoleTarget = { route: string; name: string; actions: ('view' | 'create' | 'edit' | 'delete')[] };
+
+export type ProjectRoleInput = { name: string; description?: string; permissions: string[] };
 
 export type RegisterBody = {
 	name: string;
@@ -769,7 +777,7 @@ export const tenantApi = mainApi.injectEndpoints({
 		/* ------------------------------------- inside the open project */
 		/** Who opens the project (everyone in it, WO-48); for those who manage it, its pending invitations and the roles it invites with (WO-47). */
 		getProjectPeople: builder.query<
-			{ doc: ProjectPerson[]; invitations: Invitation[]; roles: { _id: string; name: string; system: ProjectInviteRole; description?: string }[]; canManage?: boolean },
+			{ doc: ProjectPerson[]; invitations: Invitation[]; roles: ProjectRoleOption[]; models?: ProjectRoleTarget[]; canManage?: boolean },
 			void
 		>({
 			query: () => 'people',
@@ -791,6 +799,19 @@ export const tenantApi = mainApi.injectEndpoints({
 		setProjectRole: builder.mutation<{ message: string }, { id: string; role: ProjectInviteRole }>({
 			query: ({ id, ...body }) => ({ url: `people/${id}`, method: 'PUT', body }),
 			invalidatesTags: ['tenant-people', 'tenant-members'],
+		}),
+		/* The project's own roles (WO-50). */
+		createProjectRole: builder.mutation<ProjectRoleOption, ProjectRoleInput>({
+			query: body => ({ url: 'people/roles', method: 'POST', body }),
+			invalidatesTags: ['tenant-people'],
+		}),
+		updateProjectRole: builder.mutation<ProjectRoleOption, ProjectRoleInput & { id: string }>({
+			query: ({ id, ...body }) => ({ url: `people/roles/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-people', 'self'],
+		}),
+		deleteProjectRole: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `people/roles/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-people'],
 		}),
 		removeFromProject: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `people/${id}`, method: 'DELETE' }),
@@ -1001,6 +1022,9 @@ export const {
 	useResendProjectInvitationMutation,
 	useCancelProjectInvitationMutation,
 	useSetProjectRoleMutation,
+	useCreateProjectRoleMutation,
+	useUpdateProjectRoleMutation,
+	useDeleteProjectRoleMutation,
 	useRemoveFromProjectMutation,
 	useSendEmailCodeMutation,
 	useVerifyEmailMutation,

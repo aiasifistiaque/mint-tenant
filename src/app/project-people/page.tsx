@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, useState } from 'react';
 import { Badge, Box, Button, Center, Field, Flex, Input, Skeleton, Text } from '@chakra-ui/react';
-import { MailPlus, RotateCw, UserMinus } from 'lucide-react';
+import { MailPlus, Pencil, Plus, RotateCw, ShieldCheck, Trash2, UserMinus } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -13,7 +13,10 @@ import {
 	Layout,
 	PromptDialog,
 	useCancelProjectInvitationMutation,
+	useCreateProjectRoleMutation,
+	useDeleteProjectRoleMutation,
 	useGetProjectPeopleQuery,
+	useUpdateProjectRoleMutation,
 	useInviteToProjectMutation,
 	useRemoveFromProjectMutation,
 	useResendProjectInvitationMutation,
@@ -23,14 +26,16 @@ import { Dropdown, EmptyState, Panel, date } from '@/components/library/cl';
 import { styles } from '@/components/library/config';
 import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
-import type { ProjectInviteRole, ProjectPerson } from '@/components/library/store/services/tenantApi';
+import type { ProjectInviteRole, ProjectPerson, ProjectRoleInput, ProjectRoleOption } from '@/components/library/store/services/tenantApi';
+import RoleDialog from './_components/RoleDialog';
 
 /**
  * The open project's members (tenant panel, WO-47; sidebar Project → Members,
- * WO-48): everyone in the project sees who works in it. The owner, admins and
- * roles with Invite to projects also invite someone into it as Member or
- * Developer, change their role or take the project away, and see pending
- * invitations. Someone new joins the organization as a guest who opens this
+ * WO-48) — for the owner, admins and roles with Invite to projects (WO-50:
+ * hidden from everyone else). They invite someone into it as Full access,
+ * Member, Developer or one of the project's own roles, change their role or
+ * take the project away, see pending invitations, and make the project's own
+ * roles — per model, what each may view, add, edit, delete. Someone new joins the organization as a guest who opens this
  * project only, and sees it on their dashboard under this organization's
  * name; someone already in the organization gets it at once.
  */
@@ -47,12 +52,26 @@ const initials = (name = '') =>
 		.join('')
 		.toUpperCase();
 
-const ROLE_HINT: Record<ProjectInviteRole, string> = {
-	member: 'Works with the records — view, add, edit, delete.',
-	developer: 'Works with the records and builds the project: models, pages, AI keys.',
+/** A role's value when choosing it: a standard one by its name, the project's own by id. */
+const STANDARD = ['full', 'member', 'developer'];
+const roleValue = (r: { _id: string; system?: string | null }) => (r.system && STANDARD.includes(r.system) ? r.system : r._id);
+const roleItems = (roles: ProjectRoleOption[]) => roles.map(r => ({ value: roleValue(r), label: r.name }));
+
+/** In words: what one of the project's own roles allows, by model. */
+const allows = (r: ProjectRoleOption, names: Map<string, string>) => {
+	const by = new Map<string, string[]>();
+	for (const k of r.permissions || []) {
+		const [action, ...rest] = k.split('-');
+		const route = rest.join('-');
+		by.set(route, [...(by.get(route) || []), action]);
+	}
+	const words: Record<string, string> = { view: 'view', create: 'add', edit: 'edit', delete: 'delete' };
+	return [...by.entries()]
+		.map(([route, acts]) => `${names.get(route) || route}: ${['view', 'create', 'edit', 'delete'].filter(a => acts.includes(a)).map(a => words[a]).join(', ')}`)
+		.join(' · ');
 };
 
-const InviteDialog: FC<{ open: boolean; onClose: () => void; projectName: string }> = ({ open, onClose, projectName }) => {
+const InviteDialog: FC<{ open: boolean; onClose: () => void; projectName: string; roles: ProjectRoleOption[] }> = ({ open, onClose, projectName, roles }) => {
 	const [email, setEmail] = useState('');
 	const [name, setName] = useState('');
 	const [role, setRole] = useState<ProjectInviteRole>('member');
@@ -124,17 +143,14 @@ const InviteDialog: FC<{ open: boolean; onClose: () => void; projectName: string
 								<Dropdown
 									value={role}
 									onChange={(v: string) => setRole(v as ProjectInviteRole)}
-									items={[
-										{ value: 'member', label: 'Member' },
-										{ value: 'developer', label: 'Developer' },
-									]}
+									items={roleItems(roles)}
 								/>
 							</Box>
 							<Text
 								fontSize='12px'
 								color='fg.muted'
 								mt={1.5}>
-								{ROLE_HINT[role]}
+								{roles.find(r => roleValue(r) === role)?.description}
 							</Text>
 						</Box>
 						{added && (
@@ -170,12 +186,14 @@ const InviteDialog: FC<{ open: boolean; onClose: () => void; projectName: string
 	);
 };
 
-const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string; canManage: boolean }> = ({ p, me, projectName, canManage }) => {
+const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string; canManage: boolean; roles: ProjectRoleOption[] }> = ({ p, me, projectName, canManage, roles }) => {
 	const [setRole, setting] = useSetProjectRoleMutation();
 	const [remove, removing] = useRemoveFromProjectMutation();
 	const [confirm, setConfirm] = useState(false);
 	const given = p.access === 'project';
 	const changeable = canManage && given;
+	const current = p.role ? roleValue(p.role) : '';
+	const offered = !!current && roles.some(r => roleValue(r) === current);
 
 	return (
 		<Flex
@@ -230,15 +248,12 @@ const PersonRow: FC<{ p: ProjectPerson; me: boolean; projectName: string; canMan
 					{p.user?.email} · {given ? `given this project ${date(p.joinedAt)}` : `${p.organizationRole?.name} — opens every project`}
 				</Text>
 			</Box>
-			{changeable && (p.role?.system === 'member' || p.role?.system === 'developer') ? (
-				<Box w='140px'>
+			{changeable && offered ? (
+				<Box w='160px'>
 					<Dropdown
-						value={p.role.system}
+						value={current}
 						onChange={(v: string) => setRole({ id: p._id, role: v as ProjectInviteRole })}
-						items={[
-							{ value: 'member', label: 'Member' },
-							{ value: 'developer', label: 'Developer' },
-						]}
+						items={roleItems(roles)}
 						disabled={setting.isLoading}
 					/>
 				</Box>
@@ -290,6 +305,30 @@ export default function ProjectPeoplePage() {
 	const [inviting, setInviting] = useState(false);
 	const name = project?.name || 'this project';
 	const invitations = data?.invitations || [];
+	const roles = data?.roles || [];
+	const targets = data?.models || [];
+	const targetNames = new Map(targets.map(t => [t.route, t.name]));
+
+	// The project's own roles (WO-50).
+	const [editingRole, setEditingRole] = useState<ProjectRoleOption | 'new' | null>(null);
+	const [deletingRole, setDeletingRole] = useState<ProjectRoleOption | null>(null);
+	const [roleError, setRoleError] = useState<{ message: string; on?: string } | null>(null);
+	const [createRole, creatingRole] = useCreateProjectRoleMutation();
+	const [updateRole, updatingRole] = useUpdateProjectRoleMutation();
+	const [deleteRole, deletingRoleState] = useDeleteProjectRoleMutation();
+	const closeRole = () => {
+		setEditingRole(null);
+		setRoleError(null);
+	};
+	const saveRole = async (input: ProjectRoleInput) => {
+		setRoleError(null);
+		const res = editingRole === 'new' ? await createRole(input) : await updateRole({ id: (editingRole as ProjectRoleOption)._id, ...input });
+		if ('error' in res) {
+			const e: any = res.error;
+			return setRoleError({ message: errorText(e), on: e?.data?.on });
+		}
+		closeRole();
+	};
 
 	return (
 		<Layout
@@ -299,6 +338,11 @@ export default function ProjectPeoplePage() {
 				<EmptyState
 					title='Open a project first'
 					description='Each project has its own members.'
+				/>
+			) : data && !canManage ? (
+				<EmptyState
+					title='For people who manage this project'
+					description='The owner, admins and roles that can invite to projects see and change who works here.'
 				/>
 			) : (
 				<Flex
@@ -350,6 +394,7 @@ export default function ProjectPeoplePage() {
 									me={p.user?._id === self?._id}
 									projectName={name}
 									canManage={canManage}
+									roles={roles}
 								/>
 							))
 						)}
@@ -404,13 +449,127 @@ export default function ProjectPeoplePage() {
 							))}
 						</Panel>
 					)}
+					{canManage && data && (
+						<Panel
+							title='Roles'
+							subtitle='What each role can do in this project'
+							actions={
+								<Flex
+									align='center'
+									gap={3}>
+									<GuideLink section='project-roles' />
+									<Button
+										size='xs'
+										variant='outline'
+										disabled={!targets.length}
+										onClick={() => setEditingRole('new')}>
+										<Plus size={14} />
+										New role
+									</Button>
+								</Flex>
+							}
+							flush>
+							{roles.map(r => (
+								<Flex
+									key={r._id}
+									align='center'
+									gap={3}
+									px={4}
+									py={3}
+									borderTopWidth='1px'
+									borderColor='border.muted'
+									_first={{ borderTopWidth: 0 }}>
+									<Box
+										color='fg.muted'
+										flexShrink={0}>
+										<ShieldCheck size={16} />
+									</Box>
+									<Box
+										minW={0}
+										flex={1}>
+										<Flex
+											align='center'
+											gap={2}>
+											<Text
+												fontSize='13.5px'
+												fontWeight='600'>
+												{r.name}
+											</Text>
+											{!r.custom && (
+												<Badge
+													size='sm'
+													variant='outline'>
+													Standard
+												</Badge>
+											)}
+										</Flex>
+										<Text
+											fontSize='12.5px'
+											color='fg.muted'>
+											{r.custom ? [r.description, allows(r, targetNames)].filter(Boolean).join(' — ') : r.description}
+										</Text>
+									</Box>
+									{r.custom && (
+										<Flex gap={0.5}>
+											<Button
+												size='xs'
+												variant='ghost'
+												aria-label={`Edit ${r.name}`}
+												onClick={() => setEditingRole(r)}>
+												<Pencil size={14} />
+											</Button>
+											<Button
+												size='xs'
+												variant='ghost'
+												color='fg.muted'
+												aria-label={`Delete ${r.name}`}
+												onClick={() => setDeletingRole(r)}>
+												<Trash2 size={14} />
+											</Button>
+										</Flex>
+									)}
+								</Flex>
+							))}
+						</Panel>
+					)}
 				</Flex>
 			)}
 			<InviteDialog
 				open={inviting}
 				onClose={() => setInviting(false)}
 				projectName={name}
+				roles={roles}
 			/>
+			<RoleDialog
+				open={!!editingRole}
+				onClose={closeRole}
+				role={editingRole === 'new' ? null : editingRole}
+				targets={targets}
+				saving={creatingRole.isLoading || updatingRole.isLoading}
+				error={roleError}
+				onEdit={() => roleError && setRoleError(null)}
+				onSave={saveRole}
+			/>
+			<PromptDialog
+				open={!!deletingRole}
+				onClose={() => {
+					setDeletingRole(null);
+					deletingRoleState.reset();
+				}}
+				onConfirm={async () => {
+					const res = await deleteRole(deletingRole!._id);
+					if ('data' in res) setDeletingRole(null);
+				}}
+				title={`Delete “${deletingRole?.name}”?`}
+				description={
+					deletingRoleState.error
+						? errorText(deletingRoleState.error)
+						: 'Nobody can be given it any more. A role someone still has can’t be deleted — give them another first.'
+				}
+				loading={deletingRoleState.isLoading}
+				confirmLabel='Delete'
+			/>
+
 		</Layout>
 	);
 }

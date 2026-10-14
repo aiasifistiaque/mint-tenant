@@ -1,13 +1,11 @@
 'use client';
 
 import { FC, Fragment, KeyboardEvent, ReactNode, useMemo, useRef, useState } from 'react';
-import NextLink from 'next/link';
-import { Box, Button, Center, Flex, Link, Skeleton, Text, Textarea } from '@chakra-ui/react';
+import { Box, Button, Center, Flex, Skeleton, Text, Textarea } from '@chakra-ui/react';
 import { AtSign, Lock, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { PromptDialog } from '../modals';
 import { EmptyState, when } from '../cl';
 import { ago } from '../modals/CreateModal/CreateModal';
-import { projectHref } from '../config/lib/constants/panel';
 import {
 	MentionPerson,
 	Mentionable,
@@ -48,7 +46,7 @@ const BLOCKED_WHY: Record<string, string> = {
 /** Why nobody can be mentioned right now, or null when someone can. */
 const nobodyReason = (m?: Mentionable): string | null => {
 	if (!m) return null;
-	if (!m.enabled) return 'Mentions are turned off for this project — Project → Settings turns them on.';
+	if (!m.enabled) return 'Mentions are turned off for this page — its Fields & rules tab (Build → Pages) turns them on.';
 	if (m.mode === 'none') return 'This record is Only me — no one else can see it, so no one can be mentioned.';
 	return null;
 };
@@ -546,13 +544,7 @@ const RecordComments: FC<{ route: string; record: string }> = ({ route, record }
 				<Text
 					fontSize='13px'
 					color='fg.muted'>
-					Comments are turned off for this project.{' '}
-					<Link
-						asChild
-						textDecoration='underline'>
-						<NextLink href={projectHref('/project-settings')}>Project settings</NextLink>
-					</Link>{' '}
-					turns them on.
+					Comments are turned off for this page — someone who builds the project turns them on in its Fields & rules tab (Build → Pages).
 				</Text>
 			)}
 		</Flex>
