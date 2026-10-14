@@ -80,7 +80,49 @@ const LINKABLE = ['string', 'text', 'read-only', 'data-menu', undefined];
  * `link` — the record this value is part of ({route, record}, from
  * `linkOf`): the value then renders as a RecordLink chip naming it.
  */
-const renderContent = ({ type, children, colorPalette, path, originalType, id, link, dataModel }: any) => {
+const renderContent = ({ type, children, colorPalette, path, originalType, id, link, dataModel, blocks }: any) => {
+	// Content blocks (backend docs/cms D4): each item under its component's title, with its values.
+	if (type === 'blocks') {
+		const items = Array.isArray(children) ? children : [];
+		if (!items.length)
+			return (
+				<Text
+					fontSize='13px'
+					color='fg.muted'>
+					Nothing yet
+				</Text>
+			);
+		return (
+			<Column
+				gap={2}
+				w='full'>
+				{items.map((item: any, i: number) => {
+					const t = (Array.isArray(blocks) ? blocks : []).find((b: any) => b.uid === item?.__component);
+					return (
+						<Box
+							key={item?._key || i}
+							w='full'
+							borderWidth='1px'
+							borderRadius='md'
+							p={3}>
+							<Text
+								fontSize='12px'
+								fontWeight='600'
+								color='fg.muted'
+								mb={1.5}>
+								{t?.title || item?.__component}
+							</Text>
+							<SectionObject
+								value={item}
+								dataModel={t?.dataModel || []}
+							/>
+						</Box>
+					);
+				})}
+			</Column>
+		);
+	}
+
 	if (link?.route && link?.record && LINKABLE.includes(type))
 		return (
 			<RecordLink

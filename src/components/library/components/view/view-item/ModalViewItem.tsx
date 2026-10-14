@@ -59,7 +59,7 @@ const ViewItem: FC<ViewItemProps> = ({
 									field={field}
 								/>
 							) : (
-								renderContent({ type, children, colorPalette, path, isLoading, link, dataModel: field?.dataModel })
+								renderContent({ type, children, colorPalette, path, isLoading, link, dataModel: field?.dataModel, blocks: field?.blocks })
 							)}
 						</Affixed>
 					)}

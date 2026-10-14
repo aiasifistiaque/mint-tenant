@@ -440,6 +440,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			...(kind === 'component'
 				? { component: f.component || components[0]?.uid, unique: false, fields: undefined, required: false }
 				: { component: undefined, repeatable: undefined }),
+			...(kind === 'blocks' ? { components: f.components?.length ? f.components : components.map(c => c.uid), unique: false, fields: undefined } : { components: undefined }),
 			// An address is always unique, made from the first text field unless one is picked.
 			...(kind === 'uid'
 				? { unique: true, from: f.from || fields.find(x => x.uid !== f.uid && UID_SOURCES.includes(x.kind) && x.key)?.key }
@@ -477,6 +478,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				showInTable: kind !== 'section',
 				...(kind === 'uid' && { unique: true, from: fields.find(x => UID_SOURCES.includes(x.kind) && x.key)?.key }),
 				...(kind === 'component' && { component: components[0]?.uid }),
+				...(kind === 'blocks' && { components: components.map(c => c.uid) }),
 				...(isSection && { fields: sectionPreset(kind) }),
 			},
 		]);
@@ -706,6 +708,43 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 									</Box>
 								</Flex>
 							)}
+							{f.kind === 'blocks' && (
+								<Box maxW='360px'>
+									<Flex
+										gap={1}
+										wrap='wrap'>
+										{components.map(c => {
+											const on = (f.components || []).includes(c.uid);
+											return (
+												<Badge
+													key={c.uid}
+													as='button'
+													size='sm'
+													cursor='pointer'
+													variant={on ? 'solid' : 'outline'}
+													colorPalette={on ? 'purple' : 'gray'}
+													aria-pressed={on}
+													title={on ? `Takes ${c.title} — click to leave it out` : `Click to take ${c.title}`}
+													onClick={() =>
+														set(f.uid, {
+															components: on ? (f.components || []).filter(x => x !== c.uid) : [...(f.components || []), c.uid],
+														})
+													}>
+													{c.title}
+												</Badge>
+											);
+										})}
+									</Flex>
+									{!components.length && (
+										<Text
+											fontSize='11.5px'
+											color='fg.muted'>
+											Make components under Build → Components first.
+										</Text>
+									)}
+									{error?.on === 'component' && <FieldMessage>{error.message}</FieldMessage>}
+								</Box>
+							)}
 							{f.kind === 'uid' && (
 								<Box w='200px'>
 									<Dropdown
@@ -916,13 +955,13 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 									</Grid>
 								</Group>
 
-								{(f.kind === 'number' || hasLength(f.kind) || (f.kind === 'component' && f.repeatable)) && (
-									<Group title={f.kind === 'number' ? 'Limits' : f.kind === 'component' ? 'How many' : 'Length'}>
+								{(f.kind === 'number' || hasLength(f.kind) || (f.kind === 'component' && f.repeatable) || f.kind === 'blocks') && (
+									<Group title={f.kind === 'number' ? 'Limits' : f.kind === 'component' || f.kind === 'blocks' ? 'How many' : 'Length'}>
 										<Grid
 											templateColumns={{ base: '1fr 1fr', md: 'repeat(3, minmax(0, 1fr))' }}
 											gap={3}>
 											<Box>
-												<Small>{f.kind === 'number' ? 'Lowest allowed' : f.kind === 'component' ? 'At least' : 'Fewest characters'}</Small>
+												<Small>{f.kind === 'number' ? 'Lowest allowed' : f.kind === 'component' || f.kind === 'blocks' ? 'At least' : 'Fewest characters'}</Small>
 												<Input
 													size='sm'
 													type='number'
@@ -933,7 +972,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 												/>
 											</Box>
 											<Box>
-												<Small>{f.kind === 'number' ? 'Highest allowed' : f.kind === 'component' ? 'At most' : 'Most characters'}</Small>
+												<Small>{f.kind === 'number' ? 'Highest allowed' : f.kind === 'component' || f.kind === 'blocks' ? 'At most' : 'Most characters'}</Small>
 												<Input
 													size='sm'
 													type='number'

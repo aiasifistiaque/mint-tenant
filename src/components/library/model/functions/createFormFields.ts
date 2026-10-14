@@ -62,6 +62,8 @@ const OPTIONAL_FIELD_PROPS = [
 	'linkedRoute',
 	// An address (uid) field's source field (docs/cms D2).
 	'slugFrom',
+	// Content blocks: the components it takes, each with its fields (docs/cms D4).
+	'blocks',
 ] as const;
 
 const createResolvedField = ({

@@ -50,6 +50,7 @@ const ALLOWED_FIELD_KEYS = new Set([
 	'linkedReads',
 	'linkedRoute',
 	'slugFrom',
+	'blocks',
 	'formula',
 	'displayValue',
 	'path',

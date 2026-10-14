@@ -157,6 +157,16 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 					<Lock {...ICON} />
 				</Box_>
 			);
+		case 'blocks':
+			return (
+				<Box_ muted>
+					<Text
+						fontSize='inherit'
+						truncate>
+						{f.components?.length ? `+ Add: ${f.components.join(', ')}` : 'Pick its components'}
+					</Text>
+				</Box_>
+			);
 		case 'component':
 			return (
 				<Box_ muted>

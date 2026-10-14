@@ -47,6 +47,8 @@ export const inputDataOptions = [
 	'slider',
 	'section-data-array',
 	'section-object',
+	// Content blocks (backend docs/cms D4): components in any order.
+	'blocks',
 	'alignment',
 	'flex-justify',
 	'flex-align',

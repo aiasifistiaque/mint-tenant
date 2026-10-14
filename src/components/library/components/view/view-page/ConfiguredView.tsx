@@ -27,7 +27,7 @@ import { pagePath, projectHref } from '../../../config/lib/constants/panel';
  * a panel of their own, the full width of the page.
  */
 
-const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array'];
+const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array', 'blocks'];
 
 const typeFromInstance = (instance?: string) =>
 	instance === 'Date' ? 'date' : instance === 'Number' ? 'number' : instance === 'Boolean' ? 'boolean' : 'text';

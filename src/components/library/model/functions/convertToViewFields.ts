@@ -33,6 +33,8 @@ const createViewField = ({ key, field }: { key: string; field: any }): any => {
 		...(field?.dataModel && { dataModel: field.dataModel }),
 		// A section list's row fields, for its table.
 		...(field?.section?.dataModel && { dataModel: field.section.dataModel }),
+		// Content blocks: each component's fields, for the record page (backend docs/cms D4).
+		...(field?.blocks && { blocks: field.blocks }),
 		// Words or another field's value before/after the value ("BDT 1,200").
 		...(field?.affix && { affix: field.affix }),
 		// Coloured tags (settings schema.colorTags): each option's colour, picked or default.

@@ -19,6 +19,7 @@ import {
 	Mail,
 	Palette,
 	Pilcrow,
+	LayoutList,
 	Puzzle,
 	Rows3,
 	Slash,
@@ -62,6 +63,7 @@ export const KIND_ICONS: Record<FieldKind, LucideIcon> = {
 	section: SquareStack,
 	sectionlist: Rows3,
 	component: Puzzle,
+	blocks: LayoutList,
 };
 
 /** Chakra palettes, so the tint follows light and dark mode and every theme. */

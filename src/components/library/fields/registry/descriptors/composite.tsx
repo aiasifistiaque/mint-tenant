@@ -10,6 +10,7 @@ import {
 import VVariant from '@/components/library/utils/inputs/VVariant';
 import VModelFields from '@/components/library/utils/inputs/VModelFields';
 import VSectionObject from '@/components/library/utils/inputs/section/VSectionObject';
+import VBlocks from '@/components/library/utils/inputs/section/VBlocks';
 import { registerFieldType } from '../registry';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
 
@@ -51,6 +52,20 @@ const SectionObjectInput = ({ item, isRequired, formData, ...props }: any) => (
 		helper={item?.helper}
 		dataModel={item?.dataModel}
 		locked={!!item?.locked}
+	/>
+);
+
+const BlocksInput = ({ item, isRequired, formData, ...props }: any) => (
+	<VBlocks
+		name={(props as any).name}
+		label={(props as any).label}
+		value={(props as any).value}
+		onChange={(props as any).onChange}
+		isRequired={isRequired}
+		helper={item?.helper}
+		blocks={item?.blocks}
+		limit={item?.limit}
+		isDisabled={!!item?.locked || (props as any).isDisabled}
 	/>
 );
 
@@ -150,6 +165,17 @@ registerFieldType({
 	emptyValue: () => [],
 	table: { type: 'data-array', cell: NotYetImplementedCell },
 	view: { type: 'section-data-array', render: NotYetImplementedView, layout: 'full' },
+	storage: 'array-object',
+});
+
+registerFieldType({
+	id: 'blocks',
+	family: 'composite',
+	input: BlocksInput,
+	changeMode: 'array',
+	emptyValue: () => [],
+	table: { type: 'data-array', cell: NotYetImplementedCell },
+	view: { type: 'blocks', render: NotYetImplementedView, layout: 'full' },
 	storage: 'array-object',
 });
 

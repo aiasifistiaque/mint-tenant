@@ -38,7 +38,7 @@ type ViewPageBasicInfoProps = {
  * heading and the content filling the body. Documents too: their tiles (icon,
  * then name, as in the media manager) need the width a row doesn't have.
  */
-const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array'];
+const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array', 'blocks'];
 const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layout }) => {
 	const module = layout?.exists ? layout?.module : undefined;
 

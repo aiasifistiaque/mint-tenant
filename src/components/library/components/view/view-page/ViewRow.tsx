@@ -63,6 +63,7 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 				id,
 				link: !field.noLink && linkFor(field, doc),
 				dataModel: field.dataModel,
+				blocks: field.blocks,
 			})}
 		</Affixed>
 	);

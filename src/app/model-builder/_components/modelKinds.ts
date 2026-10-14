@@ -32,6 +32,7 @@ export type FieldKind =
 	| 'section'
 	| 'sectionlist'
 	| 'component'
+	| 'blocks'
 	| 'password';
 
 export const KINDS: { value: FieldKind; label: string; hint: string; group: string; hidden?: boolean }[] = [
@@ -98,6 +99,12 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 		hint: 'A group of fields made once under Build → Components and used by any model — a button, an SEO block, a card. One, or a list',
 		group: 'Sections',
 	},
+	{
+		value: 'blocks',
+		label: 'Content blocks',
+		hint: 'Components in any order — a page’s hero, text, gallery, questions. You pick which components it takes; whoever fills it in picks which and in what order',
+		group: 'Sections',
+	},
 ];
 
 export const KIND_GROUPS = ['Text', 'Values', 'Choices', 'Media', 'Links', 'Sections'];
@@ -132,12 +139,12 @@ export const ENUM_KINDS: FieldKind[] = ['text', 'number', 'select', 'multiselect
 export const NEEDS_OPTIONS: FieldKind[] = ['select', 'multiselect'];
 /** Kinds stored as a list — their default is a list too. */
 export const ARRAY_KINDS: FieldKind[] = ['multiselect', 'tags', 'images', 'files', 'references'];
-export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password', 'uid', 'component'];
+export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks'];
 /** What an address (uid) can be made from — the same list as the backend's UID_SOURCES. */
 export const UID_SOURCES: FieldKind[] = ['text', 'email', 'url', 'select', 'textarea'];
 /** Shown as dots — its key may say what it holds (password, pin, token). Same as the backend's SECRET_KINDS. */
 export const SECRET_KINDS: FieldKind[] = ['password'];
-const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'password', 'component', ...ARRAY_KINDS, ...SECTION_KINDS];
+const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'password', 'component', 'blocks', ...ARRAY_KINDS, ...SECTION_KINDS];
 export const canBeUnique = (kind: FieldKind) => !CANT_BE_UNIQUE.includes(kind);
 export const hasLength = (kind: FieldKind) => ['text', 'email', 'url', 'textarea', 'editor'].includes(kind);
 export const hasOptions = (f: Pick<EditableField, 'kind' | 'options'>) =>
@@ -182,6 +189,8 @@ export type EditableField = {
 	/** A component field: its component's uid, and whether it's a list (with min/max). */
 	component?: string;
 	repeatable?: boolean;
+	/** Content blocks: the components its items can be. */
+	components?: string[];
 	/** Editor-only: the key follows the label until it's typed by hand. */
 	keyTouched?: boolean;
 };
@@ -262,6 +271,7 @@ export const toServer = (fields: EditableField[]): any[] =>
 		else delete out.fields;
 		if ((f.kind !== 'sectionlist' && !(f.kind === 'component' && f.repeatable)) || !out.addLabel) delete out.addLabel;
 		if (f.kind !== 'uid' || !out.from) delete out.from;
+		if (f.kind !== 'blocks') delete out.components;
 		if (f.kind !== 'component') {
 			delete out.component;
 			delete out.repeatable;
@@ -367,6 +377,7 @@ export const validateFields = (
 			if (first) return fail(f.uid, 'fields', `${first.label || first.key || 'A field'}: ${inner[first.uid].message}`);
 		}
 		if (f.kind === 'component' && !f.component) return fail(f.uid, 'component', 'Pick its component');
+		if (f.kind === 'blocks' && !f.components?.length) return fail(f.uid, 'component', 'Pick the components it takes');
 		if (f.kind === 'uid' && f.from) {
 			const src = fields.find(x => x.key === f.from);
 			if (!src || !UID_SOURCES.includes(src.kind)) return fail(f.uid, 'from', 'Make it from a text field of this model, or let it be typed');
