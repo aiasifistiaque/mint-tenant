@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, FormEvent, useState } from 'react';
+import { FC, FormEvent, useEffect, useState } from 'react';
 import NextLink from 'next/link';
 import { Box, Button, Field, Flex, Input, Link as ChakraLink, Text } from '@chakra-ui/react';
 import { ArrowLeft } from 'lucide-react';
@@ -76,6 +76,11 @@ const TenantRegister: FC = () => {
 	const [register, { isLoading, error }] = useTenantRegisterMutation();
 	const [step, setStep] = useState<1 | 2>(1);
 	const [account, setAccount] = useState({ name: '', email: '', password: '', organization: '', country: '' });
+	// The waitlist's "Your spot is ready" email links here with ?email=.
+	useEffect(() => {
+		const email = new URLSearchParams(window.location.search).get('email');
+		if (email) setAccount(a => (a.email ? a : { ...a, email }));
+	}, []);
 	const [about, setAbout] = useState({
 		industry: '',
 		teamSize: '',
