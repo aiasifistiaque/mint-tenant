@@ -3,7 +3,7 @@
 import { FC, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, CloseButton, Flex, Grid, SegmentGroup, Text } from '@chakra-ui/react';
-import { ArrowRight, Boxes, ClipboardList, Columns3, Eye, History, ListChecks, RotateCcw, Rocket, Save, Sparkles, Undo2 } from 'lucide-react';
+import { ArrowRight, Boxes, ClipboardList, Columns3, Eye, History, ListChecks, RotateCcw, Rocket, Save, Sparkles, Table2, Undo2 } from 'lucide-react';
 import {
 	Layout,
 	useDiscardBuilderDraftMutation,
@@ -48,7 +48,7 @@ import LinkedRelationshipsPanel, { linkedProblems } from './LinkedRelationshipsP
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
 import { AREAS, AreaCard, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
 import { BULK_MENU_TYPES, DEFAULT_ROW_MENU, ROW_MENU_TYPES, validateMenu } from './menuTypes';
-import { HOME, IS_TENANT_PANEL, projectHref } from '@/components/library/config/lib/constants/panel';
+import { HOME, IS_TENANT_PANEL, pagePath, projectHref } from '@/components/library/config/lib/constants/panel';
 
 const DEFAULT_ADD_BUTTON = { title: 'Add Item', isModal: true };
 
@@ -763,6 +763,27 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						.join(' · ')}
 					actions={
 						<>
+							{/* Straight to the model behind this page, and to the live table. */}
+							{data?.builtModel?._id && (
+								<Button
+									size='sm'
+									variant='ghost'
+									title={`Open the ${data.builtModel.name} model: its fields`}
+									onClick={() => router.push(projectHref(`/model-builder/${data.builtModel._id}`))}>
+									<Boxes size={14} />
+									Model
+								</Button>
+							)}
+							{isGeneric && (
+								<Button
+									size='sm'
+									variant='ghost'
+									title='Open this page’s table, as people see it (published version)'
+									onClick={() => router.push(pagePath(route))}>
+									<Table2 size={14} />
+									Open table
+								</Button>
+							)}
 							{isGeneric && (
 								<Button
 									size='sm'
