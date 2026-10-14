@@ -49,12 +49,16 @@ const WorkspaceSwitcher: FC = () => {
 				<Flex
 					as='button'
 					aria-label='Switch project or organization'
+					title={project ? project.name : organization.name}
 					align='center'
+					justify='center'
 					gap={2}
 					h='32px'
-					maxW={{ base: '150px', md: '260px' }}
-					px={2}
-					borderRadius='md'
+					// On a phone just the icon; the menu says which project is open.
+					w={{ base: '32px', md: 'auto' }}
+					maxW={{ base: '32px', md: '260px' }}
+					px={{ base: 0, md: 2 }}
+					borderRadius={{ base: 'full', md: 'md' }}
 					borderWidth='1px'
 					borderColor='border'
 					bg='bg.panel'
@@ -64,11 +68,12 @@ const WorkspaceSwitcher: FC = () => {
 						boxSize='20px'
 						flexShrink={0}
 						borderRadius='sm'
-						bg='bg.muted'
-						color='fg.muted'>
+						bg={{ base: 'transparent', md: 'bg.muted' }}
+						color={{ base: 'inherit', md: 'fg.muted' }}>
 						{project ? project.type === 'website' ? <Globe size={13} /> : <LayoutGrid size={13} /> : <Building2 size={13} />}
 					</Center>
 					<Box
+						display={{ base: 'none', md: 'block' }}
 						minW={0}
 						textAlign='left'>
 						<Text
@@ -80,7 +85,6 @@ const WorkspaceSwitcher: FC = () => {
 						</Text>
 						{project && (
 							<Text
-								display={{ base: 'none', md: 'block' }}
 								fontSize='11px'
 								lineHeight='1.2'
 								color='fg.muted'
@@ -90,6 +94,7 @@ const WorkspaceSwitcher: FC = () => {
 						)}
 					</Box>
 					<Box
+						display={{ base: 'none', md: 'block' }}
 						color='fg.muted'
 						flexShrink={0}>
 						<ChevronsUpDown size={14} />

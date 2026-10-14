@@ -47,6 +47,8 @@ const BackButton: FC = () => {
 			variant='ghost'
 			aria-label='Back'
 			title='Back'
+			// A phone has its own back gesture; the space goes to the page's name.
+			display={{ base: 'none', md: 'inline-flex' }}
 			ml={-1.5}
 			color='inherit'
 			onClick={back}>
@@ -153,8 +155,7 @@ const Layout: FC<LayoutProps> = ({
 					w={showMenu ? 'full' : sizes.HOME_NAV_MAX_WIDTH}
 					left={showMenu ? 0 : sizes.HOME_NAV_LEFT}>
 					{/* The title gives way to the buttons on the right: one line, cut
-					    short when it must, and gone on a phone, where the page's own
-					    heading says the same thing. */}
+					    short when it must. */}
 					<SpaceBetween
 						flex={1}
 						minW={0}>
@@ -165,7 +166,6 @@ const Layout: FC<LayoutProps> = ({
 							<BackButton />
 							<Heading
 								{...titleCss}
-								display={{ base: 'none', sm: 'block' }}
 								truncate>
 								{title}
 							</Heading>
