@@ -1,7 +1,7 @@
 'use client';
 
 import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
-import { Box, Flex, Grid, Input, Switch, Text, Textarea } from '@chakra-ui/react';
+import { Box, Flex, Grid, Input, Switch, Text, Textarea, chakra } from '@chakra-ui/react';
 import { useCheckModelNameQuery } from '@/components/library';
 import { Dropdown, Panel } from '@/components/library/cl';
 import { DocLink } from '@/app/builder/_components/ui';
@@ -33,6 +33,8 @@ export type ModelWorking = {
 	route: string;
 	description: string;
 	displayField: string;
+	/** Many records, or a single type holding exactly one (docs/cms D2). */
+	kind: 'collection' | 'single';
 	code: { enabled: boolean; prefix: string; padding: number; start: number };
 	/** Per-record access: an owner, a privacy and an access list on every record. */
 	access: { enabled: boolean; default: string };
@@ -47,6 +49,7 @@ export const emptyModel = (): ModelWorking => ({
 	route: '',
 	description: '',
 	displayField: '',
+	kind: 'collection',
 	code: { enabled: false, prefix: '', padding: 4, start: 1 },
 	access: { enabled: false, default: 'private' },
 	fields: [{ uid: newUid(), key: 'name', label: 'Name', kind: 'text', required: true, showInTable: true, keyTouched: true }],
@@ -60,6 +63,7 @@ export const modelFromDoc = (doc: any): ModelWorking => ({
 	route: doc.route,
 	description: doc.description || '',
 	displayField: doc.displayField || '',
+	kind: doc.kind === 'single' ? 'single' : 'collection',
 	code: { enabled: false, prefix: '', padding: 4, start: 1, ...(doc.code || {}) },
 	access: { enabled: !!doc.access?.enabled, default: doc.access?.default || 'private' },
 	fields: fromServer(doc.fields),
@@ -72,6 +76,7 @@ export const modelBody = (w: ModelWorking) => ({
 	title: w.title.trim(),
 	description: w.description,
 	displayField: w.displayField,
+	kind: w.kind,
 	code: { ...w.code, prefix: w.code.prefix.trim() },
 	// Privacy is chosen per record, in the form; new records start Private.
 	access: { enabled: w.access.enabled, default: 'private' },
@@ -311,6 +316,49 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							</Dropdown>
 						</Box>
 					)}
+					<Box gridColumn={{ md: 'span 2' }}>
+						<Label hint='A single type holds one record — the site’s settings, an About page, a footer. Its page opens that record instead of a table.'>
+							How many records
+						</Label>
+						<Flex
+							gap={2}
+							wrap='wrap'>
+							{(
+								[
+									{ value: 'collection', label: 'Many', hint: 'A table of records — posts, products, orders' },
+									{ value: 'single', label: 'Just one', hint: 'A single type — settings, a page, a footer' },
+								] as const
+							).map(o => (
+								<chakra.button
+									key={o.value}
+									type='button'
+									flex='1 1 200px'
+									textAlign='left'
+									px={3}
+									py={2}
+									borderWidth='1px'
+									borderRadius='lg'
+									borderColor={working.kind === o.value ? 'fg' : 'border'}
+									bg={working.kind === o.value ? 'bg.subtle' : undefined}
+									aria-pressed={working.kind === o.value}
+									disabled={o.value === 'single' && !isNew && records > 1}
+									opacity={o.value === 'single' && !isNew && records > 1 ? 0.5 : 1}
+									title={o.value === 'single' && !isNew && records > 1 ? `It has ${records} records — a single type holds one` : undefined}
+									onClick={() => set({ kind: o.value })}>
+									<Text
+										fontSize='13px'
+										fontWeight='600'>
+										{o.label}
+									</Text>
+									<Text
+										fontSize='12px'
+										color='fg.muted'>
+										{o.hint}
+									</Text>
+								</chakra.button>
+							))}
+						</Flex>
+					</Box>
 					<Box gridColumn={{ md: 'span 2' }}>
 						<Label>Description</Label>
 						<Textarea

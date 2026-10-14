@@ -18,6 +18,7 @@ import {
 	REFERENCE_KINDS,
 	SECTION_KINDS,
 	SELF,
+	UID_SOURCES,
 	canBeUnique,
 	formulaFieldsOf,
 	hasLength,
@@ -432,6 +433,10 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			...(!canBeUnique(kind) && { unique: false }),
 			// A formula is calculated: never required, no default.
 			...(kind === 'formula' && { required: false }),
+			// An address is always unique, made from the first text field unless one is picked.
+			...(kind === 'uid'
+				? { unique: true, from: f.from || fields.find(x => x.uid !== f.uid && UID_SOURCES.includes(x.kind) && x.key)?.key }
+				: { from: undefined }),
 			default: kind === 'formula' || SECTION_KINDS.includes(kind) ? undefined : nextDefault,
 			// A section starts from a preset, changed in its field builder; between the two section kinds its fields stay.
 			...(SECTION_KINDS.includes(kind)
@@ -463,6 +468,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				kind,
 				// The same starting point changeKind gives a row switched to the kind.
 				showInTable: kind !== 'section',
+				...(kind === 'uid' && { unique: true, from: fields.find(x => UID_SOURCES.includes(x.kind) && x.key)?.key }),
 				...(isSection && { fields: sectionPreset(kind) }),
 			},
 		]);
@@ -654,6 +660,24 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 										))}
 									</Dropdown>
 									{error?.on === 'ref' && <FieldMessage>{error.message}</FieldMessage>}
+								</Box>
+							)}
+							{f.kind === 'uid' && (
+								<Box w='200px'>
+									<Dropdown
+										size='xs'
+										placeholder='Typed by hand'
+										invalid={error?.on === 'from'}
+										value={f.from || ''}
+										onChange={v => set(f.uid, { from: v || undefined })}
+										items={[
+											{ value: '', label: 'Typed by hand' },
+											...fields
+												.filter(x => x.uid !== f.uid && x.key && UID_SOURCES.includes(x.kind))
+												.map(x => ({ value: x.key, label: `Made from ${x.label || x.key}` })),
+										]}
+									/>
+									{error?.on === 'from' && <FieldMessage>{error.message}</FieldMessage>}
 								</Box>
 							)}
 							{SECTION_KINDS.includes(f.kind) ? (
@@ -967,7 +991,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 													onChange={v => set(f.uid, { searchable: v })}
 												/>
 											)}
-											{canBeUnique(f.kind) && (
+											{canBeUnique(f.kind) && f.kind !== 'uid' && (
 												<Check
 													label='No duplicates'
 													hint='Unique: no two records can share a value'

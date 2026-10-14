@@ -157,6 +157,18 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 					<Lock {...ICON} />
 				</Box_>
 			);
+		case 'uid':
+			return (
+				<Box_>
+					<Text
+						fontSize='inherit'
+						fontFamily='mono'
+						color='fg.muted'
+						truncate>
+						{f.from ? `made from ${f.from} — my-first-post` : 'my-first-post'}
+					</Text>
+				</Box_>
+			);
 		case 'formula':
 			return (
 				<Box_ muted>

@@ -49,6 +49,7 @@ const ALLOWED_FIELD_KEYS = new Set([
 	'requiredIf',
 	'linkedReads',
 	'linkedRoute',
+	'slugFrom',
 	'formula',
 	'displayValue',
 	'path',

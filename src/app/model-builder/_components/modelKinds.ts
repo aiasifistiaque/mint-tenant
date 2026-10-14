@@ -13,6 +13,7 @@ export type FieldKind =
 	| 'editor'
 	| 'email'
 	| 'url'
+	| 'uid'
 	| 'number'
 	| 'formula'
 	| 'boolean'
@@ -38,6 +39,12 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 	{ value: 'editor', label: 'Rich text', hint: 'Formatted text with headings, lists and links', group: 'Text' },
 	{ value: 'email', label: 'Email', hint: 'Checked to be an email address, stored in lower case', group: 'Text' },
 	{ value: 'url', label: 'Link', hint: 'A web address, shown as a link', group: 'Text' },
+	{
+		value: 'uid',
+		label: 'Address (slug)',
+		hint: 'A record’s address on your site, made from its title — “My first post” → my-first-post. Always unique',
+		group: 'Text',
+	},
 	{ value: 'color', label: 'Color', hint: 'A colour, picked with a colour picker', group: 'Text' },
 	{
 		value: 'password',
@@ -116,7 +123,9 @@ export const ENUM_KINDS: FieldKind[] = ['text', 'number', 'select', 'multiselect
 export const NEEDS_OPTIONS: FieldKind[] = ['select', 'multiselect'];
 /** Kinds stored as a list — their default is a list too. */
 export const ARRAY_KINDS: FieldKind[] = ['multiselect', 'tags', 'images', 'files', 'references'];
-export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password'];
+export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password', 'uid'];
+/** What an address (uid) can be made from — the same list as the backend's UID_SOURCES. */
+export const UID_SOURCES: FieldKind[] = ['text', 'email', 'url', 'select', 'textarea'];
 /** Shown as dots — its key may say what it holds (password, pin, token). Same as the backend's SECRET_KINDS. */
 export const SECRET_KINDS: FieldKind[] = ['password'];
 const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'password', ...ARRAY_KINDS, ...SECTION_KINDS];
@@ -159,6 +168,8 @@ export type EditableField = {
 	fields?: EditableField[];
 	/** A section list's add button, e.g. "Add item". */
 	addLabel?: string;
+	/** An address (uid): the field it's made from, e.g. `title`. */
+	from?: string;
 	/** Editor-only: the key follows the label until it's typed by hand. */
 	keyTouched?: boolean;
 };
@@ -238,6 +249,8 @@ export const toServer = (fields: EditableField[]): any[] =>
 		if (SECTION_KINDS.includes(f.kind)) out.fields = toServer(f.fields || []);
 		else delete out.fields;
 		if (f.kind !== 'sectionlist' || !out.addLabel) delete out.addLabel;
+		if (f.kind !== 'uid' || !out.from) delete out.from;
+		if (f.kind === 'uid') out.unique = true;
 		if (f.kind !== 'formula') delete out.formula;
 		else {
 			// Calculated, never typed.
@@ -264,7 +277,7 @@ const defaultValues = (f: EditableField): string[] =>
 	f.default === undefined || f.default === null || f.default === '' ? [] : (Array.isArray(f.default) ? f.default : [f.default]).map(String);
 
 /** Which input a field problem is about — where it's shown, and which input turns red. */
-export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields';
+export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields' | 'from';
 export type FieldError = { message: string; on: FieldErrorOn };
 
 /** What a formula may use: the model's fields, and which hold numbers. */
@@ -328,6 +341,10 @@ export const validateFields = (
 			const inner = validateFields(f.fields, { sub: true });
 			const first = f.fields.find(x => inner[x.uid]);
 			if (first) return fail(f.uid, 'fields', `${first.label || first.key || 'A field'}: ${inner[first.uid].message}`);
+		}
+		if (f.kind === 'uid' && f.from) {
+			const src = fields.find(x => x.key === f.from);
+			if (!src || !UID_SOURCES.includes(src.kind)) return fail(f.uid, 'from', 'Make it from a text field of this model, or let it be typed');
 		}
 		if (f.kind === 'formula') {
 			if (!f.formula?.trim()) return fail(f.uid, 'formula', 'Write its formula');

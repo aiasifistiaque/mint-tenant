@@ -78,6 +78,7 @@ const SlugInput = ({ item, isRequired, type, ...props }: any) => (
 		isRequired={isRequired}
 		onChange={(props as any).onChange}
 		helper={item?.helper}
+		slugFrom={item?.slugFrom}
 		{...props}
 	/>
 );

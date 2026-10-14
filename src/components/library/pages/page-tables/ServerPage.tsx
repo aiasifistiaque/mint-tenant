@@ -14,6 +14,7 @@ import { setFields, setPreferences } from '../../store/slices/tableSlice';
 import { useGetAllQuery, useGetConfigQuery, useGetSelfQuery, useGetRouteQuery } from '../../store';
 import Column from '../../containers/Column';
 import ServerPageHeading from '../../components/table/ServerPageHeading';
+import SingleTypePage from './SingleTypePage';
 
 type TableProps = {
 	route: string;
@@ -62,7 +63,7 @@ const ServerPage: FC<TableProps> = ({ route, extraMenu }) => {
 			path: route,
 		},
 		{
-			skip: !table,
+			skip: !table || table?.single,
 			pollingInterval: 10000, // Poll every 10 seconds (set your desired interval in ms)
 		}
 	);
@@ -113,6 +114,15 @@ const ServerPage: FC<TableProps> = ({ route, extraMenu }) => {
 			clickable={table?.clickable}
 		/>
 	));
+
+	// A single type opens its one record (docs/cms D2).
+	if (table?.single)
+		return (
+			<SingleTypePage
+				route={route}
+				title={table?.title}
+			/>
+		);
 
 	// Return the layout, page heading, table, and toast components
 	return (

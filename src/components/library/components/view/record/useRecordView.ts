@@ -101,7 +101,9 @@ const useRecordView = ({ slug, id, skip = false }: { slug: string; id: string; s
 		schema,
 		name,
 		code,
-		recordTitle: name || code || id,
+		// A single type's one record goes by the page's own title (docs/cms D2).
+		recordTitle: (routeInfo?.single && routeTitle) || name || code || id,
+		single: !!routeInfo?.single,
 		routeTitle,
 		/** For the header's status pill and "Updated …" line. */
 		status: typeof doc?.status === 'string' ? doc.status : undefined,

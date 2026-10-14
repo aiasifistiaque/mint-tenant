@@ -51,7 +51,7 @@ export type RecordViewProps = {
  */
 const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions, children }: RecordViewProps) => {
 	const rv = useRecordView({ slug, id });
-	const { name, code, recordTitle, routeTitle, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
+	const { name, code, recordTitle, routeTitle, single, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
 	// Like the edit dialog's header: the code, then how fresh the record is.
 	const updated = ago(updatedAt);
 	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`].filter(Boolean).join(' · ') || undefined;
@@ -114,7 +114,8 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 				<PageHeader
 					breadcrumbs={[
 						{ href: HOME, title: 'Home' },
-						{ href: pagePath(slug), title: routeTitle },
+						// A single type has no table to go back to.
+						...(single ? [] : [{ href: pagePath(slug), title: routeTitle }]),
 						{ href: '#', title: recordTitle },
 					]}
 					title={title || recordTitle}

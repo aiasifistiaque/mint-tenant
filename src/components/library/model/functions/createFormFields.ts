@@ -60,6 +60,8 @@ const OPTIONAL_FIELD_PROPS = [
 	'requiredIf',
 	'linkedReads',
 	'linkedRoute',
+	// An address (uid) field's source field (docs/cms D2).
+	'slugFrom',
 ] as const;
 
 const createResolvedField = ({
