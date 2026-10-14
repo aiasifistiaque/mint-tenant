@@ -39,6 +39,7 @@ const GUIDE_OF: Record<string, string> = {
 	'template-faq': 'templates',
 	history: 'projects',
 	notifications: 'account',
+	'install-app': 'account',
 	'media-library': 'projects',
 	'public-api': 'public-api',
 	reference: 'public-api',

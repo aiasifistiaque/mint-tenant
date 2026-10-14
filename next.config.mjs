@@ -19,6 +19,11 @@ const nextConfig = {
 	env: { NEXT_PUBLIC_APP_PAGES: APP_PAGES.join(',') },
 	// No image optimizer (billed per image on Vercel): plain <img> / Chakra Image only.
 	images: { unoptimized: true },
+	// The service worker (installable app): always checked for a new copy, so a
+	// change reaches installed apps on their next visit.
+	async headers() {
+		return [{ source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }] }];
+	},
 	async redirects() {
 		return [
 			{ source: '/user-docs', destination: DOCS_URL, permanent: false },

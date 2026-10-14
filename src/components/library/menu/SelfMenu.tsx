@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Menu, Center, Flex, Box, Text, FlexProps, Switch } from '@chakra-ui/react';
-import { Moon } from 'lucide-react';
+import { Moon, Smartphone } from 'lucide-react';
 
 import CustomMenuItem, { MenuItemStyle } from './CustomMenuItem';
 import { MenuIconContainer, MenuContainer } from '.';
@@ -10,6 +10,9 @@ import { useGetSelfQuery, logout, useSignOutHereMutation } from '../store';
 import { useAppDispatch } from '../hooks';
 import ThemeModal from '../theme/ThemeModal';
 import { useColorMode } from '@/components/ui/color-mode';
+import { IS_TENANT_PANEL } from '../config/lib/constants/panel';
+import InstallAppDialog from '../tenant/InstallAppDialog';
+import { installPlatform, promptInstall, useInstallApp } from '../tenant/installApp';
 
 /** Up to two initials: "Asif Istiaque" → "AI", "admin" → "A". */
 const initialsOf = (name?: string) =>
@@ -26,6 +29,8 @@ const SelfMenu = ({ iconSize }: { iconSize?: number }) => {
 	const { data } = useGetSelfQuery({});
 	const dispatch = useAppDispatch();
 	const [themesOpen, setThemesOpen] = useState(false);
+	const [installOpen, setInstallOpen] = useState(false);
+	const { installed, canPrompt } = useInstallApp();
 	const [signOutHere] = useSignOutHereMutation();
 	const { colorMode, toggleColorMode } = useColorMode();
 	const dark = colorMode === 'dark';
@@ -38,6 +43,16 @@ const SelfMenu = ({ iconSize }: { iconSize?: number }) => {
 			/* signed out locally regardless */
 		}
 		dispatch(logout());
+	};
+
+	// On a phone whose browser offers the prompt, straight to it; anywhere else
+	// the dialog — this browser's steps, and on a computer a code for the phone.
+	const handleInstall = async () => {
+		const platform = installPlatform();
+		if (canPrompt && (platform === 'ios' || platform === 'android')) {
+			if ((await promptInstall()) !== 'unavailable') return;
+		}
+		setInstallOpen(true);
 	};
 
 	const initials = initialsOf(data?.name);
@@ -120,6 +135,17 @@ const SelfMenu = ({ iconSize }: { iconSize?: number }) => {
 							</Flex>
 						</CustomMenuItem>
 
+						{/* The tenant panel installs as an app (manifest.ts, public/sw.js);
+						    gone once it's running as one. */}
+						{IS_TENANT_PANEL && !installed && (
+							<CustomMenuItem
+								value='install-app'
+								icon={<Smartphone size={16} />}
+								onClick={handleInstall}>
+								Install app
+							</CustomMenuItem>
+						)}
+
 						<Menu.Separator {...separatorCss} />
 
 						<CustomMenuItem
@@ -136,6 +162,12 @@ const SelfMenu = ({ iconSize }: { iconSize?: number }) => {
 				isOpen={themesOpen}
 				onClose={() => setThemesOpen(false)}
 			/>
+			{IS_TENANT_PANEL && (
+				<InstallAppDialog
+					open={installOpen}
+					onClose={() => setInstallOpen(false)}
+				/>
+			)}
 		</>
 	);
 };

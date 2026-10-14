@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)" />
+		<title>Offline · MINT</title>
+		<!-- Shown by public/sw.js when a page is opened with no connection. Self-contained:
+		     nothing here may need the network. The website's colours, light and dark. -->
+		<style>
+			:root {
+				--bg: #fbfbfd;
+				--text: #0b0d14;
+				--muted: #555b6e;
+				--ink: #0d0d0d;
+				--ink-text: #ffffff;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #0d0d0d;
+					--text: #faf8f1;
+					--muted: #a3a29c;
+					--ink: #faf8f1;
+					--ink-text: #0d0d0d;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+			}
+			body {
+				background: var(--bg);
+				color: var(--text);
+				font-family: Outfit, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+				font-weight: 300;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 24px 16px;
+				padding-top: max(24px, env(safe-area-inset-top));
+			}
+			main {
+				width: 100%;
+				max-width: 380px;
+				text-align: center;
+			}
+			svg {
+				display: block;
+				margin: 0 auto;
+			}
+			.label {
+				margin: 28px 0 10px;
+				font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 11px;
+				letter-spacing: 0.14em;
+				text-transform: uppercase;
+				color: var(--muted);
+			}
+			h1 {
+				margin: 0;
+				font-size: 30px;
+				font-weight: 200;
+				letter-spacing: 0.02em;
+				text-transform: uppercase;
+			}
+			p {
+				margin: 14px 0 28px;
+				font-size: 15px;
+				line-height: 1.55;
+				color: var(--muted);
+			}
+			button {
+				appearance: none;
+				border: 0;
+				border-radius: 999px;
+				padding: 11px 22px;
+				background: var(--ink);
+				color: var(--ink-text);
+				font: inherit;
+				font-size: 13px;
+				font-weight: 400;
+				letter-spacing: 0.1em;
+				text-transform: uppercase;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" role="img" aria-label="MINT" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#10b981"/><stop offset=".45" stop-color="#06b6d4"/><stop offset="1" stop-color="#7c3aed"/></linearGradient><linearGradient id="s" x1="16" y1="0" x2="16" y2="18" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect width="32" height="32" rx="9.5" fill="url(#g)"/><rect width="32" height="32" rx="9.5" fill="url(#s)"/><path d="M9.5 22.5V10.5L16 17L22.5 10.5V22.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6.6Q16.45 9.05 18.9 9.5Q16.45 9.95 16 12.4Q15.55 9.95 13.1 9.5Q15.55 9.05 16 6.6Z" fill="#fff"/></svg>
+			<div class="label">No connection</div>
+			<h1>You're offline</h1>
+			<p>MINT needs the internet to load your projects and records. This page opens itself again once you're back online.</p>
+			<button type="button" onclick="location.reload()">Try again</button>
+		</main>
+		<script>
+			window.addEventListener('online', function () {
+				location.reload();
+			});
+		</script>
+	</body>
+</html>

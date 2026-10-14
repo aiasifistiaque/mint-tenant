@@ -6,6 +6,7 @@ import 'swiper/css';
 import { JetBrains_Mono, Outfit } from 'next/font/google';
 import Script from 'next/script';
 import { THEME_BOOT_SCRIPT } from '@/theme/themeBoot';
+import { pwaBootScript } from '@/components/library/tenant/pwaBoot';
 
 // The marketing website's type (mint-webpage): Outfit for everything, light
 // weights; JetBrains Mono for labels. theme/index.ts reads the variables.
@@ -17,6 +18,11 @@ export const metadata: Metadata = {
 	// tab's title from Layout, with the project's name (panel.ts tabTitle).
 	title: { default: 'MINT', template: '%s · MINT' },
 	description: 'Your MINT workspace — projects, data, websites and APIs.',
+	// Installable as an app (manifest.ts links itself): the home-screen name and
+	// look on iPhone, which reads these rather than the manifest.
+	applicationName: 'MINT',
+	appleWebApp: { capable: true, title: 'MINT', statusBarStyle: 'default' },
+	formatDetection: { telephone: false },
 };
 
 export const viewport = {
@@ -54,6 +60,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					id='admin-theme-boot'
 					strategy='beforeInteractive'>
 					{THEME_BOOT_SCRIPT}
+				</Script>
+				{/* Install as an app: keeps the browser's install prompt for the
+				    account menu, and registers the service worker (production). */}
+				<Script
+					id='pwa-boot'
+					strategy='beforeInteractive'>
+					{pwaBootScript(process.env.NODE_ENV === 'production')}
 				</Script>
 			</head>
 			<body>
