@@ -2,7 +2,8 @@
 
 import { FC, ReactNode, useState } from 'react';
 import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react';
-import { ChevronDown, ChevronRight, Lock, Play } from 'lucide-react';
+import NextLink from 'next/link';
+import { ArrowUpRight, ChevronDown, ChevronRight, KeyRound, Lock, Play } from 'lucide-react';
 import { CopyValue, Panel } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import ExampleRequest from './ExampleRequest';
@@ -19,16 +20,18 @@ import {
 	endpointsOf,
 	exampleRecord,
 	filtersOf,
+	fromInfo,
 	listExamples,
 	sendable,
 } from './api';
 
 /**
  * Every endpoint of the project's public API, generated from what the API
- * says it offers (so it always matches the switches above): parameters, body
- * fields, an example response, and "Try" to load it into the tester. Above
- * the models, how every list pages, sorts and filters; each list endpoint
- * then shows its own fields' filters and ready-made example requests.
+ * says it offers (GET /, so it always matches the Endpoints page): who may call
+ * it, parameters, body fields, an example response, and "Try" to load it into
+ * the tester. Above them, how every list pages, sorts and filters; each list
+ * endpoint that takes callers' filters then shows its fields' filters and
+ * ready-made example requests (docs/api-builder AB-04).
  */
 
 const json = (v: any) => JSON.stringify(v, null, 2);
@@ -154,7 +157,17 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 			/>
 		</Box>,
 	];
-	if (model && e.method === 'GET' && !e.path.endsWith(':id')) {
+	if (model && e.method === 'GET' && !e.path.endsWith(':id') && model.filters && !model.filters.length)
+		parts.push(
+			<Text
+				key='fixed'
+				fontSize='12.5px'
+				color='fg.muted'>
+				Its filters and order are fixed{e.rules ? ' by its rules' : ''}: it takes <Mono>page</Mono>, <Mono>limit</Mono> (up to {e.maxLimit || 100}) and{' '}
+				<Mono>fields</Mono> only.
+			</Text>
+		);
+	if (model && e.method === 'GET' && !e.path.endsWith(':id') && !(model.filters && !model.filters.length)) {
 		const filters = filtersOf(model);
 		const label = (key: string) => model.fields.find(f => f.key === key)?.label || { createdAt: 'Created', updatedAt: 'Last changed' }[key] || key;
 		const options = (key: string) => model.fields.find(f => f.key === key)?.options;
@@ -164,7 +177,7 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 				<Params
 					rows={[
 						['page', 'number', 'Which page, from 1 (default 1)'],
-						['limit', 'number', '1–100 per page (default 20)'],
+						['limit', 'number', `1–${e.maxLimit || 100} per page (default ${e.limit || 20})`],
 						[
 							'sort',
 							'fields',
@@ -222,7 +235,7 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 					borderColor='border.muted'
 					borderRadius='md'
 					overflow='hidden'>
-					{listExamples(model).map(x => (
+					{listExamples(model, e.path).map(x => (
 						<Flex
 							key={x.path}
 							align='center'
@@ -305,7 +318,7 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 			e.method === 'DELETE'
 				? { message: 'Deleted' }
 				: e.method === 'GET' && !e.path.endsWith(':id')
-				? { doc: [record], total: 1, page: 1, limit: 20, totalPages: 1 }
+				? { doc: [record], total: 1, page: 1, limit: e.limit || 20, totalPages: 1 }
 				: record;
 	} else if (e.path.startsWith('/auth/')) {
 		const customer = { _id: '66f0c1d2e3a4b5c6d7e8f902', name: 'Ada Lovelace', email: 'ada@example.com', phone: '', createdAt: '2026-10-02T09:30:00.000Z' };
@@ -331,7 +344,7 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 	return parts;
 };
 
-const EndpointRow: FC<{ e: Endpoint; base: string; model?: ApiModel; onTry: (e: Endpoint) => void }> = ({ e, base, model, onTry }) => {
+const EndpointRow: FC<{ e: Endpoint; base: string; model?: ApiModel; onTry: (e: Endpoint) => void; href?: string }> = ({ e, base, model, onTry, href }) => {
 	const [open, setOpen] = useState(false);
 	const body = details(e, model, onTry, base);
 	const hasDetails = Array.isArray(body) && body.length > 0;
@@ -377,6 +390,31 @@ const EndpointRow: FC<{ e: Endpoint; base: string; model?: ApiModel; onTry: (e: 
 						<Lock size={12} />
 						<Text display={{ base: 'none', sm: 'block' }}>Customer</Text>
 					</Flex>
+				)}
+				{e.key && (
+					<Flex
+						align='center'
+						gap={1}
+						fontSize='11.5px'
+						color='fg.muted'
+						title='Needs a server key: Authorization: Bearer mint_sk_…'>
+						<KeyRound size={12} />
+						<Text display={{ base: 'none', sm: 'block' }}>Server key</Text>
+					</Flex>
+				)}
+				{href && (
+					<Button
+						size='2xs'
+						variant='ghost'
+						asChild
+						onClick={ev => ev.stopPropagation()}>
+						<NextLink
+							href={href}
+							title='Its rules, fields and filters'>
+							<ArrowUpRight size={12} />
+							Open
+						</NextLink>
+					</Button>
 				)}
 				<Button
 					size='2xs'
@@ -516,14 +554,48 @@ const ListsGuide: FC = () => {
 	);
 };
 
-const ApiReference: FC<{ base: string; info: ApiInfo | null; error?: string; onTry: (e: Endpoint) => void }> = ({ base, info, error, onTry }) => {
-	const models = info?.models || [];
-	const customers = models.some(m => m.auth === 'customer');
+const ACTION_ORDER = ['GET', 'GET:id', 'POST', 'PUT:id', 'DELETE:id'];
+/** A model's standard addresses first, in the order records are used; custom ones after, by address. */
+const byAction = (a: { e: Endpoint; model: ApiModel }, b: { e: Endpoint; model: ApiModel }) => {
+	const std = (x: Endpoint, m: ApiModel) => x.path === `/${m.route}` || x.path === `/${m.route}/:id`;
+	const rank = (x: Endpoint) => ACTION_ORDER.indexOf(`${x.method}${x.path.endsWith(':id') ? ':id' : ''}`);
+	return Number(std(b.e, b.model)) - Number(std(a.e, a.model)) || (std(a.e, a.model) ? rank(a.e) - rank(b.e) : a.e.path.localeCompare(b.e.path) || rank(a.e) - rank(b.e));
+};
+
+const WHO_NOTE: Record<string, string> = { anyone: 'Anyone', customer: 'Signed-in customers', key: 'Server key' };
+
+const ApiReference: FC<{ base: string; info: ApiInfo | null; error?: string; onTry: (e: Endpoint) => void; links?: Record<string, string> }> = ({
+	base,
+	info,
+	error,
+	onTry,
+	links = {},
+}) => {
+	const endpoints = info?.endpoints;
+	// Each endpoint as a request + its fields as a model, grouped by model (older backends: the models' own endpoints).
+	const groups: { title: string; note: string; items: { e: Endpoint; model: ApiModel }[] }[] = endpoints
+		? Object.values(
+				endpoints.reduce((acc: Record<string, { title: string; note: string; items: { e: Endpoint; model: ApiModel }[]; who: Set<string> }>, x) => {
+					const g = (acc[x.model] ||= { title: x.modelTitle, note: '', items: [], who: new Set() });
+					const { e, model } = fromInfo(x);
+					g.items.push({ e: { ...e, limit: x.list?.limit, maxLimit: x.list?.maxLimit }, model });
+					g.who.add(WHO_NOTE[x.who]);
+					return acc;
+				}, {})
+		  ).map(g => ({ title: g.title, note: [...g.who].join(' · '), items: g.items.sort(byAction) }))
+		: (info?.models || []).map(m => ({
+				title: m.title,
+				note: `${m.auth === 'customer' ? (m.ownerOnly ? 'Signed-in customers · own records' : 'Signed-in customers') : 'Open to anyone'}${m.note ? ` — ${m.note}` : ''}`,
+				items: endpointsOf(m).map(e => ({ e, model: m })),
+		  }));
+	const all = groups.flatMap(g => g.items);
+	const customers = all.some(x => x.e.customer);
+	const keys = all.some(x => x.e.key);
 	return (
 		<Panel
 			title='API reference'
-			subtitle='Every endpoint your site or app can call — it follows the switches above.'
-			actions={<GuideLink section='reference' />}
+			subtitle='Every endpoint your site or app can call — always as the Endpoints page has them.'
+			actions={<GuideLink section='api-reference' />}
 			flush>
 			<Flex
 				direction='column'
@@ -538,11 +610,17 @@ const ApiReference: FC<{ base: string; info: ApiInfo | null; error?: string; onT
 					color='fg.muted'
 					lineHeight='1.6'>
 					Requests and responses are JSON. An error answers with a status and <code>{'{ "message": "…" }'}</code>: 400 a value
-					isn’t valid, 401 the endpoint needs a signed-in customer, 404 not found (or not public), 429 too many requests — wait a
-					moment. Endpoints marked <em>Customer</em> need <code>Authorization: Bearer &lt;token&gt;</code>, the token from sign-in.
-					{models.some(m => m.ownerOnly) && ' On “own records” models each customer only reaches the records they created.'}
-					{models.some(m => m.fields.some(f => f.readOnly && f.kind !== 'formula')) &&
-						' Read-only fields (an order’s status, a payment reference) are set by your team, never by a request: sent, they’re ignored.'}
+					isn’t valid, 401 the endpoint needs a signed-in customer or a server key, 403 a rule refused it, 404 not found (or
+					outside its rules), 429 too many requests — wait a moment.
+					{customers && <> Endpoints marked <em>Customer</em> need <code>Authorization: Bearer &lt;token&gt;</code>, the token from sign-in.</>}
+					{keys && (
+						<>
+							{' '}
+							Endpoints marked <em>Server key</em> need <code>Authorization: Bearer mint_sk_…</code> — from your own server only.
+						</>
+					)}
+					{all.some(x => x.model.fields.some(f => f.readOnly && f.kind !== 'formula')) &&
+						' Fields an endpoint doesn’t write (an order’s status, a payment reference) are set by your team: sent, they’re ignored.'}
 				</Text>
 			</Flex>
 
@@ -556,38 +634,39 @@ const ApiReference: FC<{ base: string; info: ApiInfo | null; error?: string; onT
 				</Text>
 			)}
 
-			{models.some(m => m.actions.includes('list')) && <ListsGuide />}
+			{all.some(x => x.e.method === 'GET' && !x.e.path.endsWith(':id') && !(x.model.filters && !x.model.filters.length)) && <ListsGuide />}
 
-			{models.map(m => (
+			{groups.map(g => (
 				<Group
-					key={m.route}
-					title={m.title}
-					note={`${m.auth === 'customer' ? (m.ownerOnly ? 'Signed-in customers · own records' : 'Signed-in customers') : 'Open to anyone'}${m.note ? ` — ${m.note}` : ''}`}>
-					{endpointsOf(m).map(e => (
+					key={g.title}
+					title={g.title}
+					note={g.note}>
+					{g.items.map(({ e, model }) => (
 						<EndpointRow
 							key={`${e.method} ${e.path}`}
 							e={e}
 							base={base}
-							model={m}
+							model={model}
 							onTry={onTry}
+							href={links[`${e.method} ${e.path}`]}
 						/>
 					))}
 				</Group>
 			))}
 
-			{info && !models.length && (
+			{info && !groups.length && (
 				<Text
 					px={4}
 					pb={4}
 					fontSize='13px'
 					color='fg.muted'>
-					No public models yet — switch one on above and its endpoints show here.
+					No endpoints yet — generate a model’s on the Endpoints page and they show here.
 				</Text>
 			)}
 
 			<Group
 				title='Customer sign-in'
-				note={customers ? 'For the models marked Customer' : 'For models open to signed-in customers'}>
+				note={customers ? 'For the endpoints marked Customer' : 'For endpoints open to signed-in customers'}>
 				{AUTH_ENDPOINTS.map(e => (
 					<EndpointRow
 						key={`${e.method} ${e.path}`}

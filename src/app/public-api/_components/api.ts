@@ -12,6 +12,8 @@ export type ApiField = {
 	options?: string[];
 	/** Never written by the API — a formula, or a field the builder made read-only (an order's status). Sent, it's ignored. */
 	readOnly?: boolean;
+	/** An endpoint's fields (docs/api-builder): false when it isn't sent back. */
+	out?: boolean;
 };
 /** A field a list can be filtered by, and its operators (`eq` is `key=value`, the rest `key_<op>=value`). */
 export type ApiFilter = { key: string; kind: string; ops: string[] };
@@ -29,7 +31,22 @@ export type ApiModel = {
 	search?: string[];
 	sort?: string[];
 };
-export type ApiInfo = { name: string; type: 'app' | 'website' | 'api'; slug: string; models: ApiModel[] };
+/** One endpoint as GET / describes it (backend docs/api-builder): its address, who may call it, its fields in and out. */
+export type InfoEndpoint = {
+	name: string;
+	note?: string;
+	method: Method;
+	path: string;
+	action: 'list' | 'get' | 'create' | 'update' | 'delete';
+	model: string;
+	modelTitle: string;
+	standard: boolean;
+	who: 'anyone' | 'customer' | 'key';
+	rules: number;
+	fields: (Omit<ApiField, 'readOnly' | 'out'> & { out?: boolean; write?: boolean })[];
+	list?: { limit: number; maxLimit: number; filters: ApiFilter[]; search: string[]; sort: string[] };
+};
+export type ApiInfo = { name: string; type: 'app' | 'website' | 'api'; slug: string; models: ApiModel[]; endpoints?: InfoEndpoint[] };
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -40,6 +57,13 @@ export type Endpoint = {
 	summary: string;
 	/** Needs `Authorization: Bearer <customer token>`. */
 	customer?: boolean;
+	/** Needs a server key: `Authorization: Bearer mint_sk_…` (docs/api-builder). */
+	key?: boolean;
+	/** How many rules narrow what it reaches. */
+	rules?: number;
+	/** A list's default and largest page size. */
+	limit?: number;
+	maxLimit?: number;
 	/** An example JSON body (POST, PUT). */
 	body?: Record<string, any>;
 };
@@ -118,8 +142,8 @@ const queryValue = (f: ApiField | undefined, kind: string): string => {
 };
 
 /** A few list requests that use this model's own fields: filter, range, search, sort, page. */
-export const listExamples = (m: ApiModel): { path: string; note: string }[] => {
-	const base = `/${m.route}`;
+export const listExamples = (m: ApiModel, path?: string): { path: string; note: string }[] => {
+	const base = path || `/${m.route}`;
 	const filters = filtersOf(m).filter(f => !['createdAt', 'updatedAt'].includes(f.key));
 	const field = (key: string) => m.fields.find(f => f.key === key);
 	const out: { path: string; note: string }[] = [{ path: `${base}?page=2&limit=12&sort=-createdAt`, note: 'Page 2, 12 to a page, newest first' }];
@@ -189,12 +213,15 @@ export const exampleBody = (m: ApiModel, all = false): Record<string, any> =>
 	Object.fromEntries(m.fields.filter(f => sendable(f) && (all || f.required)).map(f => [f.key, exampleOf(f)]));
 
 /** A record as the API returns it. */
-export const exampleRecord = (m: ApiModel) => ({
-	_id: '66f0c1d2e3a4b5c6d7e8f901',
-	...Object.fromEntries(m.fields.map(f => [f.key, exampleOf(f)])),
-	createdAt: '2026-10-02T09:30:00.000Z',
-	updatedAt: '2026-10-02T09:30:00.000Z',
-});
+export const exampleRecord = (m: ApiModel) => {
+	// An endpoint that sends back chosen fields only (docs/api-builder) sends those and _id.
+	const chosen = m.fields.some(f => f.out === false);
+	return {
+		_id: '66f0c1d2e3a4b5c6d7e8f901',
+		...Object.fromEntries(m.fields.filter(f => f.out !== false).map(f => [f.key, exampleOf(f)])),
+		...(!chosen && { createdAt: '2026-10-02T09:30:00.000Z', updatedAt: '2026-10-02T09:30:00.000Z' }),
+	};
+};
 
 const ACTION_ENDPOINT: Record<string, (m: ApiModel) => Endpoint> = {
 	list: m => ({ method: 'GET', path: `/${m.route}`, summary: `List ${m.title} — filter, search, sort and page` }),
@@ -241,6 +268,7 @@ export const exampleRequests = (base: string, e: Endpoint): { curl: string; fetc
 	const headers: Record<string, string> = {
 		...(e.body && { 'Content-Type': 'application/json' }),
 		...(e.customer && { Authorization: 'Bearer <customer token>' }),
+		...(e.key && { Authorization: 'Bearer <server key>' }),
 	};
 	const curl = [
 		`curl${e.method === 'GET' ? '' : ` -X ${e.method}`} ${quote(url)}`,
@@ -258,4 +286,36 @@ export const exampleRequests = (base: string, e: Endpoint): { curl: string; fetc
 		"if (!res.ok) throw new Error(data.message); // 400, 401, 404, 429 — see the reference",
 	].join('\n');
 	return { curl, fetch: fetchCode };
+};
+
+/* ---------------------------------------- endpoints (docs/api-builder) */
+
+/** An endpoint from GET / as the reference shows it: a request, and its fields as a model (for bodies and examples). */
+export const fromInfo = (x: InfoEndpoint): { e: Endpoint; model: ApiModel } => {
+	const writes = x.action === 'create' || x.action === 'update';
+	const model: ApiModel = {
+		route: x.model,
+		title: x.modelTitle,
+		actions: [x.action],
+		auth: x.who === 'customer' ? 'customer' : 'none',
+		ownerOnly: false,
+		note: x.note,
+		fields: x.fields.map(f => ({ ...f, readOnly: writes ? !f.write : undefined, out: !!f.out })),
+		...(x.list && { filters: x.list.filters, search: x.list.search, sort: x.list.sort }),
+	};
+	// A create sends every field it may write; an update only what changes — the first two, by example.
+	const sendable = x.fields.filter(f => f.write && f.kind !== 'formula');
+	const body = writes ? Object.fromEntries((x.action === 'update' ? sendable.slice(0, 2) : sendable).map(f => [f.key, exampleOf(f as ApiField)])) : undefined;
+	return {
+		e: {
+			method: x.method,
+			path: x.path,
+			summary: x.name,
+			customer: x.who === 'customer',
+			key: x.who === 'key',
+			rules: x.rules,
+			...(body && Object.keys(body).length && { body }),
+		},
+		model,
+	};
 };

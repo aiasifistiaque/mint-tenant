@@ -10,7 +10,8 @@ import { Method } from './api';
 /**
  * Sends a request to the project's live public API, from this browser, and
  * shows what comes back — status, time and the JSON. A sign-in's token is
- * kept for the customer-only endpoints; a record's _id fills the next :id.
+ * kept for the customer-only endpoints (a server key goes in the same field); a
+ * record's _id fills the next :id.
  */
 
 export type Trial = { method: Method; path: string; body?: Record<string, any>; customer?: boolean; nonce: number };
@@ -168,7 +169,7 @@ const ApiTester: FC<{ base: string; trial: Trial | null }> = ({ base, trial }) =
 							fontSize='12px'
 							fontWeight='500'
 							mb={1}>
-							Customer token <Text as='span' color='fg.muted' fontWeight='400'>— for endpoints marked Customer; sign in below to get one</Text>
+							Customer token or server key <Text as='span' color='fg.muted' fontWeight='400' fontSize='inherit'>— for endpoints marked Customer (sign in to get one) or Server key (from Keys)</Text>
 						</Text>
 						<Input
 							size='sm'
@@ -179,7 +180,7 @@ const ApiTester: FC<{ base: string; trial: Trial | null }> = ({ base, trial }) =
 								setToken(e.target.value);
 								setTokenNote('');
 							}}
-							placeholder='Paste a token, or call /auth/login'
+							placeholder='Paste a token or a mint_sk_ key, or call /auth/login'
 						/>
 						{tokenNote && (
 							<Text
