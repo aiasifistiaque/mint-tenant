@@ -60,7 +60,11 @@ const FormDivisionAccordion: FC<FormDivisionProps> = ({
 			</Box>
 			<Accordion.ItemIndicator color='fg.muted' />
 		</Accordion.ItemTrigger>
-		<Accordion.ItemContent>
+		{/* The recipe clips the content to a rounded box (for the open/close animation); square it, and in a dialog
+		    give it a few px of room so the first column's labels, borders and focus rings aren't cut at the edge. */}
+		<Accordion.ItemContent
+			borderRadius={0}
+			{...(isModal && { mx: -1, px: 1 })}>
 			<Accordion.ItemBody p={0}>
 				<Grid {...(isModal ? modalGridCss : pageGridCss)}>{children}</Grid>
 			</Accordion.ItemBody>
