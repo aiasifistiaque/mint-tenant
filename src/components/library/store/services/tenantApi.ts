@@ -259,7 +259,7 @@ export type ProjectInviteRole = 'full' | 'member' | 'developer' | (string & {});
 export type ProjectRoleOption = { _id: string; name: string; system: string | null; description?: string; custom?: boolean; permissions?: string[] };
 
 /** What a project's own role can name (WO-50): each model, the media library, History. */
-export type ProjectRoleTarget = { route: string; name: string; actions: ('view' | 'create' | 'edit' | 'delete')[] };
+export type ProjectRoleTarget = { route: string; name: string; actions: ('view' | 'create' | 'edit' | 'delete' | 'publish')[] };
 
 export type ProjectRoleInput = { name: string; description?: string; permissions: string[] };
 

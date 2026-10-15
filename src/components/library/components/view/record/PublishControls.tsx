@@ -1,17 +1,20 @@
 'use client';
 
 import { FC, useState } from 'react';
-import { Badge, Button, Flex } from '@chakra-ui/react';
+import { Badge, Button, Flex, Text } from '@chakra-ui/react';
 import { Send, Undo2, EyeOff } from 'lucide-react';
 import { PromptDialog } from '../../../modals';
 import { usePublishRecordActionMutation } from '../../../store';
 import { toaster } from '@/components/ui/toaster';
 import { ago } from '../../../modals/CreateModal/CreateModal';
+import { useWorkspace } from '../../../tenant/useWorkspace';
 
 /**
  * Drafts and publishing on a record's page (backend docs/cms D5): where it
  * stands — Draft (never published), Published, or Changes not published —
- * and the buttons that move it: Publish, Discard changes, Take off.
+ * and the buttons that move it: Publish, Discard changes, Take off. They need
+ * the Publish right (D11, `publish-<route>`); without it an editor's changes
+ * wait for someone who has it.
  */
 
 type Status = 'draft' | 'published' | 'modified';
@@ -35,7 +38,16 @@ export const PublishBadge: FC<{ status: Status; publishedAt?: string | null }> =
 const PublishControls: FC<{ path: string; id: string; status: Status; canEdit: boolean }> = ({ path, id, status, canEdit }) => {
 	const [run, { isLoading }] = usePublishRecordActionMutation();
 	const [confirm, setConfirm] = useState<'unpublish' | 'discard' | null>(null);
+	const { can, self } = useWorkspace();
 	if (!canEdit) return null;
+	if (self && !can(`publish-${path}`))
+		return status === 'published' ? null : (
+			<Text
+				fontSize='12.5px'
+				color='fg.muted'>
+				Someone who can publish puts it live
+			</Text>
+		);
 
 	const go = async (action: 'publish' | 'unpublish' | 'discard') => {
 		const res: any = await run({ path, id, action });

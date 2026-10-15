@@ -35,7 +35,7 @@ import type { OrgRole, PermissionCatalog } from '@/components/library/store/serv
 const errorText = (e: any) => e?.data?.message || 'Something went wrong — try again.';
 
 /** "Records: view, add · Build · Manage members" — a role at a glance. */
-const RECORD_LABEL: Record<string, string> = { 'records:view': 'view', 'records:create': 'add', 'records:edit': 'edit', 'records:delete': 'delete' };
+const RECORD_LABEL: Record<string, string> = { 'records:view': 'view', 'records:create': 'add', 'records:edit': 'edit', 'records:delete': 'delete', 'records:publish': 'publish' };
 const summary = (permissions: string[], catalog?: PermissionCatalog) => {
 	if (permissions.includes('*')) return 'Everything';
 	const records = permissions.filter(k => RECORD_LABEL[k]).map(k => RECORD_LABEL[k]);

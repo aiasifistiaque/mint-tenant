@@ -10,8 +10,8 @@ import type { ProjectRoleInput, ProjectRoleOption, ProjectRoleTarget } from '@/c
 
 /**
  * Making or changing one of the project's own roles (WO-50): its name, and per
- * model what it may do — view, add, edit, delete — plus the media library and
- * History. Adding, editing or deleting includes viewing, so those tick View
+ * model what it may do — view, add, edit, delete, and publish where records are
+ * drafts until published (docs/cms D11) — plus the media library and History. Adding, editing or deleting includes viewing, so those tick View
  * too, and unticking View clears the row. A server refusal carries `on`.
  */
 
@@ -20,6 +20,7 @@ const ACTIONS = [
 	{ key: 'create', label: 'Add' },
 	{ key: 'edit', label: 'Edit' },
 	{ key: 'delete', label: 'Delete' },
+	{ key: 'publish', label: 'Publish' },
 ] as const;
 
 const labelCss: any = { fontSize: '13px', fontWeight: '600', m: 0 };
