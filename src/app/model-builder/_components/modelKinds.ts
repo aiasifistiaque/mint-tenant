@@ -126,8 +126,27 @@ export const SUB_KINDS: FieldKind[] = [
 	'image',
 	'file',
 ];
-/** What a component's own fields can be — the backend's COMPONENT_KINDS. */
-export const COMPONENT_KINDS: FieldKind[] = [...SUB_KINDS, 'editor', 'images', 'files', 'video', 'tags', 'multiselect'];
+/**
+ * What a component's own fields can be — the backend's COMPONENT_KINDS: a
+ * section's, rich text and media lists, links to records, a group or list of
+ * rows, and another component of plain fields (backend docs/cms CMS-03b).
+ */
+export const COMPONENT_KINDS: FieldKind[] = [
+	...SUB_KINDS,
+	'editor',
+	'images',
+	'files',
+	'video',
+	'tags',
+	'multiselect',
+	'reference',
+	'references',
+	'section',
+	'sectionlist',
+	'component',
+];
+/** Kinds that give a component fields of its own fields — one with any of them can't go inside another component. */
+export const NESTING_KINDS: FieldKind[] = ['section', 'sectionlist', 'component', 'blocks'];
 
 export const kindLabel = (kind?: string) => KINDS.find(k => k.value === kind)?.label || kind || '—';
 

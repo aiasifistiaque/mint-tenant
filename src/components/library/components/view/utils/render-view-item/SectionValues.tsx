@@ -12,7 +12,19 @@ import moment from 'moment';
  * - SectionObject: a single section's values as label / value lines.
  */
 
-type Sub = { name: string; label?: string; type?: string; options?: { value: any; label?: string }[] };
+type Sub = {
+	name: string;
+	label?: string;
+	type?: string;
+	labelKey?: string;
+	options?: { value: any; label?: string }[];
+	/** A group inside a component: its fields; a list of rows: its `section.dataModel`. */
+	dataModel?: Sub[];
+	section?: { dataModel?: Sub[] };
+};
+
+/** A linked record's name (it arrives filled in), or its id when it isn't. */
+const recordName = (f: Sub, v: any) => (v && typeof v === 'object' ? String(v[f.labelKey || 'name'] ?? v.name ?? v._id ?? '') : String(v));
 
 const NUMERIC = ['number', 'formula'];
 
@@ -74,6 +86,26 @@ export const subValue = (f: Sub, v: any): ReactNode => {
 			);
 		case 'select':
 			return f.options?.find(o => String(o.value) === String(v))?.label || String(v);
+		// Links to records inside a component (backend docs/cms CMS-03b).
+		case 'data-menu':
+			return recordName(f, v);
+		case 'data-tag':
+			return Array.isArray(v) ? v.map(x => recordName(f, x)).join(', ') || <Text color='fg.subtle'>—</Text> : recordName(f, v);
+		// A group or list of rows inside a component (a component inside a component): drawn the same way, nested.
+		case 'section-object':
+			return (
+				<SectionObject
+					value={v}
+					dataModel={f.dataModel || []}
+				/>
+			);
+		case 'section-data-array':
+			return (
+				<SectionRows
+					rows={Array.isArray(v) ? v : []}
+					dataModel={f.section?.dataModel || []}
+				/>
+			);
 		default:
 			return typeof v === 'object' ? JSON.stringify(v) : String(v);
 	}

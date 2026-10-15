@@ -80,6 +80,8 @@ export const BlockFields: FC<{ item: Item; type?: BlockType; onChange: (next: It
 						value={latest.current?.[f.name] ?? (f.type === 'checkbox' ? false : '')}
 						onChange={getOnChangeHandler({ type: f.type, key: f.name, formData: latest.current, setFormData, setChangedData })}
 						options={f.options}
+						// A link to records inside a component (backend docs/cms CMS-03b): the model it picks from.
+						model={f.model}
 						item={f}
 					/>
 				</Box>

@@ -85,6 +85,8 @@ const VSectionObject: FC<Props> = ({ name, label, value, onChange, isRequired, h
 									setChangedData,
 								})}
 								options={item.options}
+								// A link to records inside a component (backend docs/cms CMS-03b): the model it picks from.
+								model={item.model}
 								item={locked ? { ...item, helper: undefined } : item}
 							/>
 						</Box>

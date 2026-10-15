@@ -94,6 +94,18 @@ const VDataMenu: FC<VDataMenuProps> = ({
 	if (selectedItem) pickedLabel.current = nameOf(selectedItem);
 	const selected = useMemo(() => (current ? [String(current)] : []), [current]);
 
+	// A saved choice (an edit form) is known before its list arrives; the box only
+	// writes a name on a pick, so it stayed empty. Once the record is in the list,
+	// its name goes in the box — unless someone is typing there.
+	const shownId = useRef<string | undefined>(undefined);
+	useEffect(() => {
+		const id = selectedItem ? String(selectedItem[dataKey]) : undefined;
+		if (id === shownId.current) return;
+		shownId.current = id;
+		if (id && !open && (!search || search === pickedLabel.current)) setSearch(nameOf(selectedItem));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedItem]);
+
 	const emitSelection = (doc: any) => {
 		pickedLabel.current = nameOf(doc);
 		onChange?.({ target: { name, value: type === 'object' ? doc : doc?.[dataKey] } });
@@ -158,6 +170,7 @@ const VDataMenu: FC<VDataMenuProps> = ({
 							openOnClick
 							positioning={{ sameWidth: true }}
 							onOpenChange={details => setOpen(details.open)}
+							inputValue={search}
 							onInputValueChange={details => setSearch(details.inputValue)}
 							onValueChange={details => {
 								if (!details.value.length) {

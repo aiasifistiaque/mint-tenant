@@ -54,6 +54,7 @@ const GUIDE_OF: Record<string, string> = {
 	'api-keys': 'public-api',
 	'api-logs': 'public-api',
 	'models-components': 'models',
+	'models-components-nesting': 'models',
 	'models-drafts': 'models',
 	'api-reference': 'public-api',
 	reference: 'public-api',

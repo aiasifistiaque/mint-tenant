@@ -14,6 +14,7 @@ import {
 	KINDS,
 	KIND_GROUPS,
 	NEEDS_OPTIONS,
+	NESTING_KINDS,
 	NO_DEFAULT_KINDS,
 	REFERENCE_KINDS,
 	SECTION_KINDS,
@@ -63,6 +64,11 @@ type Props = {
 	sub?: boolean;
 	/** A fixed set of fields (a feature's changed fields): no "Add field". */
 	fixed?: boolean;
+	/**
+	 * A component's own fields (backend docs/cms CMS-03b): the uid it has (or will
+	 * have). A component field there offers only components of plain fields, never itself.
+	 */
+	inComponent?: string;
 };
 
 const ICON = { size: 14, strokeWidth: 1.75 };
@@ -384,10 +390,12 @@ const OptionsInput: FC<{
 	);
 };
 
-const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed }) => {
-	// The project's components, for a field of kind Component (docs/cms D3); not asked for inside a section or a component.
-	const { data: componentData } = useGetModelComponentsQuery(undefined, { skip: !!sub });
-	const components = componentData?.doc || [];
+const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed, inComponent }) => {
+	// The project's components, for a field of kind Component (docs/cms D3); not asked for inside a section.
+	const nested = inComponent !== undefined;
+	const { data: componentData } = useGetModelComponentsQuery(undefined, { skip: !!sub && !nested });
+	// Inside a component, only another one of plain fields (CMS-03b).
+	const components = (componentData?.doc || []).filter(c => !nested || (c.uid !== inComponent && !(c.fields || []).some((x: any) => NESTING_KINDS.includes(x.kind))));
 	// The section whose fields are being edited.
 	const [sectionFor, setSectionFor] = useState<string | null>(null);
 	const sectionField = sectionFor ? fields.find(f => f.uid === sectionFor) : undefined;

@@ -9,6 +9,7 @@ import {
 	Layout,
 	PromptDialog,
 	useDeleteModelComponentMutation,
+	useGetModelBuilderOptionsQuery,
 	useGetModelComponentQuery,
 	useSaveModelComponentMutation,
 } from '@/components/library';
@@ -58,6 +59,8 @@ export default function ComponentEditPage({ params }: { params: Promise<{ id: st
 	const { can, isLoading: loadingSelf } = useWorkspace();
 	const allowed = can('build');
 	const { data, isLoading, isError } = useGetModelComponentQuery(id, { skip: isNew || !allowed });
+	// The project's models, for a link to records inside it (CMS-03b).
+	const { data: options } = useGetModelBuilderOptionsQuery(undefined, { skip: !allowed });
 	const [save, saving] = useSaveModelComponentMutation();
 	const [remove, removing] = useDeleteModelComponentMutation();
 
@@ -85,7 +88,7 @@ export default function ComponentEditPage({ params }: { params: Promise<{ id: st
 		setSaved(JSON.stringify([data.title, data.description || '', data.icon || '', toServer(f)]));
 	}, [data]);
 
-	const errors = useMemo(() => validateFields(fields, { sub: true }), [fields]);
+	const errors = useMemo(() => validateFields(fields), [fields]);
 	const body = { title: title.trim(), description, icon, fields: toServer(fields) };
 	const dirty = isNew ? !!(title.trim() || fields.length) : JSON.stringify([body.title, description, icon, body.fields]) !== saved;
 	const uid = `${tidy(category) || 'shared'}.${tidy(isNew && !nameTouched ? title : name) || 'name'}`;
@@ -283,15 +286,17 @@ export default function ComponentEditPage({ params }: { params: Promise<{ id: st
 							alignItems='start'>
 							<Panel
 								title='Fields'
-								subtitle='What it holds — text, rich text, pictures, links, choices. No links to records or other components inside.'
+								subtitle='What it holds — text, rich text, pictures, choices, links to records, a group or list of rows, or another component of plain fields.'
+								actions={<GuideLink section='models-components-nesting' />}
 								flush>
 								<Box p={4}>
 									<FieldsEditor
 										fields={fields}
 										onChange={setFields}
 										errors={tried ? errors : {}}
-										targets={[]}
+										targets={options?.targets || []}
 										kinds={COMPONENT_KINDS}
+										inComponent={isNew ? uid : data?.uid || ''}
 										sub
 									/>
 								</Box>
