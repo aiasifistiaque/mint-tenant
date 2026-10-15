@@ -64,6 +64,11 @@ export const bulkApi = mainApi.injectEndpoints({
 			query: ({ path, ids, archived }) => ({ url: `${path}/bulk/archive`, method: 'POST', body: { ids, archived } }),
 			invalidatesTags: (r, e, { path }) => routeTags(path, 'history'),
 		}),
+		/** Drafts and publishing (backend docs/cms D5): the ticked rows' drafts put live. */
+		bulkPublishRows: builder.mutation<{ published: number }, { path: string; ids: string[] }>({
+			query: ({ path, ids }) => ({ url: `${path}/bulk/publish`, method: 'POST', body: { ids } }),
+			invalidatesTags: (r, e, { path }) => routeTags(path, 'history'),
+		}),
 		bulkStatus: builder.mutation<
 			{ changed: number; skipped: StatusSkip[] },
 			{ path: string; ids: string[]; to: string; reason?: string }
@@ -121,6 +126,7 @@ export const {
 	useBulkDuplicateMutation,
 	useBulkArchiveMutation,
 	useBulkStatusMutation,
+	useBulkPublishRowsMutation,
 	useMergePreviewQuery,
 	useMergeMutation,
 	useDownloadMutation,

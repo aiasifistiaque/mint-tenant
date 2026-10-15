@@ -55,7 +55,9 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 	const { name, code, recordTitle, routeTitle, single, drafts, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
 	// Like the edit dialog's header: the code, then how fresh the record is.
 	const updated = ago(updatedAt);
-	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`].filter(Boolean).join(' · ') || undefined;
+	// A drafts record: when it last went live, and who put it there (docs/cms CMS-07).
+	const live = drafts?.publishedAt ? `Published ${ago(drafts.publishedAt)}${drafts.publishedBy ? ` by ${drafts.publishedBy}` : ''}` : drafts ? 'Not published yet' : '';
+	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`, live].filter(Boolean).join(' · ') || undefined;
 
 	// Tabs after Overview: records of other routes that link to this one, as
 	// set in the route builder's view, then Comments (tenant projects), then History, which every record has.

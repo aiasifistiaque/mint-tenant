@@ -152,9 +152,15 @@ export const FooterStatus = ({ isUpdate, changes = 0 }: { isUpdate?: boolean; ch
 
 /**
  * A form dialog's keys: Enter alone doesn't submit (it's easy to hit mid-form)
- * but still makes a new line in a textarea; ⌘/Ctrl+Enter saves from anywhere.
+ * but still makes a new line in a textarea; ⌘/Ctrl+Enter or ⌘/Ctrl+S saves
+ * from anywhere (S in place of the browser's Save page — docs/cms CMS-07).
  */
 export const formKeys = (canSave: boolean) => (e: KeyboardEvent<HTMLFormElement>) => {
+	if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+		e.preventDefault();
+		if (canSave) e.currentTarget.requestSubmit();
+		return;
+	}
 	if (e.key !== 'Enter') return;
 	if (e.metaKey || e.ctrlKey) {
 		e.preventDefault();

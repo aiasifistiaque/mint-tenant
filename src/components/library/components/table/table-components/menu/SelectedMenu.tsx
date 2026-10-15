@@ -12,6 +12,7 @@ import {
 	MessageSquare,
 	PencilLine,
 	Printer,
+	Send,
 	Trash2,
 } from 'lucide-react';
 
@@ -24,7 +25,8 @@ import {
 } from '../../table-components/modals';
 
 import { Icon } from '../../../../icon';
-import { ArchiveRows, DeleteRows, DuplicateRows, StatusRows } from '../bulk/RowActions';
+import { ArchiveRows, DeleteRows, DuplicateRows, PublishRows, StatusRows } from '../bulk/RowActions';
+import { useWorkspace } from '../../../../tenant/useWorkspace';
 import CompareRows from '../bulk/CompareRows';
 import MergeRows from '../bulk/MergeRows';
 import { ExportRows, PrintRows } from '../bulk/ExportRows';
@@ -58,12 +60,14 @@ const ICONS: Record<string, ReactNode> = {
 	merge: <Merge {...ICON} />,
 	print: <Printer {...ICON} />,
 	'marketing-sms': <MessageSquare {...ICON} />,
+	'publish-many': <Send {...ICON} />,
 };
 
 /** Destructive actions go last, after a divider, in red. */
 const DANGER = new Set(['delete-many']);
 
 const SelectedMenu: FC<TableMenuProps> = ({ path, hide, data, items, route }) => {
+	const { can } = useWorkspace();
 	if (hide) return null;
 
 	const render = (item: any, i: number) => {
@@ -78,7 +82,8 @@ const SelectedMenu: FC<TableMenuProps> = ({ path, hide, data, items, route }) =>
 			</MenuItemStyle>
 		) : null;
 	};
-	const entries: any[] = data || [];
+	// A page whose records are drafts until published: Publish for the ticked rows, first (docs/cms D5).
+	const entries: any[] = [...(route?.draftAndPublish && can(`publish-${path}`) ? [{ type: 'publish-many' }] : []), ...(data || [])];
 	const safe = entries.map((item, i) => (DANGER.has(item?.type) ? null : render(item, i))).filter(Boolean);
 	const danger = entries.map((item, i) => (DANGER.has(item?.type) ? render(item, i) : null)).filter(Boolean);
 
@@ -173,6 +178,13 @@ const SelectedMenu: FC<TableMenuProps> = ({ path, hide, data, items, route }) =>
 			case 'export':
 				return (
 					<ExportRows
+						key={i}
+						{...bulkProps}
+					/>
+				);
+			case 'publish-many':
+				return (
+					<PublishRows
 						key={i}
 						{...bulkProps}
 					/>

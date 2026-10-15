@@ -12,6 +12,7 @@ import {
 	StatusSkip,
 	useBulkArchiveMutation,
 	useBulkDeleteMutation,
+	useBulkPublishRowsMutation,
 	useBulkDuplicateMutation,
 	useBulkRestoreMutation,
 	useBulkStatusMutation,
@@ -255,6 +256,30 @@ export const ArchiveRows: FC<BulkProps> = ({ path, items, title }) => {
 			disabled={isLoading}
 			onClick={run}>
 			{viewingArchived ? 'Restore from archive' : title || 'Archive'}
+		</MenuItem>
+	);
+};
+
+/* ----------------------------------------------------------------- publish */
+
+/** Put the ticked rows' drafts live (a page with drafts until published, backend docs/cms D5). */
+export const PublishRows: FC<BulkProps> = ({ path, items }) => {
+	const [publish, { isLoading }] = useBulkPublishRowsMutation();
+	const clear = useClearSelection();
+	const run = async () => {
+		try {
+			const r = await publish({ path, ids: items }).unwrap();
+			clear();
+			toaster.create({ type: 'success', title: `${rows(r.published, 'record')} published`, description: 'They’re on your site and API now.' });
+		} catch (e) {
+			toaster.create({ type: 'error', title: 'Not published', description: errorOf(e, '') });
+		}
+	};
+	return (
+		<MenuItem
+			disabled={isLoading}
+			onClick={run}>
+			Publish
 		</MenuItem>
 	);
 };

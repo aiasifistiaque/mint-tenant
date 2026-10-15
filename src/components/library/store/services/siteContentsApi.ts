@@ -37,8 +37,28 @@ export type SiteContentsPage = { _id: string; name: string; path: string; status
 export type SiteContentsList = { drafts: boolean; site: number; pages: SiteContentsPage[]; page: string; doc: SiteContent[] };
 export type ContentListPreview = { items: { _id: string; title: string; description: string; image: string; url: string }[]; total: number; problem?: string };
 
+/** The content manager's home (CMS-07, backend routes-tenant/content.router.ts). */
+export type ContentModelSummary = {
+	route: string;
+	title: string;
+	description: string;
+	drafts: boolean;
+	canPublish: boolean;
+	total: number;
+	draft: number;
+	modified: number;
+	waiting: number;
+	last: { _id: string; name: string; updatedAt: string; status: ContentStatus } | null;
+};
+export type ContentSingleSummary = { route: string; title: string; description: string; drafts: boolean; canPublish: boolean; exists: boolean; status: ContentStatus | 'live' | null; updatedAt: string | null };
+export type ContentOverview = { website: ContentModelSummary | null; singles: ContentSingleSummary[]; collections: ContentModelSummary[] };
+
 export const siteContentsApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).injectEndpoints({
 	endpoints: builder => ({
+		getContentOverview: builder.query<ContentOverview, void>({
+			query: () => 'content',
+			providesTags: [TAG],
+		}),
 		getSiteContentTypes: builder.query<{ types: ContentType[]; models: ContentListModel[] }, void>({
 			query: () => 'site-contents/types',
 			providesTags: [TAG],
@@ -74,6 +94,7 @@ export const siteContentsApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).
 });
 
 export const {
+	useGetContentOverviewQuery,
 	useGetSiteContentTypesQuery,
 	useGetSiteContentsQuery,
 	useCreateSiteContentMutation,
