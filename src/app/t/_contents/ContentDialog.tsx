@@ -88,7 +88,9 @@ const ContentDialog: FC<{
 	page: string;
 	/** The one being changed; none to add one. */
 	content?: SiteContent | null;
-}> = ({ open, onClose, types, models, pages, page, content }) => {
+	/** Contents keep drafts until published (docs/cms D5). */
+	drafts?: boolean;
+}> = ({ open, onClose, types, models, pages, page, content, drafts }) => {
 	const [uid, setUid] = useState<string>('');
 	const [name, setName] = useState('');
 	const [where, setWhere] = useState(page);
@@ -118,7 +120,11 @@ const ContentDialog: FC<{
 			? await update({ id: content._id, name: name.trim() || undefined, page, data })
 			: await create({ page, type: type.uid, name: name.trim() || undefined, data });
 		if ('error' in res) return setError(res.error?.data?.message || 'Couldn’t save — try again.');
-		toaster.create({ type: 'success', title: content ? 'Saved' : `${type.title} added to ${pageName}` });
+		toaster.create({
+			type: 'success',
+			title: content ? 'Saved' : `${type.title} added to ${pageName}`,
+			description: drafts ? 'A draft — Publish puts it on your site.' : undefined,
+		});
 		onClose();
 	};
 

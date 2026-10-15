@@ -63,6 +63,10 @@ export const siteContentsApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).
 			query: body => ({ url: 'site-contents/order', method: 'POST', body }),
 			invalidatesTags: [TAG],
 		}),
+		publishSiteContents: builder.mutation<{ message: string; published: number }, { page?: string; ids?: string[] }>({
+			query: body => ({ url: 'site-contents/publish', method: 'POST', body }),
+			invalidatesTags: [TAG],
+		}),
 		previewSiteContentList: builder.mutation<ContentListPreview, { data: Record<string, any> }>({
 			query: body => ({ url: 'site-contents/list-preview', method: 'POST', body }),
 		}),
@@ -77,4 +81,5 @@ export const {
 	useRemoveSiteContentMutation,
 	useOrderSiteContentsMutation,
 	usePreviewSiteContentListMutation,
+	usePublishSiteContentsMutation,
 } = siteContentsApi;

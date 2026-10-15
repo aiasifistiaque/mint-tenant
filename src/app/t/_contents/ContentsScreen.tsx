@@ -4,13 +4,14 @@ import { FC, useEffect, useState } from 'react';
 import NextLink from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Box, Button, Flex, IconButton, Skeleton, Text } from '@chakra-ui/react';
-import { ArrowDown, ArrowUp, ExternalLink, Pencil, Plus, Table2, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ExternalLink, Pencil, Plus, Send, Table2, Trash2 } from 'lucide-react';
 import {
 	Layout,
 	PromptDialog,
 	useGetSiteContentsQuery,
 	useGetSiteContentTypesQuery,
 	useOrderSiteContentsMutation,
+	usePublishSiteContentsMutation,
 	useRemoveSiteContentMutation,
 } from '@/components/library';
 import type { SiteContent } from '@/components/library';
@@ -40,10 +41,13 @@ const Row: FC<{
 	last: boolean;
 	canEdit: boolean;
 	canDelete: boolean;
+	canPublish: boolean;
+	publishing: boolean;
 	onEdit: () => void;
 	onMove: (by: number) => void;
 	onRemove: () => void;
-}> = ({ c, first, last, canEdit, canDelete, onEdit, onMove, onRemove }) => {
+	onPublish: () => void;
+}> = ({ c, first, last, canEdit, canDelete, canPublish, publishing, onEdit, onMove, onRemove, onPublish }) => {
 	const Icon = typeIcon(c.icon);
 	return (
 		<Flex
@@ -100,7 +104,19 @@ const Row: FC<{
 			</Box>
 			<Flex
 				gap={0.5}
-				flexShrink={0}>
+				flexShrink={0}
+				align='center'>
+				{canPublish && c.status && c.status !== 'published' && (
+					<Button
+						size='xs'
+						variant='ghost'
+						colorPalette='green'
+						loading={publishing}
+						onClick={onPublish}>
+						<Send size={13} />
+						Publish
+					</Button>
+				)}
 				{canEdit && (
 					<>
 						<IconButton
@@ -190,6 +206,8 @@ const ContentsScreen: FC = () => {
 	const { data: typesData } = useGetSiteContentTypesQuery();
 	const [order] = useOrderSiteContentsMutation();
 	const [remove, removing] = useRemoveSiteContentMutation();
+	const [publish, publishing] = usePublishSiteContentsMutation();
+	const [publishingId, setPublishingId] = useState<string | null>(null);
 	const [editing, setEditing] = useState<SiteContent | null>(null);
 	const [adding, setAdding] = useState(false);
 	const [removingOne, setRemovingOne] = useState<SiteContent | null>(null);
@@ -215,6 +233,17 @@ const ContentsScreen: FC = () => {
 	const canAdd = can('create-web-contents');
 	const canEdit = can('edit-web-contents');
 	const canDelete = can('delete-web-contents');
+	const canPublish = can('publish-web-contents');
+	const waiting = typed.filter(c => c.status && c.status !== 'published').length;
+
+	/** Puts one piece live, or every piece of the page that isn't (Contents keep drafts until published, docs/cms D5). */
+	const goLive = async (ids?: string[]) => {
+		setPublishingId(ids?.[0] || 'page');
+		const res: any = await publish(ids ? { ids } : { page });
+		setPublishingId(null);
+		if ('error' in res) return toaster.create({ type: 'error', title: 'Not published', description: res.error?.data?.message });
+		toaster.create({ type: 'success', title: res.data.published ? `${res.data.published} published` : 'Already live', description: res.data.published ? 'It’s on your site and API now.' : undefined });
+	};
 
 	const move = async (i: number, by: number) => {
 		const next = [...typed];
@@ -298,7 +327,26 @@ const ContentsScreen: FC = () => {
 					<>
 						<Panel
 							title={pageName}
-							subtitle={typed.length ? 'In the order they show — top first.' : undefined}
+							subtitle={
+								typed.length
+									? data?.drafts
+										? `In the order they show — top first. Changes are drafts until published${waiting ? ` · ${waiting} not live` : ''}.`
+										: 'In the order they show — top first.'
+									: undefined
+							}
+							actions={
+								canPublish &&
+								waiting > 0 && (
+									<Button
+										size='xs'
+										colorPalette='green'
+										loading={publishing.isLoading && publishingId === 'page'}
+										onClick={() => goLive()}>
+										<Send size={13} />
+										Publish {page === SITE ? 'these' : 'the page'} ({waiting})
+									</Button>
+								)
+							}
 							flush>
 							{typed.length ? (
 								<Box mt='-1px'>
@@ -313,6 +361,9 @@ const ContentsScreen: FC = () => {
 											onEdit={() => setEditing(c)}
 											onMove={by => move(i, by)}
 											onRemove={() => setRemovingOne(c)}
+											canPublish={canPublish}
+											publishing={publishing.isLoading && publishingId === c._id}
+											onPublish={() => goLive([c._id])}
 										/>
 									))}
 								</Box>
@@ -365,6 +416,7 @@ const ContentsScreen: FC = () => {
 				pages={data?.pages || []}
 				page={page}
 				content={editing}
+				drafts={!!data?.drafts}
 			/>
 			<PromptDialog
 				open={!!removingOne}
