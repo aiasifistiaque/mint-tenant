@@ -43,7 +43,7 @@ const previewOf = (item: Item, type?: BlockType) => {
 	return '';
 };
 
-const BlockFields: FC<{ item: Item; type?: BlockType; onChange: (next: Item) => void; disabled?: boolean }> = ({ item, type, onChange, disabled }) => {
+export const BlockFields: FC<{ item: Item; type?: BlockType; onChange: (next: Item) => void; disabled?: boolean }> = ({ item, type, onChange, disabled }) => {
 	// The latest item, so two changes in one tick both land.
 	const latest = useRef<Item>(item);
 	latest.current = item;
@@ -68,7 +68,7 @@ const BlockFields: FC<{ item: Item; type?: BlockType; onChange: (next: Item) => 
 			{type.dataModel.map((f: any) => (
 				<Box
 					key={f.name}
-					gridColumn={['textarea', 'editor', 'image', 'image-array', 'file', 'file-array'].includes(f.type) ? { md: 'span 2' } : undefined}>
+					gridColumn={['textarea', 'editor', 'image', 'image-array', 'file', 'file-array', 'section-data-array', 'section-object'].includes(f.type) ? { md: 'span 2' } : undefined}>
 					<FormInput
 						formData={latest.current}
 						setFormData={setFormData}
