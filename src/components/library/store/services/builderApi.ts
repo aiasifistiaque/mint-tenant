@@ -167,6 +167,11 @@ export const builderApi = mainApi.injectEndpoints({
 			query: id => ({ url: `builder/components/${id}`, method: 'DELETE' }),
 			invalidatesTags: LIVE_TAGS,
 		}),
+		// "Make reusable": a model's section or list of rows becomes a component (backend docs/cms CMS-03b).
+		makeSectionReusable: builder.mutation<{ component: ModelComponent; model: any }, { id: string; body: { field: string; category: string; name: string; title: string } }>({
+			query: ({ id, body }) => ({ url: `builder/models/${id}/make-component`, method: 'POST', body }),
+			invalidatesTags: LIVE_TAGS,
+		}),
 
 		// Features: several models and their links at once (backend features.service.ts).
 		getFeatureCatalog: builder.query<{ models: any[]; categories: { _id: string; name: string }[] }, void>({
@@ -238,6 +243,7 @@ export const {
 	useGetModelComponentQuery,
 	useSaveModelComponentMutation,
 	useDeleteModelComponentMutation,
+	useMakeSectionReusableMutation,
 	useGetBuiltModelQuery,
 	useGetModelBuilderOptionsQuery,
 	useCheckModelNameQuery,

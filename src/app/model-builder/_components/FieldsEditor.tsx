@@ -2,7 +2,7 @@
 
 import { DragEvent, FC, ReactNode, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text } from '@chakra-ui/react';
-import { AlertTriangle, Calculator, ChevronUp, ListTree, GripVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Calculator, ChevronUp, ListTree, GripVertical, Plus, Puzzle, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { radius, useGetModelComponentsQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import {
@@ -69,6 +69,8 @@ type Props = {
 	 * have). A component field there offers only components of plain fields, never itself.
 	 */
 	inComponent?: string;
+	/** "Make reusable" on a saved section or list of rows: it becomes a component (CMS-03b). */
+	onMakeReusable?: (field: EditableField) => void;
 };
 
 const ICON = { size: 14, strokeWidth: 1.75 };
@@ -390,7 +392,7 @@ const OptionsInput: FC<{
 	);
 };
 
-const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed, inComponent }) => {
+const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed, inComponent, onMakeReusable }) => {
 	// The project's components, for a field of kind Component (docs/cms D3); not asked for inside a section.
 	const nested = inComponent !== undefined;
 	const { data: componentData } = useGetModelComponentsQuery(undefined, { skip: !!sub && !nested });
@@ -792,6 +794,18 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 										</Text>
 									</Button>
 									{error?.on === 'fields' && <FieldMessage>{error.message}</FieldMessage>}
+									{/* Only a section as saved: the server makes the component from what's stored. */}
+									{onMakeReusable && savedKinds[f.key] === f.kind && (
+										<Button
+											size='xs'
+											variant='ghost'
+											mt={1}
+											title='Turn this into a component other models can use too'
+											onClick={() => onMakeReusable(f)}>
+											<Puzzle size={12} />
+											Make reusable
+										</Button>
+									)}
 								</Box>
 							) : f.kind === 'formula' ? (
 								<Box maxW='280px'>

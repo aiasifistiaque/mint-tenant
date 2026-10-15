@@ -42,9 +42,10 @@ import {
 import { toaster } from '@/components/ui/toaster';
 import ModelPanels, { ModelWorking, codePreview, modelBody, modelFromDoc, useFieldErrors } from './ModelPanels';
 import FormPreview from './FormPreview';
+import MakeReusableDialog from './MakeReusableDialog';
 import KindIcon from './KindIcon';
 import { LinkTarget } from './FieldsEditor';
-import { REFERENCE_KINDS, SELF, singular } from './modelKinds';
+import { EditableField, REFERENCE_KINDS, SELF, singular } from './modelKinds';
 import { HOME, IS_TENANT_PANEL, projectHref } from '@/components/library/config/lib/constants/panel';
 
 /**
@@ -133,6 +134,8 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 	const [dropData, setDropData] = useState(false);
 	const [problems, setProblems] = useState<string[]>([]);
 	const [intro, setIntro] = useState(false);
+	// The section being made a component (CMS-03b).
+	const [reusable, setReusable] = useState<EditableField | null>(null);
 
 	// The open tab lives in `?tab=`, so a reload or a shared link lands on it. Switching keeps unsaved edits.
 	const [tab, setTab] = useState<Tab>('fields');
@@ -460,6 +463,7 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 							doc={doc}
 							base={base}
 							targets={targets}
+							onMakeReusable={setReusable}
 						/>
 						<Flex
 							direction='column'
@@ -800,6 +804,13 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 					}
 					setConfirm(null);
 				}}
+			/>
+			<MakeReusableDialog
+				modelId={id}
+				field={reusable}
+				unsaved={isDirty}
+				onClose={() => setReusable(null)}
+				onDone={model => apply({ doc: model })}
 			/>
 			<ConfirmAction
 				isOpen={confirm === 'delete'}

@@ -161,6 +161,8 @@ type Props = {
 	 * wizard keeps them under More options.
 	 */
 	namesApart?: boolean;
+	/** The model page: "Make reusable" on a saved section (CMS-03b). */
+	onMakeReusable?: (field: EditableField) => void;
 };
 
 export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'fields';
@@ -168,7 +170,7 @@ export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'field
 export const useFieldErrors = (fields: EditableField[], accessEnabled = false) =>
 	useMemo(() => validateFields(fields, { accessEnabled }), [fields, accessEnabled]);
 
-const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity, namesApart }) => {
+const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity, namesApart, onMakeReusable }) => {
 	const isNew = mode === 'create';
 	const show = (panel: ModelPanelName) => !only || only.includes(panel);
 	const set = (patch: Partial<ModelWorking>) => onChange({ ...working, ...patch });
@@ -619,6 +621,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					selfName={selfName}
 					savedKinds={savedKinds}
 					hasRecords={!isNew && records > 0}
+					onMakeReusable={onMakeReusable}
 				/>
 				{removedWithData.length > 0 && (
 					<Text
