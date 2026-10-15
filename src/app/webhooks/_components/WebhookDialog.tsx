@@ -14,8 +14,10 @@ import type { Webhook, WebhookEvent, WebhookInput } from '@/components/library/s
  * made by the server and shown once.
  */
 
-export const EVENT_LABEL: Record<WebhookEvent, string> = { create: 'Created', update: 'Changed', delete: 'Deleted' };
-const EVENTS: WebhookEvent[] = ['create', 'update', 'delete'];
+export const EVENT_LABEL: Record<WebhookEvent, string> = { create: 'Created', update: 'Changed', delete: 'Deleted', publish: 'Published', unpublish: 'Taken off' };
+const BASIC: WebhookEvent[] = ['create', 'update', 'delete'];
+/** A model with drafts also publishes and takes records off (docs/cms CMS-09). */
+const ALL: WebhookEvent[] = [...BASIC, 'publish', 'unpublish'];
 
 const Field: FC<{ label: string; hint?: string; children: ReactNode }> = ({ label, hint, children }) => (
 	<Box>
@@ -42,24 +44,28 @@ const WebhookDialog: FC<{
 	onClose: () => void;
 	/** The webhook being changed; none to add one. */
 	hook?: Webhook | null;
-	models: { route: string; title: string }[];
+	models: { route: string; title: string; drafts?: boolean }[];
 	loading?: boolean;
 	error?: string;
 	onSave: (input: WebhookInput) => void;
 }> = ({ open, onClose, hook, models, loading, error, onSave }) => {
 	const [route, setRoute] = useState('');
-	const [events, setEvents] = useState<WebhookEvent[]>(EVENTS);
+	const [events, setEvents] = useState<WebhookEvent[]>(BASIC);
 	const [url, setUrl] = useState('');
 	const [note, setNote] = useState('');
 	useEffect(() => {
 		if (!open) return;
 		setRoute(hook?.route || models[0]?.route || '');
-		setEvents(hook?.events || EVENTS);
+		setEvents(hook?.events || BASIC);
 		setUrl(hook?.url || '');
 		setNote(hook?.note || '');
 	}, [open, hook?._id]);
 
 	const looksLikeUrl = /^https?:\/\/\S+$/.test(url.trim());
+	const drafts = !!models.find(m => m.route === route)?.drafts;
+	const offered = drafts ? ALL : BASIC;
+	// Another model without drafts: publish / unpublish can't happen there.
+	const picked = events.filter(ev => offered.includes(ev));
 	return (
 		<PromptDialog
 			open={open}
@@ -67,11 +73,11 @@ const WebhookDialog: FC<{
 			tone='default'
 			icon={<Send size={18} />}
 			title={hook ? 'Change the webhook' : 'Add a webhook'}
-			description='When a record of the model is created, changed or deleted — in this panel or through the public API — it’s sent to the address, signed with the webhook’s secret.'
+			description='When a record of the model is created, changed, deleted — or, with drafts, published or taken off — in this panel or through the public API, it’s sent to the address, signed with the webhook’s secret.'
 			confirmLabel={hook ? 'Save' : 'Add the webhook'}
 			loading={loading}
-			disabled={!route || !events.length || (!!url.trim() && !looksLikeUrl)}
-			onConfirm={() => onSave({ route, events, url: url.trim(), note: note.trim() })}
+			disabled={!route || !picked.length || (!!url.trim() && !looksLikeUrl)}
+			onConfirm={() => onSave({ route, events: picked, url: url.trim(), note: note.trim() })}
 			aside={<GuideLink section='webhooks' />}>
 			<Flex
 				direction='column'
@@ -90,14 +96,16 @@ const WebhookDialog: FC<{
 				</Field>
 				<Field
 					label='Send it when a record is'
-					hint='Each change sends one request.'>
-					<Flex gap={4}>
-						{EVENTS.map(ev => (
+					hint={drafts ? 'Each change sends one request. Published and Taken off: when it goes live on the site and API, or comes off.' : 'Each change sends one request.'}>
+					<Flex
+						gap={4}
+						wrap='wrap'>
+						{offered.map(ev => (
 							<Checkbox.Root
 								key={ev}
 								size='sm'
 								checked={events.includes(ev)}
-								onCheckedChange={e => setEvents(list => EVENTS.filter(x => (x === ev ? !!e.checked : list.includes(x))))}>
+								onCheckedChange={e => setEvents(list => ALL.filter(x => (x === ev ? !!e.checked : list.includes(x))))}>
 								<Checkbox.HiddenInput />
 								<Checkbox.Control />
 								<Checkbox.Label fontSize='13px'>{EVENT_LABEL[ev]}</Checkbox.Label>

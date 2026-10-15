@@ -50,6 +50,8 @@ const GUIDE_OF: Record<string, string> = {
 	'api-conditions': 'public-api',
 	'api-fields': 'public-api',
 	'api-filters': 'public-api',
+	'api-populate': 'public-api',
+	'api-drafts': 'public-api',
 	'api-try': 'public-api',
 	'api-keys': 'public-api',
 	'api-logs': 'public-api',

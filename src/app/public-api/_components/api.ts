@@ -30,6 +30,11 @@ export type ApiModel = {
 	filters?: ApiFilter[];
 	search?: string[];
 	sort?: string[];
+	/** The content API (backend docs/cms CMS-09): links a read fills with ?populate=, and drafts behind a server key. */
+	populate?: string[];
+	drafts?: { param: 'status' | '_status' };
+	/** A single type: its list answers with its one record. */
+	single?: boolean;
 };
 /** One endpoint as GET / describes it (backend docs/api-builder): its address, who may call it, its fields in and out. */
 export type InfoEndpoint = {
@@ -45,6 +50,10 @@ export type InfoEndpoint = {
 	rules: number;
 	fields: (Omit<ApiField, 'readOnly' | 'out'> & { out?: boolean; write?: boolean })[];
 	list?: { limit: number; maxLimit: number; filters: ApiFilter[]; search: string[]; sort: string[] };
+	populate?: string[];
+	drafts?: { param: 'status' | '_status' };
+	/** A single type's list: its one record, as an object. */
+	single?: boolean;
 };
 export type ApiInfo = { name: string; type: 'app' | 'website' | 'api'; slug: string; models: ApiModel[]; endpoints?: InfoEndpoint[] };
 
@@ -203,6 +212,11 @@ export const exampleOf = (f: ApiField): any => {
 			return {};
 		case 'sectionlist':
 			return [];
+		// A component is an object of its fields (a list of them when repeatable); blocks a list of { __component, … }.
+		case 'component':
+			return (f as any).repeatable ? [] : {};
+		case 'blocks':
+			return [];
 		default:
 			return f.label || 'Text';
 	}
@@ -220,6 +234,8 @@ export const exampleRecord = (m: ApiModel) => {
 		_id: '66f0c1d2e3a4b5c6d7e8f901',
 		...Object.fromEntries(m.fields.filter(f => f.out !== false).map(f => [f.key, exampleOf(f)])),
 		...(!chosen && { createdAt: '2026-10-02T09:30:00.000Z', updatedAt: '2026-10-02T09:30:00.000Z' }),
+		// A drafts model's record says when it went live (docs/cms CMS-09).
+		...(m.drafts && { publishedAt: '2026-10-02T10:00:00.000Z' }),
 	};
 };
 
@@ -302,6 +318,9 @@ export const fromInfo = (x: InfoEndpoint): { e: Endpoint; model: ApiModel } => {
 		note: x.note,
 		fields: x.fields.map(f => ({ ...f, readOnly: writes ? !f.write : undefined, out: !!f.out })),
 		...(x.list && { filters: x.list.filters, search: x.list.search, sort: x.list.sort }),
+		...(x.populate && { populate: x.populate }),
+		...(x.drafts && { drafts: x.drafts }),
+		...(x.single && { single: true }),
 	};
 	// A create sends every field it may write; an update only what changes — the first two, by example.
 	const sendable = x.fields.filter(f => f.write && f.kind !== 'formula');

@@ -29,6 +29,8 @@ export type Endpoint = {
 	access: { who: EndpointWho; when: EndpointCondition[]; match: 'all' | 'any' };
 	fields: { out: string[] | null; write: string[] | null; readOnly: string[] };
 	list: { filters: EndpointCondition[]; callerFilters: boolean; sort: string; limit: number; maxLimit: number };
+	/** The links a read may fill with ?populate= (backend docs/cms CMS-09); null = every link one step away. */
+	populate: string[] | null;
 	stats: { calls: number; lastCalledAt: string | null };
 	createdAt: string;
 	updatedAt: string;
@@ -38,6 +40,7 @@ export type EndpointInput = Partial<Pick<Endpoint, 'name' | 'note' | 'model' | '
 	access?: Partial<Endpoint['access']>;
 	fields?: Partial<Endpoint['fields']>;
 	list?: Partial<Endpoint['list']>;
+	populate?: string[] | null;
 };
 
 export type ApiModelField = { key: string; label: string; kind: string; required: boolean; ref?: string; options?: { value: string; label: string }[] };
@@ -49,6 +52,12 @@ export type ApiModel = {
 	/** What a rule can name: the filterable fields, the owner (`_customer`) and the id. */
 	ruleFields: { key: string; label: string; kind: string }[];
 	sort: string[];
+	/** Drafts and publishing on: the API serves what's published; status=draft needs a server key. */
+	drafts?: boolean;
+	single?: boolean;
+	/** Links its reads can fill (`full`: the linked model has a public API — else only its name), and the default ones. */
+	populate?: { path: string; label: string; target: string; links: number; full: boolean }[];
+	populateDefault?: string[];
 };
 
 export type ApiBuilderOverview = {

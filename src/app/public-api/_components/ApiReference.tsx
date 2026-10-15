@@ -311,13 +311,50 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 				<Code>{json(e.body)}</Code>
 			</Box>
 		);
+	// The content API (backend docs/cms CMS-09): links filled on request, drafts behind a server key.
+	if (model && e.method === 'GET' && (model.populate?.length || model.drafts))
+		parts.push(
+			<Box key='c'>
+				<Label>Content</Label>
+				<Params
+					widths={['150px', '80px']}
+					rows={[
+						...(model.populate?.length
+							? [
+									[
+										'populate',
+										'links',
+										<>
+											The linked record instead of its id — <Mono>{`populate=${model.populate[0]}`}</Mono>, several comma-separated, or{' '}
+											<Mono>populate=*</Mono> for all of: <Mono>{model.populate.join(', ')}</Mono>. Each comes out as its own model’s API
+											shows it; a model without one, by its name.
+										</>,
+									],
+							  ]
+							: []),
+						...(model.drafts
+							? [
+									[
+										`${model.drafts.param}=draft`,
+										'server key',
+										<>
+											Drafts as they are, never-published ones too. Without it you get what’s published. Needs a server key — a
+											browser never should. Each record carries <Mono>publishedAt</Mono> (null while it isn’t live).
+										</>,
+									],
+							  ]
+							: []),
+					]}
+				/>
+			</Box>
+		);
 	let response: any = null;
 	if (model) {
 		const record = exampleRecord(model);
 		response =
 			e.method === 'DELETE'
 				? { message: 'Deleted' }
-				: e.method === 'GET' && !e.path.endsWith(':id')
+				: e.method === 'GET' && !e.path.endsWith(':id') && !model.single
 				? { doc: [record], total: 1, page: 1, limit: e.limit || 20, totalPages: 1 }
 				: record;
 	} else if (e.path.startsWith('/auth/')) {
@@ -329,7 +366,7 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 			<Box key='r'>
 				<Label>{e.method === 'POST' && model ? 'Response · 201' : 'Response · 200'}</Label>
 				<Code>{json(response)}</Code>
-				{model && e.method === 'GET' && !e.path.endsWith(':id') && (
+				{model && e.method === 'GET' && !e.path.endsWith(':id') && !model.single && (
 					<Text
 						fontSize='12px'
 						color='fg.muted'

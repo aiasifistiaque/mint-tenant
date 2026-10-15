@@ -21,7 +21,7 @@ function fromMint(rawBody, headers, secret) {
 /** What each delivery's body holds. */
 export const PAYLOAD_EXAMPLE = `{
   "delivery": "6f1c…",          // the same on every retry — skip ones you've seen
-  "event": "create",            // create | update | delete | test
+  "event": "create",            // create | update | delete | publish | unpublish | test
   "route": "orders",
   "project": { "id": "…", "slug": "acme-shop", "name": "Shop" },
   "source": "api",              // api | panel | test

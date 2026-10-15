@@ -31,11 +31,12 @@ import { ApiLogs } from '../../_components/logs';
  * it and which records it reaches (Access), which fields go out and which a
  * call may write (Fields), a list's fixed filters, order and page sizes
  * (Filters), a live request (Try it), and the code to call it (Code). Edits
- * stay a draft until Save; on/off and Delete act at once.
+ * stay a draft until Save; on/off and Delete act at once. A read also picks the
+ * links a caller may fill with ?populate= (Fields → Linked records, docs/cms CMS-09).
  */
 
-type Draft = Pick<Endpoint, 'name' | 'note' | 'path' | 'access' | 'fields' | 'list'>;
-const draftOf = (e: Endpoint): Draft => ({ name: e.name, note: e.note, path: e.path, access: e.access, fields: e.fields, list: e.list });
+type Draft = Pick<Endpoint, 'name' | 'note' | 'path' | 'access' | 'fields' | 'list' | 'populate'>;
+const draftOf = (e: Endpoint): Draft => ({ name: e.name, note: e.note, path: e.path, access: e.access, fields: e.fields, list: e.list, populate: e.populate ?? null });
 const OWNER: EndpointCondition = { field: '_customer', op: 'is', value: { ref: 'customer' } };
 const isOwner = (c: EndpointCondition) => c.field === '_customer' && c.op === 'is' && (c.value as any)?.ref === 'customer';
 const NO_FIELDS = new Set(['section', 'sectionlist']);
@@ -48,6 +49,139 @@ const Section: FC<{ title: string; hint?: ReactNode; guide?: string; children: R
 		{children}
 	</Panel>
 );
+
+/**
+ * Which links a read may fill (?populate=): by default every link one step
+ * away; or exactly the ones ticked — two links deep too, through a linked
+ * model that has a public API.
+ */
+const LinkedRecords: FC<{ model: ApiModel; value: string[] | null; onChange: (v: string[] | null) => void; error?: string }> = ({ model, value, onChange, error }) => {
+	const options = model.populate || [];
+	const byDefault = value === null;
+	const picked = new Set(byDefault ? model.populateDefault || [] : value);
+	const toggle = (path: string) => onChange(picked.has(path) ? [...picked].filter(p => p !== path) : [...picked, path]);
+	return (
+		<Section
+			title='Linked records'
+			hint={
+				<>
+					A caller can ask for a link filled in instead of its id —{' '}
+					<Text
+						as='span'
+						fontFamily='mono'
+						fontSize='inherit'>
+						?populate={options[0]?.path || 'author'}
+					</Text>{' '}
+					(or{' '}
+					<Text
+						as='span'
+						fontFamily='mono'
+						fontSize='inherit'>
+						*
+					</Text>{' '}
+					for all of these). Each comes out as its own model’s API shows it.
+				</>
+			}
+			guide='api-populate'>
+			{!options.length ? (
+				<Text
+					fontSize='12.5px'
+					color='fg.muted'>
+					{model.title} has no links to other models.
+				</Text>
+			) : (
+				<Flex
+					direction='column'
+					gap={3}>
+					<Flex
+						align='center'
+						justify='space-between'
+						gap={3}
+						p={3}
+						borderRadius='lg'
+						bg='bg.subtle'>
+						<Box>
+							<Text
+								fontSize='13.5px'
+								fontWeight='500'>
+								Every link one step away
+							</Text>
+							<Text
+								fontSize='12px'
+								color='fg.muted'>
+								Off: only the ones ticked below — links of linked records too.
+							</Text>
+						</Box>
+						<Switch.Root
+							size='sm'
+							checked={byDefault}
+							onCheckedChange={x => onChange(x.checked ? null : [...(model.populateDefault || [])])}>
+							<Switch.HiddenInput aria-label='Every link one step away' />
+							<Switch.Control />
+						</Switch.Root>
+					</Flex>
+					<Box
+						borderWidth='1px'
+						borderColor='border.muted'
+						borderRadius='md'
+						overflow='hidden'>
+						{options.map((o, i) => (
+							<Flex
+								key={o.path}
+								px={3}
+								py={2}
+								gap={3}
+								align='center'
+								borderTopWidth={i ? '1px' : 0}
+								borderColor='border.muted'
+								opacity={byDefault && !picked.has(o.path) ? 0.55 : 1}>
+								<Checkbox.Root
+									size='sm'
+									checked={picked.has(o.path)}
+									disabled={byDefault}
+									onCheckedChange={() => toggle(o.path)}>
+									<Checkbox.HiddenInput aria-label={`Fill ${o.label}`} />
+									<Checkbox.Control />
+								</Checkbox.Root>
+								<Box
+									flex={1}
+									minW={0}>
+									<Text
+										fontSize='13px'
+										truncate>
+										{o.label}
+										<Text
+											as='span'
+											fontSize='inherit'
+											color='fg.muted'>
+											{' '}
+											→ {o.target}
+										</Text>
+									</Text>
+									<Text
+										fontSize='11.5px'
+										fontFamily='mono'
+										color='fg.muted'
+										truncate>
+										{o.path}
+									</Text>
+								</Box>
+								<Text
+									fontSize='11.5px'
+									color='fg.muted'
+									flexShrink={0}
+									textAlign='right'>
+									{o.full ? (o.links > 1 ? 'two links deep' : 'the whole record') : 'name only — no public API'}
+								</Text>
+							</Flex>
+						))}
+					</Box>
+				</Flex>
+			)}
+			{error && <Text {...errCss}>{error}</Text>}
+		</Section>
+	);
+};
 
 /** The "n" in `access.when.n` / `list.filters.n` — which rule row the server's message is about. */
 const rowOf = (on: string | undefined, prefix: string) => {
@@ -128,7 +262,7 @@ export default function EndpointPage() {
 			const e = errorOf(res.error);
 			setError(e);
 			const on = e.on || '';
-			setTab(on.startsWith('access') ? 'access' : on.startsWith('fields') ? 'fields' : on.startsWith('list') ? 'filters' : 'details');
+			setTab(on.startsWith('access') ? 'access' : on.startsWith('fields') || on === 'populate' ? 'fields' : on.startsWith('list') ? 'filters' : 'details');
 			return;
 		}
 		toaster.create({ type: 'success', title: 'Saved' });
@@ -338,103 +472,117 @@ export default function EndpointPage() {
 							</Tabs.Content>
 
 							<Tabs.Content value='fields'>
-								<Section
-									title='Fields'
-									hint={
-										writes
-											? 'What comes back, and what a call may write. Unticked “Written” fields are set by your team — sent, they’re ignored.'
-											: 'What comes back. _id always does.'
-									}
-									guide='api-fields'>
-									<Box
-										borderWidth='1px'
-										borderColor='border.muted'
-										borderRadius='md'
-										overflow='hidden'>
-										<Flex
-											px={3}
-											py={2}
-											gap={3}
-											bg='bg.subtle'
-											fontSize='12px'
-											color='fg.muted'>
-											<Text flex={1}>Field</Text>
-											<Text w='90px'>Sent back</Text>
-											{writes && <Text w='90px'>Written</Text>}
-										</Flex>
-										{fieldRows.map(f => (
+								<Flex
+									direction='column'
+									gap={4}>
+									<Section
+										title='Fields'
+										hint={
+											writes
+												? 'What comes back, and what a call may write. Unticked “Written” fields are set by your team — sent, they’re ignored.'
+												: model.drafts
+												? 'What comes back — as last published, with publishedAt. _id always does. A server key can ask for drafts: ?status=draft.'
+												: 'What comes back. _id always does.'
+										}
+										guide='api-fields'>
+										<Box
+											borderWidth='1px'
+											borderColor='border.muted'
+											borderRadius='md'
+											overflow='hidden'>
 											<Flex
-												key={f.key}
 												px={3}
 												py={2}
 												gap={3}
-												align='center'
-												borderTopWidth='1px'
-												borderColor='border.muted'>
-												<Box
-													flex={1}
-													minW={0}>
-													<Text
-														fontSize='13px'
-														truncate>
-														{f.label}
-														{f.required && (
-															<Text
-																as='span'
-																color='fg.muted'>
-																{' '}
-																· required
-															</Text>
-														)}
-													</Text>
-													<Text
-														fontSize='11.5px'
-														fontFamily='mono'
-														color='fg.muted'>
-														{f.key} · {f.kind}
-													</Text>
-												</Box>
-												<Box w='90px'>
-													<Checkbox.Root
-														size='sm'
-														checked={isOut(f.key)}
-														onCheckedChange={() => toggleOut(f.key)}>
-														<Checkbox.HiddenInput aria-label={`${f.label} sent back`} />
-														<Checkbox.Control />
-													</Checkbox.Root>
-												</Box>
-												{writes && (
-													<Box w='90px'>
-														{f.kind === 'formula' ? (
-															<Text
-																fontSize='11.5px'
-																color='fg.muted'>
-																worked out
-															</Text>
-														) : (
-															<Checkbox.Root
-																size='sm'
-																checked={isWritten(f.key)}
-																onCheckedChange={() => toggleWritten(f.key)}>
-																<Checkbox.HiddenInput aria-label={`${f.label} written`} />
-																<Checkbox.Control />
-															</Checkbox.Root>
-														)}
-													</Box>
-												)}
+												bg='bg.subtle'
+												fontSize='12px'
+												color='fg.muted'>
+												<Text flex={1}>Field</Text>
+												<Text w='90px'>Sent back</Text>
+												{writes && <Text w='90px'>Written</Text>}
 											</Flex>
-										))}
-									</Box>
-									{data.action === 'create' && fieldRows.some(f => f.required && !isWritten(f.key)) && (
-										<Text
-											fontSize='12.5px'
-											color='orange.fg'
-											mt={2}>
-											A required field isn’t written by calls — creating will fail unless it has a default.
-										</Text>
+											{fieldRows.map(f => (
+												<Flex
+													key={f.key}
+													px={3}
+													py={2}
+													gap={3}
+													align='center'
+													borderTopWidth='1px'
+													borderColor='border.muted'>
+													<Box
+														flex={1}
+														minW={0}>
+														<Text
+															fontSize='13px'
+															truncate>
+															{f.label}
+															{f.required && (
+																<Text
+																	as='span'
+																	color='fg.muted'>
+																	{' '}
+																	· required
+																</Text>
+															)}
+														</Text>
+														<Text
+															fontSize='11.5px'
+															fontFamily='mono'
+															color='fg.muted'>
+															{f.key} · {f.kind}
+														</Text>
+													</Box>
+													<Box w='90px'>
+														<Checkbox.Root
+															size='sm'
+															checked={isOut(f.key)}
+															onCheckedChange={() => toggleOut(f.key)}>
+															<Checkbox.HiddenInput aria-label={`${f.label} sent back`} />
+															<Checkbox.Control />
+														</Checkbox.Root>
+													</Box>
+													{writes && (
+														<Box w='90px'>
+															{f.kind === 'formula' ? (
+																<Text
+																	fontSize='11.5px'
+																	color='fg.muted'>
+																	worked out
+																</Text>
+															) : (
+																<Checkbox.Root
+																	size='sm'
+																	checked={isWritten(f.key)}
+																	onCheckedChange={() => toggleWritten(f.key)}>
+																	<Checkbox.HiddenInput aria-label={`${f.label} written`} />
+																	<Checkbox.Control />
+																</Checkbox.Root>
+															)}
+														</Box>
+													)}
+												</Flex>
+											))}
+										</Box>
+										{data.action === 'create' && fieldRows.some(f => f.required && !isWritten(f.key)) && (
+											<Text
+												fontSize='12.5px'
+												color='orange.fg'
+												mt={2}>
+												A required field isn’t written by calls — creating will fail unless it has a default.
+											</Text>
+										)}
+										{error?.on?.startsWith('fields') && <Text {...errCss}>{error.message}</Text>}
+									</Section>
+									{(data.action === 'list' || data.action === 'get') && (
+										<LinkedRecords
+											model={model}
+											value={draft.populate}
+											onChange={populate => set({ populate })}
+											error={error?.on === 'populate' ? error.message : undefined}
+										/>
 									)}
-									{error?.on?.startsWith('fields') && <Text {...errCss}>{error.message}</Text>}
-								</Section>
+								</Flex>
 							</Tabs.Content>
 
 							{isList && (

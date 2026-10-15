@@ -277,7 +277,8 @@ export type AnalyticsTotals = { pageviews: number; visitors: number; sessions: n
 export type AnalyticsDim = 'paths' | 'referrers' | 'devices' | 'browsers' | 'os' | 'countries' | 'clicks' | 'events';
 export type AnalyticsRange = { from?: string; to?: string };
 /** An outgoing webhook (backend routes-tenant/webhooks.router.ts, docs/templates T-09). Its secret is never read back. */
-export type WebhookEvent = 'create' | 'update' | 'delete';
+/** publish / unpublish: a drafts model's record went live or was taken off (backend docs/cms CMS-09). */
+export type WebhookEvent = 'create' | 'update' | 'delete' | 'publish' | 'unpublish';
 /* Site widgets (backend functions/widgets.function.ts, docs/widgets W-03/W-04). */
 export type WidgetOption = {
 	key: string;
@@ -945,7 +946,7 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 
 		/* ---------------------------- webhooks and the API overview (T-09) */
-		getWebhooks: builder.query<{ doc: Webhook[]; models: { route: string; title: string }[]; events: WebhookEvent[] }, void>({
+		getWebhooks: builder.query<{ doc: Webhook[]; models: { route: string; title: string; drafts?: boolean }[]; events: WebhookEvent[] }, void>({
 			query: () => 'webhooks',
 			providesTags: ['tenant-webhooks'],
 		}),
