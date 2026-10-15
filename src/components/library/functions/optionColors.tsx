@@ -105,7 +105,8 @@ export const StatusTag: FC<{ color: string; children: any; size?: 'xs' | 'sm' | 
 				letterSpacing='0.04em'
 				color={fg}
 				whiteSpace='nowrap'
-				truncate>
+				truncate
+				title={typeof children === 'string' ? children : undefined}>
 				{children}
 			</Text>
 		</Flex>
@@ -121,7 +122,10 @@ export const OptionTags: FC<{ value: any; field: any; size?: 'xs' | 'sm' | 'md' 
 			as='span'
 			display='inline-flex'
 			gap={1.5}
-			flexWrap='wrap'>
+			flexWrap='wrap'
+			// Inside a narrow column a long tag shortens (its full words on hover) rather than spill over the next.
+			maxW='full'
+			minW={0}>
 			{values.map((v, i) => (
 				<StatusTag
 					key={`${String(v)}-${i}`}

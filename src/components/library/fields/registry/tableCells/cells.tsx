@@ -48,23 +48,22 @@ export const CheckboxCell = ({ children, item, ...props }: any) => {
 	);
 };
 
+/** A list's values, or one value as a list of one (a status) — tags either way. */
+const tagsOf = (v: any): any[] | undefined => (Array.isArray(v) ? v : v || v === 0 ? [String(v)] : undefined);
+
 export const TagCell = ({ children, colorPalette, ...props }: any) => (
 	<CustomTd
 		{...dressOf(props)}
 		flexWrap='wrap'
 		gap={2}>
-		{Array.isArray(children)
-			? children.map((item: any, i: number) => (
-					<Badge
-						key={i}
-						colorPalette={
-							item?.colorTheme ? item?.colorTheme[item.toLowerCase()] : colorPalette ? colorPalette(children) : 'gray'
-						}
-						{...badgeCss}>
-						{item}
-					</Badge>
-			  ))
-			: null}
+		{tagsOf(children)?.map((item: any, i: number) => (
+			<Badge
+				key={i}
+				colorPalette={item?.colorTheme ? item?.colorTheme[item.toLowerCase()] : colorPalette ? colorPalette(children) : 'gray'}
+				{...badgeCss}>
+				{item}
+			</Badge>
+		))}
 	</CustomTd>
 );
 

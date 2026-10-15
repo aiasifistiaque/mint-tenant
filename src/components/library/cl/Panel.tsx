@@ -44,6 +44,7 @@ const Panel: FC<PanelProps> = ({ title, subtitle, actions, children, flush, ...p
 				<Box minW={0}>
 					{title && (
 						<Text
+							as='div'
 							fontSize='sm'
 							fontWeight='600'
 							lineHeight='1.3'>
@@ -52,6 +53,7 @@ const Panel: FC<PanelProps> = ({ title, subtitle, actions, children, flush, ...p
 					)}
 					{subtitle && (
 						<Text
+							as='div'
 							fontSize='xs'
 							color='fg.muted'
 							mt={0.5}>

@@ -75,8 +75,10 @@ const TableRowComponent: FC<TableProps> = ({
 				// the menu column is defined by `type` alone, so `key={dataKey}`
 				// was `key={undefined}` there, i.e. no key at all as far as React
 				// is concerned. Hence "each child in a list should have a unique
-				// key" pointing at a child of <tr>.
-				const columnKey = dataKey ?? `${type ?? 'col'}-${index}`;
+				// key" pointing at a child of <tr>. Two columns can share a dataKey
+				// too (a photo column showing the name beside the image), so the
+				// type joins it.
+				const columnKey = dataKey ? `${dataKey}-${type ?? ''}` : `${type ?? 'col'}-${index}`;
 
 				// Split the dataKey into keys
 				const keys = dataKey?.split('.');
