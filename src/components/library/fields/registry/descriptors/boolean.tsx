@@ -2,17 +2,19 @@ import { VSwitch, VCheckbox } from '@/components/library/utils/inputs';
 import { registerFieldType } from '../registry';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
 
-const SwitchInput = ({ item, isRequired, ...props }: any) => (
+// A Yes/No is never required: unticked is a No (false), a real answer — so
+// neither input carries `required` (it would block the form's submit).
+const SwitchInput = ({ item, isRequired: _required, ...props }: any) => (
 	<VSwitch
-		isRequired={isRequired}
+		isRequired={false}
 		helper={item?.helper}
 		{...props}
 	/>
 );
 
-const CheckboxInput = ({ item, isRequired, ...props }: any) => (
+const CheckboxInput = ({ item, isRequired: _required, ...props }: any) => (
 	<VCheckbox
-		isRequired={isRequired}
+		isRequired={false}
 		helper={item?.helper}
 		{...props}
 	/>
