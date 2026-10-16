@@ -5,7 +5,7 @@ import { Box, Checkbox, Flex, IconButton, Input, Text, Textarea } from '@chakra-
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
 import type { AutomationAction, AutomationSet } from '@/components/library/store/services/tenantApi';
-import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, pageOfRef, placeholdersOf, writable } from './model';
+import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, pageOfRef, placeholdersOf, writable } from './model';
 
 /**
  * One action of an automation, as a card: its kind, then the form for it —
@@ -298,12 +298,13 @@ const ActionEditor: FC<{
 			</>
 		);
 	else if (a.type === 'email') {
-		const emailFields = (page?.fields || []).filter(f => f.kind === 'email' || f.kind === 'text');
+		const sources = addressSources(page, pages);
+		const chosen = a.to.fields || [];
 		body = (
 			<>
 				<Part
 					label='To'
-					hint='People in the project, an email field of the record (a customer’s address), or addresses you type.'
+					hint='People in the project, the address in a field — the record’s own, or a linked record’s (a bill’s Customer → Email) — or addresses you type.'
 					error={err('to') || err('to.people')}>
 					<People
 						people={people}
@@ -311,20 +312,49 @@ const ActionEditor: FC<{
 						actor={!!a.to.actor}
 						onChange={(p, actor) => onChange({ ...a, to: { ...a.to, people: p, actor } })}
 					/>
-					{emailFields.length > 0 && (
+					{chosen.length > 0 && (
 						<Flex
 							direction='column'
 							gap={1.5}
 							mt={2}>
-							{emailFields.map(f => (
-								<Check
-									key={f.key}
-									checked={(a.to.fields || []).includes(f.key)}
-									onChange={v => onChange({ ...a, to: { ...a.to, fields: toggle(a.to.fields, f.key, v) } })}>
-									The record’s {f.label}
-								</Check>
+							{chosen.map(k => (
+								<Flex
+									key={k}
+									align='center'
+									gap={2}
+									fontSize='13px'>
+									<Text flex={1}>
+										The address in {sources.find(x => x.value === k)?.label || k}
+									</Text>
+									<IconButton
+										size='2xs'
+										variant='ghost'
+										aria-label='Remove this address field'
+										onClick={() => onChange({ ...a, to: { ...a.to, fields: toggle(chosen, k, false) } })}>
+										<X />
+									</IconButton>
+								</Flex>
 							))}
 						</Flex>
+					)}
+					{sources.some(x => !chosen.includes(x.value)) && (
+						<Dropdown
+							mt={2}
+							size='sm'
+							value=''
+							placeholder='Send to the address in a field…'
+							aria-label='Send to the address in a field'
+							items={sources.filter(x => !chosen.includes(x.value))}
+							onChange={k => onChange({ ...a, to: { ...a.to, fields: toggle(chosen, k, true) } })}
+						/>
+					)}
+					{!sources.length && (
+						<Text
+							mt={2}
+							fontSize='12px'
+							color='fg.muted'>
+							To email a customer, give this page or the page it links to (Customers) an Email field.
+						</Text>
 					)}
 					<Input
 						mt={2}

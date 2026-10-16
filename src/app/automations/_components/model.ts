@@ -34,6 +34,20 @@ export const writable = (p?: Page) => (p?.fields || []).filter(f => !UNWRITABLE.
 /** A reference field's page: by the model name it links to. */
 export const pageOfRef = (pages: Page[], ref?: string) => pages.find(p => p.name === String(ref || '').replace(/^T[0-9a-f]{24}_/, ''));
 
+/** Email fields, and text fields named like one ("Email address") — not every Name and Note. */
+const addressFields = (p?: Page) => (p?.fields || []).filter(f => f.kind === 'email' || (f.kind === 'text' && /e-?mail/i.test(`${f.key} ${f.label}`)));
+
+/**
+ * The fields an email can be sent to: the record's own ("email") and those of
+ * each record it links to ("customer.email" — a bill's Customer → Email).
+ */
+export const addressSources = (page: Page | undefined, pages: Page[]) => [
+	...addressFields(page).map(f => ({ value: f.key, label: `This ${page?.noun || 'record'}’s ${f.label}` })),
+	...(page?.fields || [])
+		.filter(f => REFERENCE_KINDS.includes(f.kind))
+		.flatMap(f => addressFields(pageOfRef(pages, f.ref)).map(x => ({ value: `${f.key}.${x.key}`, label: `${f.label} → ${x.label}` }))),
+];
+
 const INSTANCE: Record<string, string> = { number: 'Number', formula: 'Number', boolean: 'Boolean', date: 'Date' };
 
 /** A page's fields for the shared ConditionsEditor. */
