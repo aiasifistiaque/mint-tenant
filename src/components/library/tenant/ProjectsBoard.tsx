@@ -19,12 +19,12 @@ import {
 } from '..';
 import type { MediaScope, ProjectTemplateCard, ProjectType, TenantProject } from '../store/services/tenantApi';
 import { styles } from '../config';
-import { Panel } from '../cl';
 import { openProject, useWorkspace } from './useWorkspace';
 import GuideLink from './GuideLink';
 import Workspaces from './Workspaces';
 import OtherOrgProjects from './OtherOrgProjects';
 import FirstSteps from './FirstSteps';
+import CardSection from './CardSection';
 import { Menu } from '@chakra-ui/react';
 import CustomMenuItem, { MenuItemStyle } from '../menu/CustomMenuItem';
 import { MenuContainer } from '../menu';
@@ -420,8 +420,9 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 			borderRadius='2xl'
 			bg='bg.panel'
 			opacity={archived ? 0.7 : 1}
-			transition='border-color .12s ease, background .12s ease'
-			_hover={{ borderColor: current ? 'accent.solid' : 'border.emphasized' }}>
+			boxShadow='0 1px 2px rgb(16 24 40 / 0.04)'
+			transition='border-color .12s ease, box-shadow .12s ease'
+			_hover={{ borderColor: current ? 'accent.solid' : 'border.emphasized', boxShadow: '0 4px 12px rgb(16 24 40 / 0.06)' }}>
 			<Flex
 				as='button'
 				// @ts-ignore — Flex as button
@@ -591,7 +592,7 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 				</Box>
 			)}
 			{!firstRun && (
-				<Panel
+				<CardSection
 					title='Projects'
 					subtitle='Apps, websites and APIs in this organization'
 					actions={
@@ -648,7 +649,12 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 							align='center'
 							textAlign='center'
 							gap={2}
-							py={10}>
+							py={10}
+							px={4}
+							borderWidth='1px'
+							borderStyle='dashed'
+							borderColor='border'
+							borderRadius='2xl'>
 							<Center
 								boxSize='44px'
 								borderRadius='full'
@@ -678,7 +684,7 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 							)}
 						</Flex>
 					)}
-				</Panel>
+				</CardSection>
 			)}
 			{/* Projects in this account's other organizations, under their names (WO-47). */}
 			<OtherOrgProjects />
