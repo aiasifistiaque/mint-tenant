@@ -5,6 +5,7 @@ import { Box, Checkbox, Flex, IconButton, Input, Text, Textarea } from '@chakra-
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
 import { useGetMailDesignsQuery } from '@/components/library/store/services/tenantApi';
+import { useGetPdfTemplatesQuery } from '@/components/library/store/services/pdfTemplatesApi';
 import type { AutomationAction, AutomationSet } from '@/components/library/store/services/tenantApi';
 import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, pageOfRef, placeholdersOf, writable } from './model';
 
@@ -264,6 +265,8 @@ const ActionEditor: FC<{
 	const err = (p: string) => errorAt(`${at}.${p}`);
 	const refFields = (page?.fields || []).filter(f => REFERENCE_KINDS.includes(f.kind));
 	const { data: designs } = useGetMailDesignsQuery(undefined, { skip: a.type !== 'email' });
+	// The page's published PDF templates — what an email can attach, printed for the record.
+	const { data: pdfs } = useGetPdfTemplatesQuery({ route: page?.route, published: true }, { skip: a.type !== 'email' || !page?.route });
 
 	let body: ReactNode = null;
 	if (a.type === 'notify')
@@ -421,6 +424,38 @@ const ActionEditor: FC<{
 						page={page}
 						placeholder={'Hello,\n\nWe got your order {{title}}.'}
 					/>
+				</Part>
+				<Part
+					label='Attach PDFs'
+					hint={`Printed for the ${page?.noun || 'record'} and sent with the email — an invoice for a bill. Up to 3.`}
+					error={err('attach')}>
+					{pdfs?.templates?.length ? (
+						<Flex
+							direction='column'
+							gap={1.5}>
+							{pdfs.templates.map((t: any) => {
+								const on = (a.attach || []).includes(t._id);
+								return (
+									<Check
+										key={t._id}
+										checked={on}
+										onChange={v => {
+											const attach = toggle(a.attach, t._id, v);
+											const { attach: _, ...rest } = a;
+											onChange(attach.length ? { ...rest, attach } : rest);
+										}}>
+										{t.name}
+									</Check>
+								);
+							})}
+						</Flex>
+					) : (
+						<Text
+							fontSize='12px'
+							color='fg.muted'>
+							{page ? `${page.title} has no published PDF template yet — make one under Build → PDF templates.` : 'Choose the page first.'}
+						</Text>
+					)}
 				</Part>
 			</>
 		);

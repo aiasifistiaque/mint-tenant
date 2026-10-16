@@ -105,7 +105,7 @@ export type AutomationCondition = { field: string; op: string; value?: any };
 export type AutomationSet = { field: string; value?: any; from?: string; clear?: boolean };
 export type AutomationAction =
 	| { type: 'notify'; to: { people?: string[]; actor?: boolean }; title: string; message?: string }
-	| { type: 'email'; to: { people?: string[]; actor?: boolean; fields?: string[]; emails?: string[] }; subject: string; body: string; design?: string }
+	| { type: 'email'; to: { people?: string[]; actor?: boolean; fields?: string[]; emails?: string[] }; subject: string; body: string; design?: string; attach?: string[] }
 	| { type: 'webhook'; url: string }
 	| { type: 'update'; target: string; set: AutomationSet[] }
 	| { type: 'create'; route: string; set: AutomationSet[] };
