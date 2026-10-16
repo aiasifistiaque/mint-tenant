@@ -450,7 +450,7 @@ export type WebhookDelivery = {
 	event: string;
 	route: string;
 	record: string | null;
-	source: 'panel' | 'api' | 'test';
+	source: 'panel' | 'api' | 'test' | 'schedule';
 	url: string;
 	body: string;
 	ok: boolean;

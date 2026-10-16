@@ -2,17 +2,20 @@
 
 import { FC, useState } from 'react';
 import { Badge, Button, Flex, Text } from '@chakra-ui/react';
-import { Send, Undo2, EyeOff } from 'lucide-react';
+import { Send, Undo2, EyeOff, CalendarClock } from 'lucide-react';
 import { PromptDialog } from '../../../modals';
 import { usePublishRecordActionMutation } from '../../../store';
 import { toaster } from '@/components/ui/toaster';
 import { ago } from '../../../modals/CreateModal/CreateModal';
 import { useWorkspace } from '../../../tenant/useWorkspace';
+import type { RecordSchedule } from '../../../store/services/commonApi';
+import ScheduleDialog, { whenText } from './ScheduleDialog';
 
 /**
  * Drafts and publishing on a record's page (backend docs/cms D5): where it
  * stands — Draft (never published), Published, or Changes not published —
- * and the buttons that move it: Publish, Discard changes, Take off. They need
+ * and the buttons that move it: Publish, Discard changes, Take off, and
+ * Schedule — publish at / take off at (CMS-11), its label the next time set. They need
  * the Publish right (D11, `publish-<route>`); without it an editor's changes
  * wait for someone who has it.
  */
@@ -35,9 +38,18 @@ export const PublishBadge: FC<{ status: Status; publishedAt?: string | null }> =
 	</Badge>
 );
 
-const PublishControls: FC<{ path: string; id: string; status: Status; canEdit: boolean }> = ({ path, id, status, canEdit }) => {
+/** What's set next: "Publishes 20 Oct, 09:00" — or null. */
+export const nextScheduled = (s?: RecordSchedule | null) => {
+	if (!s?.publishAt && !s?.unpublishAt) return null;
+	const pub = s.publishAt && (!s.unpublishAt || s.publishAt <= s.unpublishAt);
+	return pub ? `Publishes ${whenText(s.publishAt!)}` : `Comes off ${whenText(s.unpublishAt!)}`;
+};
+
+const PublishControls: FC<{ path: string; id: string; status: Status; canEdit: boolean; schedule?: RecordSchedule | null }> = ({ path, id, status, canEdit, schedule }) => {
 	const [run, { isLoading }] = usePublishRecordActionMutation();
 	const [confirm, setConfirm] = useState<'unpublish' | 'discard' | null>(null);
+	const [scheduling, setScheduling] = useState(false);
+	const next = nextScheduled(schedule);
 	const { can, self } = useWorkspace();
 	if (!canEdit) return null;
 	if (self && !can(`publish-${path}`))
@@ -82,6 +94,15 @@ const PublishControls: FC<{ path: string; id: string; status: Status; canEdit: b
 					Take off
 				</Button>
 			)}
+			<Button
+				size='sm'
+				variant={next ? 'subtle' : 'ghost'}
+				colorPalette={next ? 'blue' : undefined}
+				title={next ? 'Change or clear the schedule' : 'Publish or take it off at a time'}
+				onClick={() => setScheduling(true)}>
+				<CalendarClock size={14} />
+				{next || 'Schedule'}
+			</Button>
 			{status !== 'published' && (
 				<Button
 					size='sm'
@@ -104,6 +125,14 @@ const PublishControls: FC<{ path: string; id: string; status: Status; canEdit: b
 				}
 				loading={isLoading}
 				confirmLabel={confirm === 'discard' ? 'Discard' : 'Take off'}
+			/>
+			<ScheduleDialog
+				open={scheduling}
+				onClose={() => setScheduling(false)}
+				path={path}
+				id={id}
+				schedule={schedule || null}
+				live={status !== 'draft'}
 			/>
 		</Flex>
 	);

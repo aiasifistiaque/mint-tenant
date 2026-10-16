@@ -12,8 +12,8 @@ import type { WebhookDelivery } from '@/components/library/store/services/tenant
  * from, how many tries, and — opened — what was sent and what came back.
  */
 
-const SOURCE: Record<WebhookDelivery['source'], string> = { panel: 'From the panel', api: 'From the public API', test: 'A test' };
-const EVENT: Record<string, string> = { create: 'Created', update: 'Changed', delete: 'Deleted', test: 'Test' };
+const SOURCE: Record<WebhookDelivery['source'], string> = { panel: 'From the panel', api: 'From the public API', test: 'A test', schedule: 'As scheduled' };
+const EVENT: Record<string, string> = { create: 'Created', update: 'Changed', delete: 'Deleted', publish: 'Published', unpublish: 'Taken off', test: 'Test' };
 
 const pretty = (raw: string) => {
 	try {

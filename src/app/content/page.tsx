@@ -3,9 +3,10 @@
 import { FC } from 'react';
 import NextLink from 'next/link';
 import { Badge, Box, Flex, Grid, Skeleton, Text } from '@chakra-ui/react';
-import { ChevronRight, FileText, Globe, Layers, SquareStack } from 'lucide-react';
+import { CalendarClock, ChevronRight, FileText, Globe, Layers, SquareStack } from 'lucide-react';
 import { Layout, useGetContentOverviewQuery } from '@/components/library';
-import type { ContentModelSummary, ContentSingleSummary } from '@/components/library';
+import type { ContentModelSummary, ContentScheduled, ContentSingleSummary } from '@/components/library';
+import { whenText } from '@/components/library/components/view/record/ScheduleDialog';
 import { EmptyState, ErrorState, PageHeader, Panel } from '@/components/library/cl';
 import { HOME, projectHref } from '@/components/library/config/lib/constants/panel';
 import { PublishBadge } from '@/components/library/components/view/record/PublishControls';
@@ -17,7 +18,8 @@ import GuideLink from '@/components/library/tenant/GuideLink';
  * the website's Contents, its single types (site-wide records like Settings or
  * About), and the collections whose records are drafts until published, each
  * with how many records there are and how many aren't live yet. Each opens
- * where it's edited; a filter there shows the ones waiting.
+ * where it's edited; a filter there shows the ones waiting. Above them, what's
+ * scheduled to publish or come off next (CMS-11).
  */
 
 const Waiting: FC<{ n: number; draft: number; modified: number }> = ({ n, draft, modified }) =>
@@ -138,6 +140,47 @@ const Row: FC<{ c: ContentModelSummary; href: string }> = ({ c, href }) => (
 	</NextLink>
 );
 
+const ScheduledRow: FC<{ j: ContentScheduled }> = ({ j }) => (
+	<NextLink href={projectHref(`/view/${j.route}/${j.record}`)}>
+		<Flex
+			align='center'
+			gap={3}
+			px={4}
+			py={2.5}
+			borderTopWidth='1px'
+			borderColor='border.muted'
+			_hover={{ bg: 'bg.subtle' }}>
+			<Text
+				fontSize='12.5px'
+				fontWeight='600'
+				w={{ base: '96px', md: '120px' }}
+				flexShrink={0}>
+				{whenText(j.at)}
+			</Text>
+			<Badge
+				size='sm'
+				variant='subtle'
+				flexShrink={0}
+				colorPalette={j.action === 'publish' ? 'green' : 'gray'}>
+				{j.action === 'publish' ? 'Publishes' : 'Comes off'}
+			</Badge>
+			<Text
+				flex={1}
+				minW={0}
+				fontSize='13px'
+				truncate>
+				{j.name || 'Untitled'}
+				<Text
+					as='span'
+					color='fg.muted'>
+					{` · ${j.title}${j.byName ? ` · set by ${j.byName}` : ''}`}
+				</Text>
+			</Text>
+			<ChevronRight size={15} />
+		</Flex>
+	</NextLink>
+);
+
 export default function ContentPage() {
 	const { data, isLoading, isError, error, refetch } = useGetContentOverviewQuery();
 	const nothing = data && !data.website && !data.singles.length && !data.collections.length;
@@ -173,6 +216,29 @@ export default function ContentPage() {
 					/>
 				) : (
 					<>
+						{!!data?.scheduled?.length && (
+							<Panel
+								title={
+									<Flex
+										align='center'
+										gap={2}>
+										<CalendarClock size={15} />
+										Coming up
+									</Flex>
+								}
+								subtitle='Scheduled to publish or come off — set with Schedule on a record.'
+								actions={<GuideLink section='models-schedule' />}
+								flush>
+								<Box mt='-1px'>
+									{data.scheduled.map(j => (
+										<ScheduledRow
+											key={`${j.record}-${j.action}`}
+											j={j}
+										/>
+									))}
+								</Box>
+							</Panel>
+						)}
 						{(data?.website || !!data?.singles.length) && (
 							<Grid
 								templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }}

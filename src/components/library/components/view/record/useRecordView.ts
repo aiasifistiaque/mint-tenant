@@ -8,6 +8,7 @@ import {
 	useGetRouteQuery,
 	useGetSchemaQuery,
 } from '../../../store/services/commonApi';
+import type { RecordSchedule } from '../../../store/services/commonApi';
 import { useGetViewDocumentQuery } from '../../../store/services/builderApi';
 import { HISTORY_PAGE_SIZE } from '../../history/HistoryTimeline';
 import { formFieldsFromConfig } from '../view-page/sections';
@@ -109,6 +110,8 @@ const useRecordView = ({ slug, id, skip = false }: { slug: string; id: string; s
 			? {
 					publishedAt: (doc?._publishedAt as string | undefined) || null,
 					publishedBy: (doc?._publishedBy as string | undefined) || '',
+					/** What's set to publish or come off, and when (CMS-11). */
+					schedule: (doc?._schedule as RecordSchedule | undefined) || null,
 					status: !doc?._publishedAt
 						? ('draft' as const)
 						: doc?.updatedAt && doc?._publishedFrom && new Date(doc.updatedAt).getTime() > new Date(doc._publishedFrom).getTime()

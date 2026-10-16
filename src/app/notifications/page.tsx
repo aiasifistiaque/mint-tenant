@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Button, Flex, IconButton, Text } from '@chakra-ui/react';
-import { AtSign, Zap, Bell, Check, Inbox, KeyRound, MailPlus, MessageSquareReply, Trash2, UserCheck, UserCog } from 'lucide-react';
+import { AtSign, Zap, Bell, Check, CalendarCheck, CalendarX, Inbox, KeyRound, MailPlus, MessageSquareReply, Trash2, UserCheck, UserCog } from 'lucide-react';
 import { HOME, IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import {
 	Layout,
@@ -33,6 +33,9 @@ const ICONS: Record<string, any> = {
 	'member-joined': UserCheck,
 	'member-changed': UserCog,
 	'site-record': Inbox,
+	// Scheduled publishing (backend docs/cms CMS-11): done, or couldn't.
+	'schedule-done': CalendarCheck,
+	'schedule-failed': CalendarX,
 };
 
 const NotificationsPage = () => {

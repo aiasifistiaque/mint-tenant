@@ -60,6 +60,7 @@ const GUIDE_OF: Record<string, string> = {
 	'models-components-reusable': 'models',
 	'models-image-details': 'models',
 	'models-drafts': 'models',
+	'models-schedule': 'models',
 	'api-reference': 'public-api',
 	reference: 'public-api',
 	filters: 'public-api',

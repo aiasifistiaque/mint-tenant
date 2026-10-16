@@ -1,6 +1,6 @@
 'use client';
 
-import PublishControls, { PublishBadge } from '@/components/library/components/view/record/PublishControls';
+import PublishControls, { PublishBadge, nextScheduled } from '@/components/library/components/view/record/PublishControls';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { Column, CreateModal, ViewTabTable, HistoryTimeline, Layout } from '@/components/library';
 import { ConsoleTabs, PageHeader } from '@/components/library/cl';
@@ -57,7 +57,9 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 	const updated = ago(updatedAt);
 	// A drafts record: when it last went live, and who put it there (docs/cms CMS-07).
 	const live = drafts?.publishedAt ? `Published ${ago(drafts.publishedAt)}${drafts.publishedBy ? ` by ${drafts.publishedBy}` : ''}` : drafts ? 'Not published yet' : '';
-	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`, live].filter(Boolean).join(' · ') || undefined;
+	// …and what's set to happen next (CMS-11) — for those who can't open the Schedule button too.
+	const scheduled = nextScheduled(drafts?.schedule);
+	const defaultMeta = [name && code ? code : '', updated && `Updated ${updated}`, live, scheduled].filter(Boolean).join(' · ') || undefined;
 
 	// Tabs after Overview: records of other routes that link to this one, as
 	// set in the route builder's view, then Comments (tenant projects), then History, which every record has.
@@ -144,6 +146,7 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 									id={id}
 									status={drafts.status}
 									canEdit={canEdit}
+									schedule={drafts.schedule}
 								/>
 							)}
 							{/* The page's PDF templates (docs/pdf-templates) — nothing when it has none. */}

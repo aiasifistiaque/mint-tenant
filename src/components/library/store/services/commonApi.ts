@@ -1,6 +1,9 @@
 import { BASE_LIMIT } from '../..';
 import mainApi, { routeTags } from './mainApi';
 
+/** A drafts record's waiting publish and take-off (backend docs/cms CMS-11), and who set each. */
+export type RecordSchedule = { publishAt: string | null; unpublishAt: string | null; publishBy: string; unpublishBy: string };
+
 /** Pages a save changed through Linked Relationships (`linked` in its answer) — refreshed too. */
 const linkedRoutes = (result: any): string[] =>
 	Array.isArray(result?.linked) ? [...new Set<string>(result.linked.map((l: any) => l?.route).filter(Boolean))] : [];
@@ -169,6 +172,14 @@ export const userApi = mainApi.injectEndpoints({
 			query: ({ path, id, action }): any => ({ url: `${path}/${id}/${action}`, method: 'POST', body: {} }),
 			invalidatesTags: (result, error, { path }: any) => routeTags(path, 'history'),
 		}),
+		// Scheduling (backend docs/cms CMS-11): POST /<route>/<id>/schedule — a time sets it, null clears it.
+		scheduleRecord: builder.mutation<
+			{ message: string; schedule: RecordSchedule },
+			{ path: string; id: string; publishAt?: string | null; unpublishAt?: string | null }
+		>({
+			query: ({ path, id, ...body }): any => ({ url: `${path}/${id}/schedule`, method: 'POST', body }),
+			invalidatesTags: (result, error, { path }: any) => routeTags(path, 'history', 'site-contents'),
+		}),
 		updateById: builder.mutation<
 			any,
 			{ path: string; id: string; body: any; invalidate?: string[] }
@@ -233,6 +244,7 @@ export const {
 	useGetDocumentHistoryQuery,
 	useUpdateByIdMutation,
 	usePublishRecordActionMutation,
+	useScheduleRecordMutation,
 	useGetAllQuery,
 	useDeleteByIdMutation,
 	usePostMutation,

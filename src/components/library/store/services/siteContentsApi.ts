@@ -51,7 +51,9 @@ export type ContentModelSummary = {
 	last: { _id: string; name: string; updatedAt: string; status: ContentStatus } | null;
 };
 export type ContentSingleSummary = { route: string; title: string; description: string; drafts: boolean; canPublish: boolean; exists: boolean; status: ContentStatus | 'live' | null; updatedAt: string | null };
-export type ContentOverview = { website: ContentModelSummary | null; singles: ContentSingleSummary[]; collections: ContentModelSummary[] };
+/** A waiting publish or take-off (CMS-11), soonest first. */
+export type ContentScheduled = { route: string; title: string; record: string; name: string; action: 'publish' | 'unpublish'; at: string; byName: string };
+export type ContentOverview = { website: ContentModelSummary | null; singles: ContentSingleSummary[]; collections: ContentModelSummary[]; scheduled: ContentScheduled[] };
 
 export const siteContentsApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).injectEndpoints({
 	endpoints: builder => ({
