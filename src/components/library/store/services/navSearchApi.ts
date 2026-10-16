@@ -10,6 +10,8 @@ export type NavSearchHit = {
 	_id: string;
 	/** The record's name (its display field), or its code / id when it has none. */
 	name: string;
+	/** Its record number, when the model numbers its records. */
+	code?: string;
 	/** The field that matched, when the name doesn't show it. */
 	match?: { field: string; label: string; value: string };
 };
