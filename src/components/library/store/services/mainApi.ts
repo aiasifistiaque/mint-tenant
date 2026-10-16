@@ -146,6 +146,7 @@ const tags: string[] = [
 	'tenant-webhooks',
 	'tenant-widgets',
 	'tenant-mail',
+	'tenant-mail-accounts',
 	'tenant-payments',
 	// Template Studio (templatesApi.ts).
 	'templates',

@@ -360,8 +360,26 @@ export type MailSettings = {
 	updatedAt?: string;
 };
 export type MailSettingsInput = Omit<MailSettings, 'passwordSet' | 'verifiedAt' | 'lastError' | 'lastErrorAt' | 'updatedAt'> & { password: string };
-export type MailLogEntry = { _id: string; kind: string; to: string; subject: string; status: 'sent' | 'failed'; error: string; project: string | null; createdAt: string };
+export type MailLogEntry = { _id: string; kind: string; to: string; subject: string; status: 'sent' | 'failed'; error: string; project: string | null; account?: string | null; createdAt: string };
 export type MailView = { settings: MailSettings | null; messages: MailLogEntry[]; ports: number[] };
+/* A project's email accounts (backend routes-tenant/mailAccounts.router.ts, docs/messaging M-14). */
+export type MailAccount = {
+	_id: string;
+	name: string;
+	fromName: string;
+	host: string;
+	port: number;
+	secure: boolean;
+	email: string;
+	isDefault: boolean;
+	verifiedAt: string | null;
+	lastError: string;
+	lastErrorAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+};
+export type MailAccountInput = { name: string; fromName: string; host: string; port: number; email: string; password: string };
+export type MailAccountsView = { doc: MailAccount[]; messages: MailLogEntry[]; ports: number[]; fallback: string | null };
 
 /* A project's payments (backend routes-tenant/payments.router.ts, docs/widgets W-06/W-07). Keys are never sent back. */
 export type SitePaymentSettings = {
@@ -930,6 +948,36 @@ export const tenantApi = mainApi.injectEndpoints({
 			invalidatesTags: ['tenant-mail'],
 		}),
 
+		/* ------------------------ a project's email accounts (docs/messaging M-14) */
+		getMailAccounts: builder.query<MailAccountsView, void>({
+			query: () => 'mail-accounts',
+			providesTags: ['tenant-mail-accounts'],
+		}),
+		/** Connects and signs in, sending nothing; a refusal comes back as `ok: false`. `id` reuses a saved account's password. */
+		testMailAccount: builder.mutation<{ ok: boolean; message: string }, MailAccountInput & { id?: string }>({
+			query: body => ({ url: 'mail-accounts/test', method: 'POST', body }),
+		}),
+		addMailAccount: builder.mutation<{ doc: MailAccount[] }, MailAccountInput>({
+			query: body => ({ url: 'mail-accounts', method: 'POST', body }),
+			invalidatesTags: ['tenant-mail-accounts', 'history'],
+		}),
+		updateMailAccount: builder.mutation<{ doc: MailAccount[] }, MailAccountInput & { id: string }>({
+			query: ({ id, ...body }) => ({ url: `mail-accounts/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-mail-accounts', 'history'],
+		}),
+		setDefaultMailAccount: builder.mutation<{ doc: MailAccount[] }, string>({
+			query: id => ({ url: `mail-accounts/${id}/default`, method: 'POST' }),
+			invalidatesTags: ['tenant-mail-accounts', 'history'],
+		}),
+		sendMailAccountTest: builder.mutation<{ message: string; doc: MailAccount[] }, { id: string; to?: string }>({
+			query: ({ id, ...body }) => ({ url: `mail-accounts/${id}/send-test`, method: 'POST', body }),
+			invalidatesTags: ['tenant-mail-accounts'],
+		}),
+		removeMailAccount: builder.mutation<{ doc: MailAccount[] }, string>({
+			query: id => ({ url: `mail-accounts/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-mail-accounts', 'history'],
+		}),
+
 		/* ------------------------- start from a template (docs/templates T-14) */
 		getProjectTemplates: builder.query<{ doc: ProjectTemplateCard[] }, void>({
 			query: () => 'templates',
@@ -998,6 +1046,13 @@ export const {
 	useSaveOrgMailMutation,
 	useTestOrgMailMutation,
 	useRemoveOrgMailMutation,
+	useGetMailAccountsQuery,
+	useTestMailAccountMutation,
+	useAddMailAccountMutation,
+	useUpdateMailAccountMutation,
+	useSetDefaultMailAccountMutation,
+	useSendMailAccountTestMutation,
+	useRemoveMailAccountMutation,
 	useSaveWidgetsShopMutation,
 	useGetProjectTemplatesQuery,
 	useGetNewProjectTemplatesQuery,

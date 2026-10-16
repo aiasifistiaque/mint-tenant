@@ -407,9 +407,9 @@ export default function OrgEmailPage() {
 								fontSize='13px'
 								color='fg.muted'
 								lineHeight='1.6'>
-								<b>From you, through this server:</b> emails to your customers — a welcome when they sign up on your sites
-								now; emails from a record, newsletters and automations next. <b>From MINT:</b> emails to you and your team —
-								the welcome when you signed up, invitations, password resets and sign-in codes.
+								<b>From you:</b> emails to your customers — welcomes, receipts, automations. Each project can connect its own
+								accounts (Project → Email) and picks a default; projects that haven’t use this server. <b>From MINT:</b> emails
+								to you and your team — the welcome when you signed up, invitations, password resets and sign-in codes.
 							</Text>
 						</Panel>
 					</>
