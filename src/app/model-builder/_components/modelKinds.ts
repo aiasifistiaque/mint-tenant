@@ -210,6 +210,8 @@ export type EditableField = {
 	repeatable?: boolean;
 	/** Content blocks: the components its items can be. */
 	components?: string[];
+	/** An image field: the API sends { url, alt, caption, width, height, focal } from the media library (backend docs/cms CMS-13). */
+	details?: boolean;
 	/** Editor-only: the key follows the label until it's typed by hand. */
 	keyTouched?: boolean;
 };
@@ -291,6 +293,7 @@ export const toServer = (fields: EditableField[]): any[] =>
 		if ((f.kind !== 'sectionlist' && !(f.kind === 'component' && f.repeatable)) || !out.addLabel) delete out.addLabel;
 		if (f.kind !== 'uid' || !out.from) delete out.from;
 		if (f.kind !== 'blocks') delete out.components;
+		if ((f.kind !== 'image' && f.kind !== 'images') || !out.details) delete out.details;
 		if (f.kind !== 'component') {
 			delete out.component;
 			delete out.repeatable;

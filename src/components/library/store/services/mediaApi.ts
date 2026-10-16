@@ -26,6 +26,10 @@ export type MediaFile = {
 	size?: number;
 	width?: number;
 	height?: number;
+	/** What the picture shows, a caption, and the point (0–1) that stays in view when it's cropped (backend docs/cms CMS-13). */
+	alt?: string;
+	caption?: string;
+	focal?: { x: number; y: number } | null;
 	fileFolder?: string | { _id: string; name: string } | null;
 	createdAt?: string;
 	trashedAt?: string | null;
@@ -99,6 +103,11 @@ export const mediaApi = mainApi.injectEndpoints({
 			query: ({ id, name }) => ({ url: `media/files/${id}`, method: 'PATCH', body: { name } }),
 			invalidatesTags: ['media', 'images', 'files'],
 		}),
+		// Alt text, caption and focal point (CMS-13) — send only what changes.
+		saveMediaFileDetails: builder.mutation<{ doc: MediaFile }, { id: string; alt?: string; caption?: string; focal?: { x: number; y: number } | null }>({
+			query: ({ id, ...body }) => ({ url: `media/files/${id}`, method: 'PATCH', body }),
+			invalidatesTags: ['media', 'images', 'files'],
+		}),
 		moveMedia: builder.mutation<
 			{
 				message: string;
@@ -144,6 +153,7 @@ export const {
 	useEnsureMediaPathMutation,
 	useRenameMediaFolderMutation,
 	useRenameMediaFileMutation,
+	useSaveMediaFileDetailsMutation,
 	useMoveMediaMutation,
 	useCopyMediaMutation,
 	useTrashMediaMutation,

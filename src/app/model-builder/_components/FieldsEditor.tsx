@@ -34,6 +34,7 @@ import KindPicker from './KindPicker';
 import FormulaModal from '@/app/builder/_components/FormulaModal';
 import { checkFormula } from '@/components/library/functions/formula';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
+import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
  * The model's fields, in order — the order they take in the generated form,
@@ -1112,6 +1113,23 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 													onChange={v => set(f.uid, { index: v })}
 												/>
 											)}
+										</Flex>
+									</Group>
+								)}
+
+								{(f.kind === 'image' || f.kind === 'images') && (
+									<Group title='On the API'>
+										<Flex
+											align='center'
+											gap={4}
+											wrap='wrap'>
+											<Check
+												label='Send each picture with its details'
+												hint='{ url, alt, caption, width, height, focal } from the media library, instead of just its address'
+												checked={!!f.details}
+												onChange={v => set(f.uid, { details: v })}
+											/>
+											<GuideLink section='models-image-details' />
 										</Flex>
 									</Group>
 								)}
