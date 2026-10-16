@@ -48,6 +48,7 @@ import LinkedRelationshipsPanel, { linkedProblems } from './LinkedRelationshipsP
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
 import { AREAS, AreaCard, AreaIcon, AreaIntro, AreaKey, AreaTabLabel, ToneTitle } from './areas';
 import CommentsPanel from './CommentsPanel';
+import NavSearchPanel from './NavSearchPanel';
 import { BULK_MENU_TYPES, DEFAULT_ROW_MENU, ROW_MENU_TYPES, validateMenu } from './menuTypes';
 import { HOME, IS_TENANT_PANEL, pagePath, projectHref } from '@/components/library/config/lib/constants/panel';
 
@@ -1008,6 +1009,15 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 						value={pageConfig}
 						disabled={!isGeneric}
 						onChange={setRouteConfig}
+					/>
+				)}
+
+				{hasSettings && data.kind !== 'custom' && (
+					<NavSearchPanel
+						value={pageConfig?.search}
+						fields={settingsWorking}
+						disabled={!isGeneric}
+						onChange={search => setRouteConfig({ search })}
 					/>
 				)}
 
