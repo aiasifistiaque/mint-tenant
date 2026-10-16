@@ -16,13 +16,14 @@ import {
 } from '@/components/library/store/services/tenantApi';
 import type { MailAccount, MailLogEntry } from '@/components/library/store/services/tenantApi';
 import ConnectDialog from './_components/ConnectDialog';
+import Designs from './_components/Designs';
 
 /**
  * A project's email accounts (tenant panel, Project → Email; docs/messaging
  * M-14): the SMTP accounts its emails go out through, with nodemailer. Connect
  * one in a dialog (tested green or red before saving), pick which is the
  * default — every email the project sends uses it — edit, send a real test,
- * remove; and the project's recent sends. Backend:
+ * remove; how its emails look (designs, M-03a); and the project's recent sends. Backend:
  * routes-tenant/mailAccounts.router.ts. Needs `manage-projects`.
  */
 
@@ -455,6 +456,7 @@ export default function EmailAccountsPage() {
 							projectName={project?.name || ''}
 							userEmail={self?.user?.email || ''}
 						/>
+						<Designs userEmail={self?.user?.email || ''} />
 						<Log
 							messages={data.messages}
 							accounts={data.doc}

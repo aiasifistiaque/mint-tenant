@@ -4,6 +4,7 @@ import { FC, ReactNode } from 'react';
 import { Box, Checkbox, Flex, IconButton, Input, Text, Textarea } from '@chakra-ui/react';
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
+import { useGetMailDesignsQuery } from '@/components/library/store/services/tenantApi';
 import type { AutomationAction, AutomationSet } from '@/components/library/store/services/tenantApi';
 import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, pageOfRef, placeholdersOf, writable } from './model';
 
@@ -18,6 +19,8 @@ import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, pageO
 export type Person = { _id: string; name: string; email: string };
 
 const labelCss: any = { fontSize: '12.5px', fontWeight: '600', mb: 1 };
+/** The email action's "use the project's default design" choice (no `design` saved). */
+const DEFAULT_DESIGN = '__default';
 
 export const ErrorLine: FC<{ text?: string }> = ({ text }) =>
 	text ? (
@@ -260,6 +263,7 @@ const ActionEditor: FC<{
 	const at = `actions.${index}`;
 	const err = (p: string) => errorAt(`${at}.${p}`);
 	const refFields = (page?.fields || []).filter(f => REFERENCE_KINDS.includes(f.kind));
+	const { data: designs } = useGetMailDesignsQuery(undefined, { skip: a.type !== 'email' });
 
 	let body: ReactNode = null;
 	if (a.type === 'notify')
@@ -376,6 +380,26 @@ const ActionEditor: FC<{
 					/>
 					<ErrorLine text={err('to.fields') || err('to.emails')} />
 				</Part>
+				{!!designs?.doc.length && (
+					<Part
+						label='Design'
+						hint='How the email looks — Project → Email → How your emails look.'
+						error={err('design')}>
+						<Dropdown
+							size='sm'
+							value={a.design || DEFAULT_DESIGN}
+							aria-label='Email design'
+							items={[
+								{ value: DEFAULT_DESIGN, label: `The default (${designs.doc.find(d => d.isDefault)?.name || 'classic'})` },
+								...designs.doc.map(d => ({ value: d._id, label: `${d.name}${d.style === 'plain' ? ' — plain' : ''}` })),
+							]}
+							onChange={v => {
+								const { design: _, ...rest } = a;
+								onChange(v === DEFAULT_DESIGN ? rest : { ...rest, design: v });
+							}}
+						/>
+					</Part>
+				)}
 				<Part
 					label='Subject'
 					error={err('subject')}>

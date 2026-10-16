@@ -105,7 +105,7 @@ export type AutomationCondition = { field: string; op: string; value?: any };
 export type AutomationSet = { field: string; value?: any; from?: string; clear?: boolean };
 export type AutomationAction =
 	| { type: 'notify'; to: { people?: string[]; actor?: boolean }; title: string; message?: string }
-	| { type: 'email'; to: { people?: string[]; actor?: boolean; fields?: string[]; emails?: string[] }; subject: string; body: string }
+	| { type: 'email'; to: { people?: string[]; actor?: boolean; fields?: string[]; emails?: string[] }; subject: string; body: string; design?: string }
 	| { type: 'webhook'; url: string }
 	| { type: 'update'; target: string; set: AutomationSet[] }
 	| { type: 'create'; route: string; set: AutomationSet[] };
@@ -380,6 +380,27 @@ export type MailAccount = {
 };
 export type MailAccountInput = { name: string; fromName: string; host: string; port: number; email: string; password: string };
 export type MailAccountsView = { doc: MailAccount[]; messages: MailLogEntry[]; ports: number[]; fallback: string | null };
+/* How a project's emails look (backend routes-tenant/mailDesigns.router.ts, docs/messaging M-03a). */
+export type MailDesignInput = {
+	name: string;
+	style: 'plain' | 'designed';
+	font: string;
+	width: number;
+	header: { show: boolean; logo: string; logoHeight: number; title: string; align: 'left' | 'center'; background: string; color: string };
+	colors: { page: string; card: string; text: string; heading: string; button: string; buttonText: string };
+	radius: number;
+	footer: { text: string; align: 'left' | 'center' };
+};
+export type MailDesign = MailDesignInput & { _id: string; isDefault: boolean; createdAt: string; updatedAt: string };
+export type MailDesignsView = {
+	doc: MailDesign[];
+	business: Record<'name' | 'logo' | 'address' | 'phone' | 'email' | 'website' | 'taxId', string>;
+	projectName: string;
+	fonts: { value: string; label: string }[];
+	widths: number[];
+	placeholders: string[];
+	defaults: Omit<MailDesignInput, 'name'> & { name: string };
+};
 
 /* A project's payments (backend routes-tenant/payments.router.ts, docs/widgets W-06/W-07). Keys are never sent back. */
 export type SitePaymentSettings = {
@@ -977,6 +998,33 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: id => ({ url: `mail-accounts/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['tenant-mail-accounts', 'history'],
 		}),
+		getMailDesigns: builder.query<MailDesignsView, void>({
+			query: () => 'mail-designs',
+			providesTags: ['tenant-mail-designs'],
+		}),
+		previewMailDesign: builder.mutation<{ html: string }, Partial<MailDesignInput>>({
+			query: design => ({ url: 'mail-designs/preview', method: 'POST', body: { design } }),
+		}),
+		addMailDesign: builder.mutation<{ _id: string; doc: MailDesign[] }, MailDesignInput>({
+			query: body => ({ url: 'mail-designs', method: 'POST', body }),
+			invalidatesTags: ['tenant-mail-designs', 'history'],
+		}),
+		updateMailDesign: builder.mutation<{ _id: string; doc: MailDesign[] }, MailDesignInput & { id: string }>({
+			query: ({ id, ...body }) => ({ url: `mail-designs/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-mail-designs', 'history'],
+		}),
+		setDefaultMailDesign: builder.mutation<{ doc: MailDesign[] }, string>({
+			query: id => ({ url: `mail-designs/${id}/default`, method: 'POST' }),
+			invalidatesTags: ['tenant-mail-designs', 'history'],
+		}),
+		sendMailDesignTest: builder.mutation<{ message: string }, { id: string; to?: string }>({
+			query: ({ id, ...body }) => ({ url: `mail-designs/${id}/send-test`, method: 'POST', body }),
+			invalidatesTags: ['tenant-mail-accounts'],
+		}),
+		removeMailDesign: builder.mutation<{ doc: MailDesign[] }, string>({
+			query: id => ({ url: `mail-designs/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-mail-designs', 'history'],
+		}),
 
 		/* ------------------------- start from a template (docs/templates T-14) */
 		getProjectTemplates: builder.query<{ doc: ProjectTemplateCard[] }, void>({
@@ -1053,6 +1101,13 @@ export const {
 	useSetDefaultMailAccountMutation,
 	useSendMailAccountTestMutation,
 	useRemoveMailAccountMutation,
+	useGetMailDesignsQuery,
+	usePreviewMailDesignMutation,
+	useAddMailDesignMutation,
+	useUpdateMailDesignMutation,
+	useSetDefaultMailDesignMutation,
+	useSendMailDesignTestMutation,
+	useRemoveMailDesignMutation,
 	useSaveWidgetsShopMutation,
 	useGetProjectTemplatesQuery,
 	useGetNewProjectTemplatesQuery,
