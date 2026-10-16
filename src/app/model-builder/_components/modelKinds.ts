@@ -1,4 +1,4 @@
-import { FieldInfo, checkFormula } from '@/components/library/functions/formula';
+import { FieldInfo, checkFormula, parse, refsOf } from '@/components/library/functions/formula';
 
 /**
  * The field kinds the model builder offers — the same list the backend
@@ -337,12 +337,21 @@ export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'fo
 export type FieldError = { message: string; on: FieldErrorOn };
 
 /** What a formula may use: the model's fields, and which hold numbers. */
-export const formulaFieldsOf = (fields: EditableField[]): FieldInfo[] =>
+/** A model's number fields, as a link to it offers them to formulas: `tax.amount`. */
+export type LinkedNumbers = (ref?: string) => { key: string; label: string }[] | undefined;
+
+export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbers): FieldInfo[] =>
 	fields
 		.filter(f => f.key)
 		.flatMap((f): FieldInfo[] => {
 			const numeric = (k: FieldKind) => k === 'number' || k === 'formula';
 			const subs = (f.fields || []).filter(x => x.key);
+			// A link: itself (not a number), and the linked record's numbers as `tax.amount`.
+			if (f.kind === 'reference')
+				return [
+					{ key: f.key, label: f.label, numeric: false },
+					...(numbersOf?.(f.ref) || []).map(n => ({ key: `${f.key}.${n.key}`, label: `${f.label || f.key} › ${n.label}`, numeric: true, linked: f.key })),
+				];
 			// A list: itself for count(), each row's values for sum() / avg().
 			if (f.kind === 'sectionlist')
 				return [
@@ -354,6 +363,27 @@ export const formulaFieldsOf = (fields: EditableField[]): FieldInfo[] =>
 				return subs.map(x => ({ key: `${f.key}.${x.key}`, label: `${f.label || f.key} › ${x.label || x.key}`, numeric: numeric(x.kind) }));
 			return [{ key: f.key, label: f.label, numeric: numeric(f.kind), ...(f.kind === 'formula' && { formula: f.formula }) }];
 		});
+
+/**
+ * For checking a formula without the linked models at hand: any `link.x` it
+ * reads through one of the fields' links counts as a number — the server
+ * checks the linked model really has it.
+ */
+const withLinkedReads = (infos: FieldInfo[], fields: EditableField[], formula: string): FieldInfo[] => {
+	const links = new Set(fields.filter(f => f.kind === 'reference' && f.key).map(f => f.key));
+	if (!links.size) return infos;
+	let refs: string[] = [];
+	try {
+		refs = [...refsOf(parse(formula))];
+	} catch {
+		return infos;
+	}
+	const known = new Set(infos.map(i => i.key));
+	const extra = refs
+		.filter(r => !known.has(r) && links.has(r.split('.')[0]) && r.includes('.'))
+		.map(r => ({ key: r, numeric: true, linked: r.split('.')[0] }));
+	return extra.length ? [...infos, ...extra] : infos;
+};
 
 /** Keys access control adds to every record; no field may use them while it's on. */
 export const ACCESS_KEYS = ['privacy', 'access', 'addedBy'];
@@ -406,7 +436,7 @@ export const validateFields = (
 		}
 		if (f.kind === 'formula') {
 			if (!f.formula?.trim()) return fail(f.uid, 'formula', 'Write its formula');
-			const checked = checkFormula(f.formula, formulaFieldsOf(fields), f.key);
+			const checked = checkFormula(f.formula, withLinkedReads(formulaFieldsOf(fields), fields, f.formula), f.key);
 			if (!checked.ok) return fail(f.uid, 'formula', checked.errors.map(e => e.message).join('; '));
 		}
 	});

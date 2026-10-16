@@ -47,6 +47,9 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 		setText(v);
 	};
 	const [sample, setSample] = useState<Record<string, string>>({});
+	// The field picker starts afresh after each pick: kept, its last pick stays selected inside
+	// the Select, and picking the same field again (price * qty + price) did nothing.
+	const [picks, setPicks] = useState(0);
 	const area = useRef<HTMLTextAreaElement>(null);
 	const cursor = useRef<number | null>(null);
 
@@ -67,16 +70,20 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 			const label = f.label && f.label !== f.key ? f.label : f.key;
 			if (f.list) return { key: f.key, insert: `count(${f.key})`, label: `Number of rows in ${label} — count(${f.key})` };
 			if (f.inList) return { key: f.key, insert: `sum(${f.key})`, label: `Sum of ${label} in ${labelOfList(f.inList)} — sum(${f.key})` };
+			if (f.linked) return { key: f.key, insert: f.key, label: `${label} (${f.key}) — from the linked record` };
 			return { key: f.key, insert: f.key, label: label === f.key ? f.key : `${label} (${f.key})` };
 		});
 	const hasLists = fields.some(f => f.list);
+	const hasLinks = fields.some(f => f.linked);
 	const checked = useMemo(() => (text.trim() ? checkFormula(text, fields, fieldKey) : null), [text, fields, fieldKey]);
 	const labelOf = (key: string) => fields.find(f => f.key === key)?.label || key;
 	function labelOfList(key: string) {
 		return fields.find(f => f.key === key)?.label || key;
 	}
 	const infoOf = (key: string) => fields.find(f => f.key === key);
-	const result = checked?.ok && checked.tree ? evaluate(checked.tree, Object.fromEntries(checked.refs.map(r => [r, sample[r] ?? '']))) : null;
+	// The sample values by their full key, so a dotted one (tax.amount, billing.fee) is read as typed.
+	const tried = checked?.ok ? Object.fromEntries(checked.refs.map(r => [r, sample[r] ?? ''])) : {};
+	const result = checked?.ok && checked.tree ? evaluate(checked.tree, tried, tried) : null;
 
 	/** Puts `token` in at the cursor (or the end), spaced, and keeps the cursor after it. */
 	const insert = (token: string) => {
@@ -142,6 +149,9 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 									typed in. An empty field counts as 0.
 									{hasLists &&
 										' A list’s rows are used through sum(), avg() and count() — e.g. sum(items.total) adds up the total of every row.'}
+									{hasLinks &&
+										' A linked record’s numbers are read through the link — e.g. tax.amount is the amount of the Tax picked (0 when none is).'}
+									{' A field can be used as many times as you need.'}
 								</Text>
 
 								{/* Build it from pieces… */}
@@ -153,12 +163,16 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 										align='center'
 										flexWrap='wrap'>
 										<Dropdown
+											key={picks}
 											size='sm'
 											w='240px'
 											value=''
 											placeholder={usable.length ? 'Insert a field…' : 'No number fields to use'}
 											disabled={!usable.length}
-											onChange={(v: string) => v && insert(v)}>
+											onChange={(v: string) => {
+												if (v) insert(v);
+												setPicks(n => n + 1);
+											}}>
 											{usable.map(f => (
 												<option
 													key={f.key}

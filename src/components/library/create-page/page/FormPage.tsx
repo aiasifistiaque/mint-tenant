@@ -15,6 +15,7 @@ import {
 	getFieldValue,
 } from '../..';
 import { withFormulaValues } from '../../functions/formula';
+import { useLinkedFormulaValues } from './form-components/LinkedFormulaValues';
 import { pagePath } from '../../config/lib/constants/panel';
 
 type FormPageType = {
@@ -62,7 +63,8 @@ const FormPage: FC<FormPageType> = ({
 	}, [data]);
 
 	// Formula inputs read the form with every formula calculated (one can use another).
-	const calculated = useMemo(() => withFormulaValues(formData, data), [formData, data]);
+	const { linked, readers: linkedReaders } = useLinkedFormulaValues(data, formData);
+	const calculated = useMemo(() => withFormulaValues(formData, data, linked), [formData, data, linked]);
 
 	useRedirect({ isSuccess, isLoading, path: pagePath(path) });
 	useCustomToast({
@@ -96,6 +98,7 @@ const FormPage: FC<FormPageType> = ({
 
 	return (
 		<form onSubmit={handleSubmit}>
+			{linkedReaders}
 			<CreateNav
 				isLoading={isLoading}
 				title={`${title}`}

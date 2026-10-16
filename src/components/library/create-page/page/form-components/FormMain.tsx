@@ -10,6 +10,7 @@ import {
 import { Accordion, Text } from '@chakra-ui/react';
 import { hiddenFormFields } from '../../../functions/formRules';
 import { withFormulaValues } from '../../../functions/formula';
+import { useLinkedFormulaValues } from './LinkedFormulaValues';
 import LinkedFiller from './LinkedFiller';
 import LinkedPreview from './LinkedPreview';
 import { meets } from '../../../functions/fieldLocks';
@@ -113,7 +114,9 @@ const FormMain: FC<FormMainType> = ({
 
 	// Formula inputs show their value from the form as it will be saved: every
 	// formula calculated, so one that uses another reads its result, not 0.
-	const calculated = useMemo(() => withFormulaValues(formData, fields), [formData, fields]);
+	// A formula reading a linked record's number (`tax.amount`) gets it from the picked record.
+	const { linked, readers: linkedReaders } = useLinkedFormulaValues(fields, formData);
+	const calculated = useMemo(() => withFormulaValues(formData, fields, linked), [formData, fields, linked]);
 
 	// Linked Relationships: a field a rule copies or asks for is required while
 	// the rule's conditions hold — ticking "Mark as paid" makes Payment date required.
@@ -129,6 +132,7 @@ const FormMain: FC<FormMainType> = ({
 
 	return (
 		<>
+		{linkedReaders}
 		{/* Fields filled from a linked record when it's picked (settings fillFrom). */}
 		<LinkedFiller
 			fields={fields}

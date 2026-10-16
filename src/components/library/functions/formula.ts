@@ -251,6 +251,8 @@ export type FieldInfo = {
 	list?: boolean;
 	/** A value in each row of this list (`items.total` → 'items'): only sum() and avg() take it. */
 	inList?: string;
+	/** A number of the record a link picks (`tax.amount` → 'tax'), read when the formula is calculated. */
+	linked?: string;
 };
 
 export type Checked = {
@@ -391,19 +393,21 @@ const rowCount = (doc: any, key: string): number => {
 	return collect(doc, key.split('.')).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
 };
 
-const ev = (n: Node, doc: any): number | null => {
+type Linked = Record<string, any> | undefined;
+
+const ev = (n: Node, doc: any, linked?: Linked): number | null => {
 	switch (n.t) {
 		case 'num':
 			return n.v;
 		case 'ref':
-			return numberOf(valueAt(doc, n.key));
+			return numberOf(linked && Object.prototype.hasOwnProperty.call(linked, n.key) ? linked[n.key] : valueAt(doc, n.key));
 		case 'neg': {
-			const a = ev(n.a, doc);
+			const a = ev(n.a, doc, linked);
 			return a === null ? null : -a;
 		}
 		case 'bin': {
-			const a = ev(n.a, doc);
-			const b = ev(n.b, doc);
+			const a = ev(n.a, doc, linked);
+			const b = ev(n.b, doc, linked);
 			if (a === null || b === null) return null;
 			switch (n.op) {
 				case '+': return a + b; // prettier-ignore
@@ -414,7 +418,7 @@ const ev = (n: Node, doc: any): number | null => {
 			}
 		}
 		case 'fn': {
-			const args = n.args.map(a => ev(a, doc));
+			const args = n.args.map(a => ev(a, doc, linked));
 			if (n.name === 'min' || n.name === 'max') {
 				const xs = args.filter((x): x is number => x !== null);
 				return xs.length ? Math[n.name](...xs) : null;
@@ -433,9 +437,12 @@ const ev = (n: Node, doc: any): number | null => {
 	}
 };
 
-/** A formula's value for one record (a plain object or a Mongoose document). */
-export const evaluate = (tree: Node, doc: any): number | null => {
-	const v = ev(tree, doc);
+/**
+ * A formula's value for one record (a plain object or a Mongoose document).
+ * `linked`: values read through links (`tax.amount` → 12).
+ */
+export const evaluate = (tree: Node, doc: any, linked?: Linked): number | null => {
+	const v = ev(tree, doc, linked);
 	return v === null || !Number.isFinite(v) ? null : roundTo(v, 10);
 };
 
@@ -457,10 +464,15 @@ const tryParse = (src: any): Node | null => {
  * that was typed for it. Row formulas of a list go first (each row from its
  * own values), then the record's, each after the formulas it uses; a loop is
  * left alone. `fields` are the form's items: `{ name, type, formula }`, and a
- * list's `section.dataModel` / a section's `dataModel`.
+ * list's `section.dataModel` / a section's `dataModel`. `linked`: the numbers
+ * read through links (`tax.amount`), as useLinkedFormulaValues fetches them.
  */
-export const withFormulaValues = (values: any, fields: any[] = []) => {
+/** Where withFormulaValues leaves the linked values, for a formula input that works its own value out. */
+export const LINKED_VALUES = Symbol('linkedValues');
+
+export const withFormulaValues = (values: any, fields: any[] = [], linked?: Linked) => {
 	const out: any = { ...(values || {}) };
+	if (linked) out[LINKED_VALUES] = linked;
 
 	// Rows (and single sections) first, from their own values.
 	for (const f of fields) {
@@ -489,7 +501,7 @@ export const withFormulaValues = (values: any, fields: any[] = []) => {
 		state.set(name, 'visiting');
 		const f = byName.get(name)!;
 		for (const r of refsOf(f.tree)) if (byName.has(r) && !state.get(r)) visit(r);
-		out[name] = evaluate(f.tree, out);
+		out[name] = evaluate(f.tree, out, linked);
 		state.set(name, 'done');
 	};
 	for (const f of formulas) visit(f.name);

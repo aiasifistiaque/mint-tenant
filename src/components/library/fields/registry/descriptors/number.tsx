@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { VInput } from '@/components/library/utils/inputs';
 import VMuted from '@/components/library/utils/inputs/VMuted';
 import { Calculator } from 'lucide-react';
-import { evaluate, format, parse } from '@/components/library/functions/formula';
+import { LINKED_VALUES, evaluate, format, parse } from '@/components/library/functions/formula';
 import { registerFieldType } from '../registry';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
 
@@ -41,7 +41,8 @@ const FormulaInput = ({ item, isRequired, type, value: _value, onChange: _onChan
 			return null;
 		}
 	}, [item?.formula]);
-	const result = tree ? evaluate(tree, formData || {}) : null;
+	// A linked record's numbers (`tax.amount`) come with the form's values (withFormulaValues).
+	const result = tree ? evaluate(tree, formData || {}, formData?.[LINKED_VALUES]) : null;
 	// Worked out, never typed: muted like every field that can't be typed in.
 	return (
 		<VMuted

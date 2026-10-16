@@ -1,6 +1,6 @@
 'use client';
 
-import { DragEvent, FC, ReactNode, useState } from 'react';
+import { DragEvent, FC, ReactNode, useMemo, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text } from '@chakra-ui/react';
 import { AlertTriangle, Calculator, ChevronUp, ListTree, GripVertical, Plus, Puzzle, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { radius, useGetModelComponentsQuery } from '@/components/library';
@@ -46,7 +46,8 @@ import GuideLink from '@/components/library/tenant/GuideLink';
  * flagged: the data stays in the records, but a new kind may not read it.
  */
 
-export type LinkTarget = { name: string; route: string; title?: string; display: string; built: boolean };
+/** `numbers`: the target's number fields — what a formula may read through a link to it (`tax.amount`). */
+export type LinkTarget = { name: string; route: string; title?: string; display: string; built: boolean; numbers?: { key: string; label: string }[] };
 
 type Props = {
 	fields: EditableField[];
@@ -405,6 +406,11 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 	const [open, setOpen] = useState<string | null>(null);
 	// The formula field whose formula is being written.
 	const [formulaFor, setFormulaFor] = useState<string | null>(null);
+	// What a formula may use: this model's numbers, and those of the records its links pick (`tax.amount`).
+	const formulaFields = useMemo(() => {
+		const own = fields.filter(f => f.key && (f.kind === 'number' || f.kind === 'formula')).map(f => ({ key: f.key, label: f.label || f.key }));
+		return formulaFieldsOf(fields, ref => (ref && ref === selfName ? own : targets.find(t => t.name === ref)?.numbers));
+	}, [fields, targets, selfName]);
 	const formulaField = formulaFor ? fields.find(f => f.uid === formulaFor) : undefined;
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -811,7 +817,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 							) : f.kind === 'formula' ? (
 								<Box maxW='280px'>
 									{(() => {
-										const c = f.formula?.trim() ? checkFormula(f.formula, formulaFieldsOf(fields), f.key) : null;
+										const c = f.formula?.trim() ? checkFormula(f.formula, formulaFields, f.key) : null;
 										return (
 											<Button
 												size='xs'
@@ -1197,7 +1203,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				fieldKey={formulaField?.key || ''}
 				fieldTitle={formulaField?.label || formulaField?.key}
 				formula={formulaField?.formula || ''}
-				fields={formulaFieldsOf(fields)}
+				fields={formulaFields}
 				onSave={formula => {
 					if (formulaField) set(formulaField.uid, { formula });
 					setFormulaFor(null);
