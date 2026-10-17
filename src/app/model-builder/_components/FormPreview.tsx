@@ -9,7 +9,8 @@ import { EditableField, REFERENCE_KINDS, SELF, kindLabel } from './modelKinds';
  * What the model's form will look like, drawn from the working copy as it's
  * edited: the fields in order, each as the input people will fill in. Nothing
  * here can be typed into — it's a picture, so a change in the list shows up
- * here before anything is saved.
+ * here before anything is saved. On the model page the field open in the list
+ * is marked here, and a click on another field opens that one.
  */
 
 type Props = {
@@ -18,6 +19,10 @@ type Props = {
 	recordName: string;
 	code?: { enabled: boolean; preview: string };
 	access?: boolean;
+	/** The field open in the list (its uid), marked here. */
+	active?: string | null;
+	/** A click on a field: open it in the list. Without it the preview is only a picture. */
+	onPick?: (uid: string) => void;
 };
 
 const ICON = { size: 12, strokeWidth: 1.75 };
@@ -353,7 +358,27 @@ const Field: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> = (
 	);
 };
 
-const FormPreview: FC<Props & { targets?: { name: string; title?: string }[] }> = ({ fields, recordName, code, access, targets = [] }) => {
+/** One field in the preview: marked while it's open in the list, and a way to open it. */
+const Pickable: FC<{ uid: string; active?: boolean; onPick?: (uid: string) => void; children: ReactNode }> = ({ uid, active, onPick, children }) =>
+	onPick ? (
+		<Box
+			mx={-1.5}
+			px={1.5}
+			py={1}
+			borderRadius='md'
+			cursor='pointer'
+			bg={active ? 'blue.subtle' : undefined}
+			boxShadow={active ? 'inset 0 0 0 1px var(--chakra-colors-blue-solid)' : undefined}
+			_hover={active ? undefined : { bg: 'bg.subtle' }}
+			title={active ? undefined : 'Open this field'}
+			onClick={() => onPick(uid)}>
+			{children}
+		</Box>
+	) : (
+		<>{children}</>
+	);
+
+const FormPreview: FC<Props & { targets?: { name: string; title?: string }[] }> = ({ fields, recordName, code, access, targets = [], active, onPick }) => {
 	const targetTitle = (ref?: string) => {
 		if (!ref || ref === SELF) return recordName.toLowerCase() || 'record';
 		const t = targets.find(x => x.name === ref);
@@ -369,7 +394,8 @@ const FormPreview: FC<Props & { targets?: { name: string; title?: string }[] }> 
 			bg='bg.panel'
 			overflow='hidden'
 			aria-hidden
-			pointerEvents='none'
+			// A picture: only the fields themselves take a click, to open them.
+			pointerEvents={onPick ? undefined : 'none'}
 			userSelect='none'>
 			<Flex
 				align='center'
@@ -398,11 +424,16 @@ const FormPreview: FC<Props & { targets?: { name: string; title?: string }[] }> 
 				p={3}>
 				{shown.length ? (
 					shown.map(f => (
-						<Field
+						<Pickable
 							key={f.uid}
-							f={f}
-							targetTitle={targetTitle}
-						/>
+							uid={f.uid}
+							active={active === f.uid}
+							onPick={onPick}>
+							<Field
+								f={f}
+								targetTitle={targetTitle}
+							/>
+						</Pickable>
 					))
 				) : (
 					<Text

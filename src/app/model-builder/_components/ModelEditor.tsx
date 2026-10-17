@@ -136,6 +136,8 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 	const [intro, setIntro] = useState(false);
 	// The section being made a component (CMS-03b).
 	const [reusable, setReusable] = useState<EditableField | null>(null);
+	// The field open in the list, marked in the form preview beside it.
+	const [openField, setOpenField] = useState<string | null>(null);
 
 	// The open tab lives in `?tab=`, so a reload or a shared link lands on it. Switching keeps unsaved edits.
 	const [tab, setTab] = useState<Tab>('fields');
@@ -464,6 +466,8 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 							base={base}
 							targets={targets}
 							onMakeReusable={setReusable}
+							openField={openField}
+							onOpenField={setOpenField}
 						/>
 						<Flex
 							direction='column'
@@ -501,6 +505,8 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 									code={{ enabled: working.code.enabled, preview: codePreview(working.code) }}
 									access={working.access.enabled}
 									targets={targets}
+									active={openField}
+									onPick={setOpenField}
 								/>
 							</Box>
 							{live && (

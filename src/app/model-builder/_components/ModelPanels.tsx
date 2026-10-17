@@ -163,6 +163,9 @@ type Props = {
 	namesApart?: boolean;
 	/** The model page: "Make reusable" on a saved section (CMS-03b). */
 	onMakeReusable?: (field: EditableField) => void;
+	/** The field open in the fields list, when the page keeps it (to mark it in its form preview). */
+	openField?: string | null;
+	onOpenField?: (uid: string | null) => void;
 };
 
 export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'fields';
@@ -170,7 +173,7 @@ export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'field
 export const useFieldErrors = (fields: EditableField[], accessEnabled = false) =>
 	useMemo(() => validateFields(fields, { accessEnabled }), [fields, accessEnabled]);
 
-const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity, namesApart, onMakeReusable }) => {
+const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, categories = [], showSidebar, name, only, hideIdentity, namesApart, onMakeReusable, openField, onOpenField }) => {
 	const isNew = mode === 'create';
 	const show = (panel: ModelPanelName) => !only || only.includes(panel);
 	const set = (patch: Partial<ModelWorking>) => onChange({ ...working, ...patch });
@@ -611,7 +614,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 						Fields
 					</ToneTitle>
 				}
-				subtitle='What every record holds, in the order the form, table and record page show them. Drag ⋮⋮ to reorder; More opens a field’s other settings.'
+				subtitle='What every record holds, in the order the form, table and record page show them. Click a field to open its settings; drag ⋮⋮ to reorder.'
 				actions={<DocLink section='models-fields' />}>
 				<FieldsEditor
 					fields={working.fields}
@@ -622,6 +625,8 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					savedKinds={savedKinds}
 					hasRecords={!isNew && records > 0}
 					onMakeReusable={onMakeReusable}
+					open={openField}
+					onOpenChange={onOpenField}
 				/>
 				{removedWithData.length > 0 && (
 					<Text

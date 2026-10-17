@@ -330,6 +330,8 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 	const [createModel, { isLoading: creating }] = useCreateBuiltModelMutation();
 
 	const [model, setModel] = useState<ModelWorking>(emptyModel);
+	// The field open in the list, marked in the form preview beside it.
+	const [openField, setOpenField] = useState<string | null>(null);
 	const [step, setStep] = useState(0);
 	const [reached, setReached] = useState(0);
 	const [preview, setPreview] = useState<any | null>(null);
@@ -800,6 +802,8 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					name={name}
 					only={['basics', 'fields']}
 					namesApart
+					openField={openField}
+					onOpenField={setOpenField}
 				/>
 
 				{/* Record numbers and privacy: most models never need them, so they wait here. */}
@@ -897,6 +901,8 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					code={{ enabled: model.code.enabled, preview: codePreview(model.code) }}
 					access={model.access.enabled}
 					targets={options?.targets || []}
+					active={openField}
+					onPick={setOpenField}
 				/>
 			</Box>
 		</Grid>

@@ -1,8 +1,8 @@
 'use client';
 
-import { DragEvent, FC, ReactNode, useMemo, useState } from 'react';
-import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text } from '@chakra-ui/react';
-import { AlertTriangle, Calculator, ChevronUp, ListTree, GripVertical, Plus, Puzzle, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { DragEvent, FC, KeyboardEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { Badge, Box, Button, Flex, Grid, IconButton, Input, Menu, Portal, Switch, Text } from '@chakra-ui/react';
+import { AlertTriangle, ArrowDown, ArrowUp, Copy, Ellipsis, ListPlus, Calculator, ChevronDown, ListTree, GripVertical, Plus, Puzzle, Trash2, X } from 'lucide-react';
 import { radius, useGetModelComponentsQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import {
@@ -38,9 +38,13 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
  * The model's fields, in order — the order they take in the generated form,
- * table and detail page. Each row is the essentials (the kind's picture, the
- * label with its API name under it, the kind, what it links to, required);
- * "More" opens the rest. "Add a field" asks for the kind first (KindPicker).
+ * table and detail page. Each row is one line of essentials (the kind's
+ * picture, the label, the kind, required) with a line under it: the API name,
+ * what the kind needs (a link, a formula, a section's fields) and a summary of
+ * the rest. A click on the row opens the rest — one field at a time, raised
+ * and edged in colour so it stands apart; Esc or Done puts it away. The ⋯ menu
+ * duplicates, moves, inserts a field below or removes. "Add a field" asks for
+ * the kind first (KindPicker).
  *
  * On a model that already has records, a changed kind or a removed field is
  * flagged: the data stays in the records, but a new kind may not read it.
@@ -66,6 +70,12 @@ type Props = {
 	sub?: boolean;
 	/** A fixed set of fields (a feature's changed fields): no "Add field". */
 	fixed?: boolean;
+	/**
+	 * The open field's uid, when the page keeps it (the model page, so its form
+	 * preview can mark that field and open another); kept here otherwise.
+	 */
+	open?: string | null;
+	onOpenChange?: (uid: string | null) => void;
 	/**
 	 * A component's own fields (backend docs/cms CMS-03b): the uid it has (or will
 	 * have). A component field there offers only components of plain fields, never itself.
@@ -130,7 +140,79 @@ const Group: FC<{ title: string; children: ReactNode }> = ({ title, children }) 
 );
 
 /** The column titles over the rows — the widths match the row's inputs. */
-const COLS = { label: '200px', kind: '150px' };
+const COLS = { kind: '140px', required: '104px', actions: '60px' };
+
+/** What a click on a row leaves alone: its inputs, lists, switches and buttons do their own thing. */
+const INTERACTIVE = 'input, textarea, select, button, a, label, [role="combobox"], [role="switch"], [role="listbox"], [role="menu"]';
+
+/** A row's ⋯ menu. */
+const RowMenu: FC<{
+	first: boolean;
+	last: boolean;
+	fixed?: boolean;
+	removeHint?: string;
+	onDuplicate: () => void;
+	onMove: (by: -1 | 1) => void;
+	onInsertBelow: () => void;
+	onRemove: () => void;
+}> = ({ first, last, fixed, removeHint, onDuplicate, onMove, onInsertBelow, onRemove }) => (
+	<Menu.Root positioning={{ placement: 'bottom-end' }}>
+		<Menu.Trigger asChild>
+			<IconButton
+				size='xs'
+				variant='ghost'
+				aria-label='More actions for this field'
+				title='Duplicate, move, insert below, remove'>
+				<Ellipsis {...ICON} />
+			</IconButton>
+		</Menu.Trigger>
+		<Portal>
+			<Menu.Positioner>
+				<Menu.Content minW='190px'>
+					{!fixed && (
+						<Menu.Item
+							value='duplicate'
+							onClick={onDuplicate}>
+							<Copy {...ICON} />
+							Duplicate
+						</Menu.Item>
+					)}
+					{!fixed && (
+						<Menu.Item
+							value='insert'
+							onClick={onInsertBelow}>
+							<ListPlus {...ICON} />
+							Add a field below
+						</Menu.Item>
+					)}
+					<Menu.Item
+						value='up'
+						disabled={first}
+						onClick={() => onMove(-1)}>
+						<ArrowUp {...ICON} />
+						Move up
+					</Menu.Item>
+					<Menu.Item
+						value='down'
+						disabled={last}
+						onClick={() => onMove(1)}>
+						<ArrowDown {...ICON} />
+						Move down
+					</Menu.Item>
+					<Menu.Separator />
+					<Menu.Item
+						value='remove'
+						color='fg.error'
+						title={removeHint}
+						onClick={onRemove}>
+						<Trash2 {...ICON} />
+						Remove field
+					</Menu.Item>
+				</Menu.Content>
+			</Menu.Positioner>
+		</Portal>
+	</Menu.Root>
+);
 
 const Check: FC<{ label: string; hint?: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }> = ({
 	label,
@@ -394,7 +476,7 @@ const OptionsInput: FC<{
 	);
 };
 
-const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed, inComponent, onMakeReusable }) => {
+const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, savedKinds = {}, hasRecords, kinds, sub, fixed, inComponent, onMakeReusable, open: openProp, onOpenChange }) => {
 	// The project's components, for a field of kind Component (docs/cms D3); not asked for inside a section.
 	const nested = inComponent !== undefined;
 	const { data: componentData } = useGetModelComponentsQuery(undefined, { skip: !!sub && !nested });
@@ -403,7 +485,22 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 	// The section whose fields are being edited.
 	const [sectionFor, setSectionFor] = useState<string | null>(null);
 	const sectionField = sectionFor ? fields.find(f => f.uid === sectionFor) : undefined;
-	const [open, setOpen] = useState<string | null>(null);
+	const [ownOpen, setOwnOpen] = useState<string | null>(null);
+	const open = openProp !== undefined ? openProp : ownOpen;
+	const setOpen = (uid: string | null) => {
+		setOwnOpen(uid);
+		onOpenChange?.(uid);
+	};
+	// An opened field that's off screen (opened from the form preview, or a long one above) is brought into view.
+	useEffect(() => {
+		if (!open) return;
+		const t = setTimeout(() => {
+			const el = document.getElementById(`field-${open}`);
+			const r = el?.getBoundingClientRect();
+			if (el && r && (r.top < 80 || r.top > window.innerHeight - 140)) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}, 0);
+		return () => clearTimeout(t);
+	}, [open]);
 	// The formula field whose formula is being written.
 	const [formulaFor, setFormulaFor] = useState<string | null>(null);
 	// What a formula may use: this model's numbers, and those of the records its links pick (`tax.amount`).
@@ -414,8 +511,8 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 	const formulaField = formulaFor ? fields.find(f => f.uid === formulaFor) : undefined;
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
-	// "Add a field" asks for the kind first.
-	const [picking, setPicking] = useState(false);
+	// "Add a field" asks for the kind first — and where it goes (the end, or below a row).
+	const [picking, setPicking] = useState<number | null>(null);
 
 	const set = (uid: string, patch: Partial<EditableField>) =>
 		onChange(fields.map(f => (f.uid === uid ? { ...f, ...patch } : f)));
@@ -429,6 +526,33 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 		}
 		setDragIndex(null);
 		setOverIndex(null);
+	};
+
+	const move = (index: number, by: -1 | 1) => {
+		const to = index + by;
+		if (to < 0 || to >= fields.length) return;
+		const next = [...fields];
+		[next[index], next[to]] = [next[to], next[index]];
+		onChange(next);
+	};
+
+	/** A copy right under the field, with an API name of its own. */
+	const duplicate = (f: EditableField, index: number) => {
+		const taken = new Set(fields.map(x => x.key));
+		let key = f.key ? `${f.key}Copy` : '';
+		for (let n = 2; key && taken.has(key); n++) key = `${f.key}Copy${n}`;
+		const copy: EditableField = {
+			...JSON.parse(JSON.stringify(f)),
+			uid: newUid(),
+			key,
+			label: f.label ? `${f.label} (copy)` : '',
+			keyTouched: true,
+		};
+		const next = [...fields];
+		next.splice(index + 1, 0, copy);
+		onChange(next);
+		setOpen(copy.uid);
+		setTimeout(() => (document.getElementById(`label-${copy.uid}`) as HTMLInputElement | null)?.select(), 50);
 	};
 
 	const changeKind = (f: EditableField, kind: FieldKind) => {
@@ -481,26 +605,25 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 		if (toOptions) setTimeout(() => document.getElementById(`options-${f.uid}`)?.focus(), 0);
 	};
 
-	const add = (kind: FieldKind = 'text') => {
+	const add = (kind: FieldKind = 'text', at = fields.length) => {
 		const uid = newUid();
 		const isSection = SECTION_KINDS.includes(kind);
-		onChange([
-			...fields,
-			{
-				uid,
-				key: '',
-				label: '',
-				kind,
-				// The same starting point changeKind gives a row switched to the kind.
-				showInTable: kind !== 'section',
-				...(kind === 'uid' && { unique: true, from: fields.find(x => UID_SOURCES.includes(x.kind) && x.key)?.key }),
-				...(kind === 'component' && { component: components[0]?.uid }),
-				...(kind === 'blocks' && { components: components.map(c => c.uid) }),
-				...(isSection && { fields: sectionPreset(kind) }),
-			},
-		]);
+		const next = [...fields];
+		next.splice(at, 0, {
+			uid,
+			key: '',
+			label: '',
+			kind,
+			// The same starting point changeKind gives a row switched to the kind.
+			showInTable: kind !== 'section',
+			...(kind === 'uid' && { unique: true, from: fields.find(x => UID_SOURCES.includes(x.kind) && x.key)?.key }),
+			...(kind === 'component' && { component: components[0]?.uid }),
+			...(kind === 'blocks' && { components: components.map(c => c.uid) }),
+			...(isSection && { fields: sectionPreset(kind) }),
+		});
+		onChange(next);
 		setOpen(null);
-		setPicking(false);
+		setPicking(null);
 		// Focus lands on the new row's label once it renders; a formula or a section opens its own window.
 		if (kind === 'formula') setFormulaFor(uid);
 		else if (isSection) setSectionFor(uid);
@@ -538,10 +661,28 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 					fontSize='xs'
 					color='fg.muted'>
 					{/* The grip and the kind's picture. */}
-					<Box w='50px' />
-					<Text w={COLS.label}>Field name</Text>
-					<Text w={COLS.kind}>Type</Text>
-					<Text>Settings</Text>
+					<Box
+						w='50px'
+						flexShrink={0}
+					/>
+					<Text
+						flex='1'
+						minW='140px'>
+						Field name
+					</Text>
+					<Text
+						w={COLS.kind}
+						flexShrink={0}>
+						Type
+					</Text>
+					<Box
+						w={COLS.required}
+						flexShrink={0}
+					/>
+					<Box
+						w={COLS.actions}
+						flexShrink={0}
+					/>
 				</Flex>
 			)}
 
@@ -551,10 +692,19 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				const error = errors[f.uid];
 				const kindChanged = hasRecords && savedKinds[f.key] && savedKinds[f.key] !== f.kind;
 				const isRef = REFERENCE_KINDS.includes(f.kind);
+				// Calculated, or holding other fields: never required.
+				const noRequired = f.kind === 'formula' || SECTION_KINDS.includes(f.kind);
+				const openKey = () => {
+					setOpen(f.uid);
+					setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
+				};
 
 				return (
 					<Box
 						key={f.uid}
+						id={`field-${f.uid}`}
+						// Clear of the sticky top bar when it's scrolled to.
+						scrollMarginTop='96px'
 						draggable={!isOpen}
 						onDragStart={(e: DragEvent) => {
 							setDragIndex(i);
@@ -572,61 +722,163 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 							setDragIndex(null);
 							setOverIndex(null);
 						}}
+						onKeyDown={(e: KeyboardEvent) => {
+							// Esc puts the open field away — unless it was closing a list inside it.
+							if (e.key === 'Escape' && isOpen && !e.defaultPrevented) setOpen(null);
+						}}
 						borderWidth='1px'
 						borderStyle={isTarget ? 'dashed' : 'solid'}
-						borderColor={isTarget ? 'fg' : 'border'}
+						borderColor={isTarget ? 'fg' : isOpen ? 'blue.solid' : error ? 'red.muted' : 'border'}
+						// Open, it stands apart from the rows around it: a coloured edge, raised, with room above and below.
+						boxShadow={isOpen ? '0 0 0 1px var(--chakra-colors-blue-solid), 0 12px 32px -14px rgba(0, 0, 0, 0.5)' : undefined}
+						my={isOpen ? 3 : 0}
 						borderRadius={radius.CONTAINER}
 						bg='bg.panel'
+						transition='border-color 0.15s, box-shadow 0.15s, margin 0.15s'
 						opacity={dragIndex === i ? 0.4 : 1}>
-						<Flex
-							align='flex-start'
-							gap={2}
+						{/* The row itself: a click on it (not on one of its inputs) opens or closes the field's settings. */}
+						<Box
 							px={2.5}
 							py={1.5}
-							flexWrap='wrap'>
+							cursor='pointer'
+							bg={isOpen ? 'blue.subtle' : undefined}
+							borderTopLeftRadius='inherit'
+							borderTopRightRadius='inherit'
+							borderBottomLeftRadius={isOpen ? 0 : 'inherit'}
+							borderBottomRightRadius={isOpen ? 0 : 'inherit'}
+							_hover={isOpen ? undefined : { bg: 'bg.subtle' }}
+							onClick={e => {
+								if ((e.target as HTMLElement).closest(INTERACTIVE)) return;
+								setOpen(isOpen ? null : f.uid);
+							}}>
 							<Flex
-								{...CELL}
-								color='fg.subtle'
-								cursor='grab'
-								title='Drag to reorder'>
-								<GripVertical {...ICON} />
+								align='flex-start'
+								gap={2}
+								flexWrap={{ base: 'wrap', md: 'nowrap' }}>
+								<Flex
+									{...CELL}
+									color='fg.subtle'
+									cursor='grab'
+									title='Drag to reorder'>
+									<GripVertical {...ICON} />
+								</Flex>
+								<Flex
+									{...CELL}
+									title={KINDS.find(k => k.value === f.kind)?.hint}>
+									<KindIcon kind={f.kind} />
+								</Flex>
+								<Box
+									flex='1'
+									minW='140px'>
+									<Input
+										id={`label-${f.uid}`}
+										size='xs'
+										placeholder='Name, e.g. Due date'
+										value={f.label || ''}
+										{...invalidCss(error?.on === 'key' && !f.key)}
+										onChange={e => {
+											const label = e.target.value;
+											set(f.uid, { label, ...(!f.keyTouched && { key: toKey(label) }) });
+										}}
+									/>
+								</Box>
+								<Box
+									w={COLS.kind}
+									flexShrink={0}>
+									<Dropdown
+										size='xs'
+										w='full'
+										// Options for one and for several are one entry; the switch beside it picks.
+										value={f.kind === 'multiselect' ? 'select' : f.kind}
+										onChange={v => changeKind(f, v as FieldKind)}>
+										{KIND_GROUPS.filter(g => KINDS.some(k => k.group === g && (!kinds || kinds.includes(k.value)))).map(g => (
+											<optgroup
+												key={g}
+												label={g}>
+												{KINDS.filter(k => k.group === g && !k.hidden && (!kinds || kinds.includes(k.value))).map(k => (
+													<option
+														key={k.value}
+														value={k.value}>
+														{k.label}
+													</option>
+												))}
+											</optgroup>
+										))}
+									</Dropdown>
+								</Box>
+								<Flex
+									{...CELL}
+									w={COLS.required}
+									flexShrink={0}>
+									{!noRequired && (
+										<Check
+											label='Required'
+											checked={!!f.required}
+											onChange={v => set(f.uid, { required: v })}
+										/>
+									)}
+								</Flex>
+								<Flex
+									{...CELL}
+									w={COLS.actions}
+									flexShrink={0}
+									justify='flex-end'
+									ml='auto'
+									gap={0.5}>
+									<IconButton
+										size='xs'
+										variant={isOpen ? 'subtle' : 'ghost'}
+										aria-expanded={isOpen}
+										aria-label={isOpen ? 'Close the field’s settings' : 'Open the field’s settings'}
+										title={isOpen ? 'Close (Esc)' : 'Default, help text, API name, table and search'}
+										onClick={() => setOpen(isOpen ? null : f.uid)}>
+										<ChevronDown
+											{...ICON}
+											style={{ transform: isOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}
+										/>
+									</IconButton>
+									<RowMenu
+										first={i === 0}
+										last={i === fields.length - 1}
+										fixed={fixed}
+										removeHint={
+											hasRecords && savedKinds[f.key]
+												? 'Its values stay in existing records but are no longer shown or returned.'
+												: undefined
+										}
+										onDuplicate={() => duplicate(f, i)}
+										onMove={by => move(i, by)}
+										onInsertBelow={() => setPicking(i + 1)}
+										onRemove={() => {
+											if (isOpen) setOpen(null);
+											onChange(fields.filter(x => x.uid !== f.uid));
+										}}
+									/>
+								</Flex>
 							</Flex>
+
+							{/* Under the name: its API name, what the kind needs (a link, a formula…), and a summary of its settings. */}
 							<Flex
-								{...CELL}
-								title={KINDS.find(k => k.value === f.kind)?.hint}>
-								<KindIcon kind={f.kind} />
-							</Flex>
-							<Box w={COLS.label}>
-								<Input
-									id={`label-${f.uid}`}
-									size='xs'
-									placeholder='Name, e.g. Due date'
-									value={f.label || ''}
-									{...invalidCss(error?.on === 'key' && !f.key)}
-									onChange={e => {
-										const label = e.target.value;
-										set(f.uid, { label, ...(!f.keyTouched && { key: toKey(label) }) });
-									}}
-								/>
-								{/* The key, as the API knows it: shown, changed in the details. */}
+								align='center'
+								gap={2}
+								rowGap={1.5}
+								flexWrap='wrap'
+								pl={{ base: 0, md: '58px' }}
+								mt={1}
+								css={{ '&:empty': { display: 'none' } }}>
 								{f.key && error?.on !== 'key' && (
 									<Text
 										as='button'
 										fontSize='11px'
 										color='fg.subtle'
 										fontFamily='mono'
-										mt={0.5}
 										px={0.5}
-										maxW='full'
+										maxW='200px'
 										truncate
-										display='block'
 										textAlign='left'
 										title='The field’s name in the API and in formulas — click to change it'
 										_hover={{ color: 'fg.muted' }}
-										onClick={() => {
-											setOpen(f.uid);
-											setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
-										}}>
+										onClick={openKey}>
 										{f.key}
 									</Text>
 								)}
@@ -639,293 +891,259 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 												<Box
 													as='button'
 													textDecoration='underline'
-													onClick={() => {
-														setOpen(f.uid);
-														setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
-													}}>
+													onClick={openKey}>
 													change the API name
 												</Box>
 											</>
 										)}
 									</FieldMessage>
 								)}
-							</Box>
-							<Dropdown
-								size='xs'
-								w={COLS.kind}
-								// Options for one and for several are one entry; the switch beside it picks.
-								value={f.kind === 'multiselect' ? 'select' : f.kind}
-								onChange={v => changeKind(f, v as FieldKind)}>
-								{KIND_GROUPS.filter(g => KINDS.some(k => k.group === g && (!kinds || kinds.includes(k.value)))).map(g => (
-									<optgroup
-										key={g}
-										label={g}>
-										{KINDS.filter(k => k.group === g && !k.hidden && (!kinds || kinds.includes(k.value))).map(k => (
-											<option
-												key={k.value}
-												value={k.value}>
-												{k.label}
-											</option>
-										))}
-									</optgroup>
-								))}
-							</Dropdown>
-							{isRef && (
-								<Box w='220px'>
-									<Dropdown
-										size='xs'
-										placeholder='Links to…'
-										invalid={error?.on === 'ref'}
-										value={f.ref === selfName && selfName ? SELF : f.ref || ''}
-										onChange={v => set(f.uid, { ref: v })}>
-										{linkOptions.map(o => (
-											<option
-												key={o.value}
-												value={o.value}>
-												{o.label}
-											</option>
-										))}
-									</Dropdown>
-									{error?.on === 'ref' && <FieldMessage>{error.message}</FieldMessage>}
-								</Box>
-							)}
-							{f.kind === 'component' && (
-								<Flex
-									gap={2}
-									wrap='wrap'>
-									<Box w='190px'>
-										<Dropdown
-											size='xs'
-											placeholder={components.length ? 'Pick a component' : 'No components yet'}
-											invalid={error?.on === 'component'}
-											value={f.component || ''}
-											onChange={v => set(f.uid, { component: v })}
-											items={components.map(c => ({ value: c.uid, label: c.title }))}
-										/>
-										{error?.on === 'component' && <FieldMessage>{error.message}</FieldMessage>}
+								{isRef && (
+									<Flex
+										align='center'
+										gap={1.5}>
+										<Text
+											fontSize='xs'
+											color='fg.muted'>
+											links to
+										</Text>
+										<Box w='200px'>
+											<Dropdown
+												size='xs'
+												placeholder='Choose a model…'
+												invalid={error?.on === 'ref'}
+												value={f.ref === selfName && selfName ? SELF : f.ref || ''}
+												onChange={v => set(f.uid, { ref: v })}>
+												{linkOptions.map(o => (
+													<option
+														key={o.value}
+														value={o.value}>
+														{o.label}
+													</option>
+												))}
+											</Dropdown>
+										</Box>
+										{error?.on === 'ref' && <FieldMessage>{error.message}</FieldMessage>}
+									</Flex>
+								)}
+								{f.kind === 'component' && (
+									<Flex
+										gap={2}
+										wrap='wrap'
+										align='flex-start'>
+										<Box w='190px'>
+											<Dropdown
+												size='xs'
+												placeholder={components.length ? 'Pick a component' : 'No components yet'}
+												invalid={error?.on === 'component'}
+												value={f.component || ''}
+												onChange={v => set(f.uid, { component: v })}
+												items={components.map(c => ({ value: c.uid, label: c.title }))}
+											/>
+											{error?.on === 'component' && <FieldMessage>{error.message}</FieldMessage>}
+											{!components.length && (
+												<Text
+													fontSize='11.5px'
+													color='fg.muted'
+													mt={1}>
+													Make one under Build → Components.
+												</Text>
+											)}
+										</Box>
+										<Box w='110px'>
+											<Dropdown
+												size='xs'
+												value={f.repeatable ? 'list' : 'one'}
+												onChange={v => set(f.uid, { repeatable: v === 'list' })}
+												items={[
+													{ value: 'one', label: 'One' },
+													{ value: 'list', label: 'A list' },
+												]}
+											/>
+										</Box>
+									</Flex>
+								)}
+								{f.kind === 'blocks' && (
+									<Box maxW='360px'>
+										<Flex
+											gap={1}
+											wrap='wrap'>
+											{components.map(c => {
+												const on = (f.components || []).includes(c.uid);
+												return (
+													<Badge
+														key={c.uid}
+														as='button'
+														size='sm'
+														cursor='pointer'
+														variant={on ? 'solid' : 'outline'}
+														colorPalette={on ? 'purple' : 'gray'}
+														aria-pressed={on}
+														title={on ? `Takes ${c.title} — click to leave it out` : `Click to take ${c.title}`}
+														onClick={() =>
+															set(f.uid, {
+																components: on ? (f.components || []).filter(x => x !== c.uid) : [...(f.components || []), c.uid],
+															})
+														}>
+														{c.title}
+													</Badge>
+												);
+											})}
+										</Flex>
 										{!components.length && (
 											<Text
 												fontSize='11.5px'
-												color='fg.muted'
-												mt={1}>
-												Make one under Build → Components.
+												color='fg.muted'>
+												Make components under Build → Components first.
 											</Text>
 										)}
+										{error?.on === 'component' && <FieldMessage>{error.message}</FieldMessage>}
 									</Box>
-									<Box w='110px'>
+								)}
+								{f.kind === 'uid' && (
+									<Box w='200px'>
 										<Dropdown
 											size='xs'
-											value={f.repeatable ? 'list' : 'one'}
-											onChange={v => set(f.uid, { repeatable: v === 'list' })}
+											placeholder='Typed by hand'
+											invalid={error?.on === 'from'}
+											value={f.from || ''}
+											onChange={v => set(f.uid, { from: v || undefined })}
 											items={[
-												{ value: 'one', label: 'One' },
-												{ value: 'list', label: 'A list' },
+												{ value: '', label: 'Typed by hand' },
+												...fields
+													.filter(x => x.uid !== f.uid && x.key && UID_SOURCES.includes(x.kind))
+													.map(x => ({ value: x.key, label: `Made from ${x.label || x.key}` })),
 											]}
 										/>
+										{error?.on === 'from' && <FieldMessage>{error.message}</FieldMessage>}
 									</Box>
-								</Flex>
-							)}
-							{f.kind === 'blocks' && (
-								<Box maxW='360px'>
+								)}
+								{SECTION_KINDS.includes(f.kind) && (
 									<Flex
 										gap={1}
+										align='center'
 										wrap='wrap'>
-										{components.map(c => {
-											const on = (f.components || []).includes(c.uid);
-											return (
-												<Badge
-													key={c.uid}
-													as='button'
-													size='sm'
-													cursor='pointer'
-													variant={on ? 'solid' : 'outline'}
-													colorPalette={on ? 'purple' : 'gray'}
-													aria-pressed={on}
-													title={on ? `Takes ${c.title} — click to leave it out` : `Click to take ${c.title}`}
-													onClick={() =>
-														set(f.uid, {
-															components: on ? (f.components || []).filter(x => x !== c.uid) : [...(f.components || []), c.uid],
-														})
-													}>
-													{c.title}
-												</Badge>
-											);
-										})}
-									</Flex>
-									{!components.length && (
-										<Text
-											fontSize='11.5px'
-											color='fg.muted'>
-											Make components under Build → Components first.
-										</Text>
-									)}
-									{error?.on === 'component' && <FieldMessage>{error.message}</FieldMessage>}
-								</Box>
-							)}
-							{f.kind === 'uid' && (
-								<Box w='200px'>
-									<Dropdown
-										size='xs'
-										placeholder='Typed by hand'
-										invalid={error?.on === 'from'}
-										value={f.from || ''}
-										onChange={v => set(f.uid, { from: v || undefined })}
-										items={[
-											{ value: '', label: 'Typed by hand' },
-											...fields
-												.filter(x => x.uid !== f.uid && x.key && UID_SOURCES.includes(x.kind))
-												.map(x => ({ value: x.key, label: `Made from ${x.label || x.key}` })),
-										]}
-									/>
-									{error?.on === 'from' && <FieldMessage>{error.message}</FieldMessage>}
-								</Box>
-							)}
-							{SECTION_KINDS.includes(f.kind) ? (
-								<Box maxW='280px'>
-									<Button
-										size='xs'
-										variant='outline'
-										borderColor={error?.on === 'fields' ? 'red.solid' : undefined}
-										color={error?.on === 'fields' ? 'red.fg' : undefined}
-										title='Choose the section’s fields'
-										onClick={() => setSectionFor(f.uid)}>
-										<ListTree size={12} />
-										<Text
-											as='span'
-											truncate>
-											{f.fields?.length
-												? `${f.fields.length} field${f.fields.length === 1 ? '' : 's'}: ${f.fields
-														.map(x => x.label || x.key)
-														.join(', ')}`
-												: 'Choose fields'}
-										</Text>
-									</Button>
-									{error?.on === 'fields' && <FieldMessage>{error.message}</FieldMessage>}
-									{/* Only a section as saved: the server makes the component from what's stored. */}
-									{onMakeReusable && savedKinds[f.key] === f.kind && (
-										<Button
-											size='xs'
-											variant='ghost'
-											mt={1}
-											title='Turn this into a component other models can use too'
-											onClick={() => onMakeReusable(f)}>
-											<Puzzle size={12} />
-											Make reusable
-										</Button>
-									)}
-								</Box>
-							) : f.kind === 'formula' ? (
-								<Box maxW='280px'>
-									{(() => {
-										const c = f.formula?.trim() ? checkFormula(f.formula, formulaFields, f.key) : null;
-										return (
+										<Box maxW='280px'>
 											<Button
 												size='xs'
 												variant='outline'
 												maxW='280px'
-												borderColor={error?.on === 'formula' ? 'red.solid' : undefined}
-												color={error?.on === 'formula' ? 'red.fg' : undefined}
-												title='Write the formula'
-												onClick={() => setFormulaFor(f.uid)}>
-												<Calculator size={12} />
+												borderColor={error?.on === 'fields' ? 'red.solid' : undefined}
+												color={error?.on === 'fields' ? 'red.fg' : undefined}
+												title='Choose the section’s fields'
+												onClick={() => setSectionFor(f.uid)}>
+												<ListTree size={12} />
 												<Text
 													as='span'
-													fontFamily='mono'
 													truncate>
-													{c ? `= ${c.formatted || f.formula}` : 'Set formula'}
+													{f.fields?.length
+														? `${f.fields.length} field${f.fields.length === 1 ? '' : 's'}: ${f.fields.map(x => x.label || x.key).join(', ')}`
+														: 'Choose fields'}
 												</Text>
 											</Button>
-										);
-									})()}
-									{error?.on === 'formula' && <FieldMessage>{error.message}</FieldMessage>}
-								</Box>
-							) : (
-								<Flex {...CELL}>
-									<Check
-										label='Required'
-										checked={!!f.required}
-										onChange={v => set(f.uid, { required: v })}
-									/>
-								</Flex>
-							)}
-							<Flex
-								{...CELL}
-								gap={2}
-								flexWrap='wrap'>
-							{hasOptions(f) && !NEEDS_OPTIONS.includes(f.kind) && (
-								<Badge
-									size='xs'
-									variant='subtle'
-									cursor='pointer'
-									title={(f.options || []).map(o => o.value).filter(Boolean).join(', ')}
-									onClick={() => setOpen(f.uid)}>
-									{(f.options || []).filter(o => o.value).length} allowed values
-								</Badge>
-							)}
-							{defaultSummary(f) && (
-								<Badge
-									size='xs'
-									variant='subtle'
-									cursor='pointer'
-									maxW='180px'
-									truncate
-									onClick={() => setOpen(f.uid)}>
-									default: {defaultSummary(f)}
-								</Badge>
-							)}
-							{kindChanged && (
-								<Badge
-									size='xs'
-									colorPalette='orange'
-									variant='subtle'
-									title='Existing records keep their old values; the new kind may not be able to read them'>
-									<AlertTriangle size={11} />
-									was {KINDS.find(k => k.value === savedKinds[f.key])?.label}
-								</Badge>
-							)}
+											{error?.on === 'fields' && <FieldMessage>{error.message}</FieldMessage>}
+										</Box>
+										{/* Only a section as saved: the server makes the component from what's stored. */}
+										{onMakeReusable && savedKinds[f.key] === f.kind && (
+											<Button
+												size='xs'
+												variant='ghost'
+												title='Turn this into a component other models can use too'
+												onClick={() => onMakeReusable(f)}>
+												<Puzzle size={12} />
+												Make reusable
+											</Button>
+										)}
+									</Flex>
+								)}
+								{f.kind === 'formula' && (
+									<Box maxW='320px'>
+										{(() => {
+											const c = f.formula?.trim() ? checkFormula(f.formula, formulaFields, f.key) : null;
+											return (
+												<Button
+													size='xs'
+													variant='outline'
+													maxW='320px'
+													borderColor={error?.on === 'formula' ? 'red.solid' : undefined}
+													color={error?.on === 'formula' ? 'red.fg' : undefined}
+													title='Write the formula'
+													onClick={() => setFormulaFor(f.uid)}>
+													<Calculator size={12} />
+													<Text
+														as='span'
+														fontFamily='mono'
+														truncate>
+														{c ? `= ${c.formatted || f.formula}` : 'Set formula'}
+													</Text>
+												</Button>
+											);
+										})()}
+										{error?.on === 'formula' && <FieldMessage>{error.message}</FieldMessage>}
+									</Box>
+								)}
+								{/* A summary of what's set inside — open, the settings themselves show it. */}
+								{!isOpen && hasOptions(f) && !NEEDS_OPTIONS.includes(f.kind) && (
+									<Badge
+										size='xs'
+										variant='subtle'
+										title={(f.options || []).map(o => o.value).filter(Boolean).join(', ')}>
+										{(f.options || []).filter(o => o.value).length} allowed values
+									</Badge>
+								)}
+								{!isOpen && defaultSummary(f) && (
+									<Badge
+										size='xs'
+										variant='subtle'
+										maxW='180px'
+										truncate>
+										default: {defaultSummary(f)}
+									</Badge>
+								)}
+								{!isOpen && f.unique && f.kind !== 'uid' && (
+									<Badge
+										size='xs'
+										variant='subtle'>
+										no duplicates
+									</Badge>
+								)}
+								{!isOpen && f.showInTable === false && !sub && f.kind !== 'section' && (
+									<Badge
+										size='xs'
+										variant='subtle'>
+										not in the table
+									</Badge>
+								)}
+								{kindChanged && (
+									<Badge
+										size='xs'
+										colorPalette='orange'
+										variant='subtle'
+										title='Existing records keep their old values; the new kind may not be able to read them'>
+										<AlertTriangle size={11} />
+										was {KINDS.find(k => k.value === savedKinds[f.key])?.label}
+									</Badge>
+								)}
 							</Flex>
-							<Flex
-								{...CELL}
-								ml='auto'
-								gap={1}>
-								<Button
-									size='xs'
-									variant={isOpen ? 'subtle' : 'ghost'}
-									aria-expanded={isOpen}
-									title='Default, help text, API name, table and search'
-									onClick={() => setOpen(isOpen ? null : f.uid)}>
-									{isOpen ? <ChevronUp {...ICON} /> : <SlidersHorizontal {...ICON} />}
-									{isOpen ? 'Less' : 'More'}
-								</Button>
-								<IconButton
-									size='xs'
-									variant='ghost'
-									aria-label='Remove field'
-									title={
-										hasRecords && savedKinds[f.key]
-											? 'Remove the field. Its values stay in existing records but are no longer shown or returned.'
-											: 'Remove the field'
-									}
-									onClick={() => onChange(fields.filter(x => x.uid !== f.uid))}>
-									<Trash2 {...ICON} />
-								</IconButton>
-							</Flex>
-							{NEEDS_OPTIONS.includes(f.kind) && (
-								<Box
-									w='full'
-									pl={{ base: 0, md: '58px' }}>
-									<OptionsInput
-										id={`options-${f.uid}`}
-										field={f}
-										invalid={error?.on === 'options'}
-										onChange={options => set(f.uid, { options })}
-										several={f.kind === 'multiselect'}
-										onSeveralChange={on => changeKind(f, on ? 'multiselect' : 'select')}
-									/>
-									{error?.on === 'options' && <FieldMessage>{error.message}</FieldMessage>}
-								</Box>
-							)}
-						</Flex>
+						</Box>
+
+						{/* An Options field's options, typed straight in — open, its settings list them with their labels instead. */}
+						{NEEDS_OPTIONS.includes(f.kind) && !isOpen && (
+							<Box
+								px={2.5}
+								pb={2}
+								pl={{ base: 2.5, md: '68px' }}>
+								<OptionsInput
+									id={`options-${f.uid}`}
+									field={f}
+									invalid={error?.on === 'options'}
+									onChange={options => set(f.uid, { options })}
+									several={f.kind === 'multiselect'}
+									onSeveralChange={on => changeKind(f, on ? 'multiselect' : 'select')}
+								/>
+								{error?.on === 'options' && <FieldMessage>{error.message}</FieldMessage>}
+							</Box>
+						)}
 
 						{!isOpen && error && DETAIL_LABEL[error.on] && !(error.on === 'options' && NEEDS_OPTIONS.includes(f.kind)) && (
 							<Text
@@ -934,7 +1152,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 								color='red.fg'
 								px={2.5}
 								pb={2}
-								ml={{ base: 0, md: '58px' }}
+								ml={{ base: 0, md: '68px' }}
 								textAlign='left'
 								onClick={() => setOpen(f.uid)}>
 								{DETAIL_LABEL[error.on]}: {error.message} — <u>show</u>
@@ -946,11 +1164,11 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 								direction='column'
 								gap={5}
 								px={4}
-								pl={{ md: '58px' }}
-								pb={4}
-								pt={3}
+								pl={{ md: '68px' }}
+								pb={3}
+								pt={4}
 								borderTopWidth='1px'
-								borderColor='border.muted'>
+								borderColor='blue.muted'>
 								<Text
 									fontSize='xs'
 									color='fg.muted'>
@@ -1026,6 +1244,16 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 												? 'The value is what’s stored; the label, if any, is what people see.'
 												: 'Optional. With any, the field only takes these values and the form offers them as a list.'}
 										</Text>
+										{NEEDS_OPTIONS.includes(f.kind) && (
+											<Box mb={2.5}>
+												<Check
+													label='Allow several'
+													hint='People can pick more than one'
+													checked={f.kind === 'multiselect'}
+													onChange={on => changeKind(f, on ? 'multiselect' : 'select')}
+												/>
+											</Box>
+										)}
 										<Flex
 											direction='column'
 											gap={1.5}>
@@ -1080,7 +1308,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 												</Button>
 											</Box>
 										</Flex>
-										{error?.on === 'options' && !NEEDS_OPTIONS.includes(f.kind) && <FieldMessage>{error.message}</FieldMessage>}
+										{error?.on === 'options' && <FieldMessage>{error.message}</FieldMessage>}
 									</Group>
 								)}
 
@@ -1161,6 +1389,19 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 										</Text>
 									</Box>
 								</Group>
+
+								<Flex
+									justify='flex-end'
+									pt={3}
+									borderTopWidth='1px'
+									borderColor='border.muted'>
+									<Button
+										size='xs'
+										px={3}
+										onClick={() => setOpen(null)}>
+										Done
+									</Button>
+								</Flex>
 							</Flex>
 						)}
 					</Box>
@@ -1175,15 +1416,15 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				w='full'
 				color='fg.muted'
 				_hover={{ color: 'fg', borderColor: 'fg.muted', bg: 'bg.subtle' }}
-				onClick={() => setPicking(true)}>
+				onClick={() => setPicking(fields.length)}>
 				<Plus {...ICON} />
 				Add a field
 			</Button>
 
 			<KindPicker
-				isOpen={picking}
-				onClose={() => setPicking(false)}
-				onPick={kind => add(kind)}
+				isOpen={picking !== null}
+				onClose={() => setPicking(null)}
+				onPick={kind => add(kind, picking ?? fields.length)}
 				kinds={kinds}
 			/>
 
