@@ -1,12 +1,15 @@
 'use client';
 
-import { DragEvent, FC, memo, useMemo, useRef, useState } from 'react';
-import { Badge, Box, Button, Flex, Grid, IconButton, Input, Switch, Text, Textarea } from '@chakra-ui/react';
+import { DragEvent, FC, KeyboardEvent, memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Badge, Box, Button, Flex, Grid, IconButton, Input, Menu, Portal, Switch, Text, Textarea } from '@chakra-ui/react';
 import {
+	ArrowDown,
+	ArrowUp,
 	Calculator,
 	ChevronDown,
 	ChevronRight,
-	ChevronUp,
+	Copy,
+	Ellipsis,
 	GripVertical,
 	Link2,
 	ListTree,
@@ -15,7 +18,6 @@ import {
 	RotateCcw,
 	Search,
 	Sigma,
-	SlidersHorizontal,
 	Trash2,
 } from 'lucide-react';
 import { inputDataOptions, radius } from '@/components/library';
@@ -206,6 +208,9 @@ type RowActions = {
 	dragOver: (index: number) => void;
 	drop: (index: number) => void;
 	dragEnd: () => void;
+	move: (key: string, by: -1 | 1) => void;
+	/** A field worked out from linked records, copied below itself under a new API name. */
+	duplicate: (key: string) => void;
 };
 
 /** Would turning `prop` to `value` loosen a sensitive field beyond its code? */
@@ -220,6 +225,9 @@ const unsafe = (f: SettingsField, code: SettingsField | undefined, prop: string,
 type RowProps = {
 	f: SettingsField;
 	index: number;
+	/** Where it is in the list: the menu's Move up / Move down. */
+	first: boolean;
+	last: boolean;
 	/** The field as the settings file has it, if it does. */
 	code?: SettingsField;
 	isOpen: boolean;
@@ -303,18 +311,108 @@ const Group: FC<{ title: string; hint?: string; children: any }> = ({ title, hin
 /** The column widths the header row and the rows share. */
 const COLS = { name: '220px', input: '190px' };
 
+/** What a click on a row leaves alone: its inputs, lists, switches and buttons do their own thing. */
+const INTERACTIVE = 'input, textarea, select, button, a, label, [role="combobox"], [role="switch"], [role="listbox"], [role="menu"]';
+
+/** A row's ⋯ menu: move, put back, copy the API name, duplicate (a field from linked records), remove. */
+const RowMenu: FC<{
+	f: SettingsField;
+	first: boolean;
+	last: boolean;
+	movable: boolean;
+	removable: boolean;
+	canReset: boolean;
+	actions: RowActions;
+	onReset: () => void;
+}> = ({ f, first, last, movable, removable, canReset, actions, onReset }) => (
+	<Menu.Root positioning={{ placement: 'bottom-end' }}>
+		<Menu.Trigger asChild>
+			<IconButton
+				size='xs'
+				variant='ghost'
+				aria-label={`More actions for ${f.key}`}
+				title='Move, put back, copy the API name, remove'>
+				<Ellipsis {...ICON} />
+			</IconButton>
+		</Menu.Trigger>
+		<Portal>
+			<Menu.Positioner>
+				<Menu.Content minW='210px'>
+					{movable && (
+						<>
+							<Menu.Item
+								value='up'
+								disabled={first}
+								onClick={() => actions.move(f.key, -1)}>
+								<ArrowUp {...ICON} />
+								Move up
+							</Menu.Item>
+							<Menu.Item
+								value='down'
+								disabled={last}
+								onClick={() => actions.move(f.key, 1)}>
+								<ArrowDown {...ICON} />
+								Move down
+							</Menu.Item>
+						</>
+					)}
+					{movable && f.rollup && (
+						<Menu.Item
+							value='duplicate'
+							onClick={() => actions.duplicate(f.key)}>
+							<Copy {...ICON} />
+							Duplicate
+						</Menu.Item>
+					)}
+					{canReset && (
+						<Menu.Item
+							value='reset'
+							onClick={onReset}>
+							<RotateCcw {...ICON} />
+							{IS_TENANT_PANEL ? 'Put back as it started' : 'Back to the settings file'}
+						</Menu.Item>
+					)}
+					<Menu.Item
+						value='copy-key'
+						onClick={() => navigator.clipboard?.writeText(f.key).catch(() => undefined)}>
+						<Copy {...ICON} />
+						Copy the API name
+					</Menu.Item>
+					{removable && (
+						<>
+							<Menu.Separator />
+							<Menu.Item
+								value='remove'
+								color='fg.error'
+								title='The server stops checking, editing and returning it. The stored values stay.'
+								onClick={() => actions.remove(f.key)}>
+								<Trash2 {...ICON} />
+								Remove from the page
+							</Menu.Item>
+						</>
+					)}
+				</Menu.Content>
+			</Menu.Positioner>
+		</Portal>
+	</Menu.Root>
+);
+
 /**
  * One settings field. Memoized: a settings list is 20–40 of these, each with
  * dropdowns, and re-rendering them all on every keystroke or toggle is what
  * made the Settings tab (and the formula window on it) slow.
  *
  * The row is what people change most — the name, how it's asked for, Required
- * and Can be changed later — with the other rules that are on as chips; More
- * opens the rest in groups, the technical parts under Advanced.
+ * and Can be changed later — with the other rules that are on as chips. A
+ * click on the row opens the rest in groups (the technical parts under
+ * Advanced): raised and edged in colour so it stands apart, put away with Done
+ * or Esc. The ⋯ menu moves, puts back, copies the API name or removes.
  */
 const FieldRow = memo(function FieldRow({
 	f,
 	index,
+	first,
+	last,
 	code,
 	isOpen,
 	isTarget,
@@ -363,18 +461,41 @@ const FieldRow = memo(function FieldRow({
 				actions.drop(index);
 			}}
 			onDragEnd={actions.dragEnd}
+			id={`setting-${f.key}`}
+			// Clear of the sticky top bar when it's scrolled to.
+			scrollMarginTop='96px'
+			onKeyDown={(e: KeyboardEvent) => {
+				// Esc puts the open field away — unless it was closing a list inside it.
+				if (e.key === 'Escape' && isOpen && !e.defaultPrevented) actions.toggle(f.key);
+			}}
 			borderWidth='1px'
 			borderStyle={isTarget ? 'dashed' : 'solid'}
-			borderColor={isTarget ? 'fg' : 'border'}
+			borderColor={isTarget ? 'fg' : isOpen ? 'blue.solid' : 'border'}
+			// Open, it stands apart from the rows around it: a coloured edge, raised, with room above and below.
+			boxShadow={isOpen ? '0 0 0 1px var(--chakra-colors-blue-solid), 0 12px 32px -14px rgba(0, 0, 0, 0.5)' : undefined}
+			my={isOpen ? 3 : 0}
 			borderRadius={radius.CONTAINER}
 			bg={system ? 'bg.subtle' : 'bg.panel'}
+			transition='border-color 0.15s, box-shadow 0.15s, margin 0.15s'
 			opacity={dragging ? 0.4 : 1}>
+			{/* The row itself: a click on it (not on one of its inputs) opens or closes the field's settings. */}
 			<Flex
 				align='center'
 				gap={2}
 				px={2.5}
 				py={2}
-				flexWrap='wrap'>
+				flexWrap='wrap'
+				cursor='pointer'
+				bg={isOpen ? 'blue.subtle' : undefined}
+				borderTopLeftRadius='inherit'
+				borderTopRightRadius='inherit'
+				borderBottomLeftRadius={isOpen ? 0 : 'inherit'}
+				borderBottomRightRadius={isOpen ? 0 : 'inherit'}
+				_hover={isOpen ? undefined : { bg: 'bg.subtle' }}
+				onClick={e => {
+					if ((e.target as HTMLElement).closest(INTERACTIVE)) return;
+					actions.toggle(f.key);
+				}}>
 				{!readOnly && (
 					<Flex
 						color='fg.subtle'
@@ -575,38 +696,37 @@ const FieldRow = memo(function FieldRow({
 							size='sm'
 							colorPalette={r.palette}
 							variant='subtle'
-							cursor='pointer'
-							title={`${r.hint} — click to change`}
-							onClick={() => !isOpen && actions.toggle(f.key)}>
+							title={`${r.hint} — click to change`}>
 							{r.label}
 						</Badge>
 					))}
 				</Flex>
 
 				<Flex
-					gap={1}
+					gap={0.5}
 					ml='auto'>
-					<Button
+					<IconButton
 						size='xs'
 						variant={isOpen ? 'subtle' : 'ghost'}
 						aria-expanded={isOpen}
-						title='All rules, how it looks, limits and advanced settings'
+						aria-label={isOpen ? 'Close the field’s settings' : 'Open the field’s settings'}
+						title={isOpen ? 'Close (Esc)' : 'All rules, how it looks, limits and advanced settings'}
 						onClick={() => actions.toggle(f.key)}>
-						{isOpen ? <ChevronUp {...ICON} /> : <SlidersHorizontal {...ICON} />}
-						{isOpen ? 'Less' : 'More'}
-					</Button>
-					{!readOnly && !system && (
-						<IconButton
-							size='xs'
-							variant='ghost'
-							aria-label={`Remove ${f.key}`}
-							title='Remove: the server stops checking, editing and returning it. The stored values stay.'
-							color='red.500'
-							_dark={{ color: 'red.300' }}
-							onClick={() => actions.remove(f.key)}>
-							<Trash2 {...ICON} />
-						</IconButton>
-					)}
+						<ChevronDown
+							{...ICON}
+							style={{ transform: isOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}
+						/>
+					</IconButton>
+					<RowMenu
+						f={f}
+						first={first}
+						last={last}
+						movable={!readOnly && !system}
+						removable={!readOnly && !system}
+						canReset={!!code && changed && !readOnly && !system}
+						actions={actions}
+						onReset={() => actions.reset(f.key, code!)}
+					/>
 				</Flex>
 			</Flex>
 
@@ -615,9 +735,10 @@ const FieldRow = memo(function FieldRow({
 					direction='column'
 					gap={5}
 					p={4}
+					pb={3}
 					pl={{ md: readOnly ? 12 : 16 }}
 					borderTopWidth='1px'
-					borderColor='border.muted'>
+					borderColor='blue.muted'>
 					{f.rollup && (
 						<Group
 							title='Worked out from linked records'
@@ -946,6 +1067,19 @@ const FieldRow = memo(function FieldRow({
 							</Flex>
 						)}
 					</Box>
+
+					<Flex
+						justify='flex-end'
+						pt={3}
+						borderTopWidth='1px'
+						borderColor='border.muted'>
+						<Button
+							size='xs'
+							px={3}
+							onClick={() => actions.toggle(f.key)}>
+							Done
+						</Button>
+					</Flex>
 				</Flex>
 			)}
 		</Box>
@@ -954,6 +1088,16 @@ const FieldRow = memo(function FieldRow({
 
 const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, readOnly, onChange }) => {
 	const [open, setOpen] = useState<string | null>(null);
+	// An opened field that's off screen (a long one above it just closed) is brought into view.
+	useEffect(() => {
+		if (!open) return;
+		const t = setTimeout(() => {
+			const el = document.getElementById(`setting-${open}`);
+			const r = el?.getBoundingClientRect();
+			if (el && r && (r.top < 80 || r.top > window.innerHeight - 140)) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}, 0);
+		return () => clearTimeout(t);
+	}, [open]);
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [overIndex, setOverIndex] = useState<number | null>(null);
 	const [adding, setAdding] = useState('');
@@ -1118,8 +1262,8 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 
 	// The rows get one actions object for good: it reads the latest render's
 	// handlers through a ref, so memoized rows never see a stale `fields`.
-	const latest = useRef({ set, setSchema, pickInput, pickType, drop, fields, onChange });
-	latest.current = { set, setSchema, pickInput, pickType, drop, fields, onChange };
+	const latest = useRef({ set, setSchema, pickInput, pickType, drop, fields, onChange, taken: (k: string) => present.has(k) || modelByKey.has(k) });
+	latest.current = { set, setSchema, pickInput, pickType, drop, fields, onChange, taken: (k: string) => present.has(k) || modelByKey.has(k) };
 	const actions = useMemo<RowActions>(
 		() => ({
 			set: (key, patch) => latest.current.set(key, patch),
@@ -1144,6 +1288,27 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 			dragEnd: () => {
 				setDragIndex(null);
 				setOverIndex(null);
+			},
+			move: (key, by) => {
+				const all = latest.current.fields;
+				const i = all.findIndex(x => x.key === key);
+				const to = i + by;
+				if (i < 0 || to < 0 || to >= all.length) return;
+				const next = [...all];
+				[next[i], next[to]] = [next[to], next[i]];
+				latest.current.onChange(next);
+			},
+			duplicate: key => {
+				const all = latest.current.fields;
+				const i = all.findIndex(x => x.key === key);
+				if (i < 0) return;
+				let copy = `${key}Copy`;
+				for (let n = 2; latest.current.taken(copy); n++) copy = `${key}Copy${n}`;
+				const f = all[i];
+				const next = [...all];
+				next.splice(i + 1, 0, { ...JSON.parse(JSON.stringify(f)), key: copy, title: f.title ? `${f.title} (copy)` : copy });
+				latest.current.onChange(next);
+				setOpen(copy);
 			},
 		}),
 		[]
@@ -1217,6 +1382,8 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 						key={f.key}
 						f={f}
 						index={i}
+						first={i === 0}
+						last={i >= fields.length - 1}
 						code={codeByKey.get(f.key)}
 						isOpen={isOpen}
 						isTarget={dragIndex !== null && overIndex === i && dragIndex !== i}
