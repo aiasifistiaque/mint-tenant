@@ -1,7 +1,7 @@
 import { FC } from 'react';
 
 import { format } from 'date-fns';
-import { GridItem, Heading, StackProps, TableRowProps } from '@chakra-ui/react';
+import { Flex, GridItem, Heading, StackProps, TableRowProps } from '@chakra-ui/react';
 import {
 	TableRow,
 	EditableTableData,
@@ -17,6 +17,7 @@ import { formatDataKey, formatFieldTitle } from '../../../../functions';
 import { Column } from '../../../../containers';
 import { affixOf, fieldText } from '../../../../functions/affix';
 import { OptionTags } from '../../../../functions/optionColors';
+import RecordLink from '../../../view/utils/record-link/RecordLink';
 
 type TableProps = StackProps &
 	TableRowProps & {
@@ -174,6 +175,46 @@ const TableRowComponent: FC<TableProps> = ({
 									<OptionTags
 										value={value}
 										field={val}
+									/>
+								)}
+							</CustomTd>
+						</Container>
+					);
+
+				// A linked record (settings linkPreview): its chip, with the record's
+				// card on hover and Quick view, as on the record page.
+				const linked = val.linkPreview && val.model ? item?.[String(dataKey).split('.')[0]] : undefined;
+				if (linked)
+					return (
+						<Container
+							key={columnKey}
+							type={type}
+							isCardView={isCardView}
+							value={value}>
+							{isCardView && (
+								<Heading {...cardLabelCss}>{formatFieldTitle({ field: dataKey, schema: data })}</Heading>
+							)}
+							<CustomTd
+								type='linked'
+								{...dress}>
+								{Array.isArray(linked) ? (
+									<Flex
+										as='span'
+										gap={1}
+										flexWrap='wrap'>
+										{linked.map((record: any, i: number) => (
+											<RecordLink
+												key={i}
+												route={val.model}
+												item={record}
+											/>
+										))}
+									</Flex>
+								) : (
+									<RecordLink
+										route={val.model}
+										item={linked}
+										label={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
 									/>
 								)}
 							</CustomTd>

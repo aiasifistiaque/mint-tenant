@@ -73,17 +73,22 @@ const labelFor = (value: any, field: any) => {
  */
 export const StatusTag: FC<{ color: string; children: any; size?: 'xs' | 'sm' | 'md' }> = ({ color, children, size = 'sm' }) => {
 	const fg = color === 'gray' ? 'fg.muted' : `${color}.fg`;
-	const dims = size === 'md' ? { px: 3, h: '28px', fs: '13px', dot: '8px' } : size === 'xs' ? { px: 2, h: '20px', fs: '11px', dot: '6px' } : { px: 2.5, h: '24px', fs: '12px', dot: '7px' };
+	const dims =
+		size === 'md'
+			? { px: 2.5, h: '24px', fs: '11.5px', dot: '7px' }
+			: size === 'xs'
+			? { px: 1.5, h: '18px', fs: '9.5px', dot: '5px' }
+			: { px: 2, h: '20px', fs: '10.5px', dot: '6px' };
 	return (
 		<Flex
 			as='span'
 			display='inline-flex'
 			align='center'
-			gap={1.5}
+			gap={1}
 			h={dims.h}
 			px={dims.px}
 			borderRadius='full'
-			borderWidth='1.5px'
+			borderWidth='1px'
 			borderColor={fg}
 			bg={color === 'gray' ? 'bg.muted' : `${color}.subtle`}
 			maxW='full'

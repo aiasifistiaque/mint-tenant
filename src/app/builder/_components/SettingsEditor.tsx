@@ -767,6 +767,21 @@ const FieldRow = memo(function FieldRow({
 								/>
 							</Box>
 						)}
+						{RECORD_INPUTS.includes(f.schema?.type) && f.schema?.model && (
+							<Box mt={4}>
+								<Small>Linked record in the table</Small>
+								<Switchy
+									on={!!f.schema?.linkPreview}
+									disabled={locked}
+									label={
+										f.schema?.linkPreview
+											? 'A chip with the record’s card on hover, and Quick view for those who can see it'
+											: 'Plain text — turn on for the record’s card on hover and Quick view'
+									}
+									onClick={() => actions.setSchema(f.key, { linkPreview: !f.schema?.linkPreview || undefined })}
+								/>
+							</Box>
+						)}
 					</Group>
 
 					{hasLimits && (

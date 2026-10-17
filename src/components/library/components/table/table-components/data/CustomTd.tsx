@@ -65,7 +65,7 @@ const CustomTd: FC<TableDataProps & { affixBefore?: string; affixAfter?: string;
 	const TextContainer = isCardView
 		? editable
 			? Fragment
-			: type == 'tag' || type == 'history'
+			: type == 'tag' || type == 'history' || type == 'linked'
 			? Fragment
 			: Text
 		: Fragment;
