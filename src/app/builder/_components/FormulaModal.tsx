@@ -6,7 +6,7 @@ import { Calculator, CheckCircle2, CircleAlert } from 'lucide-react';
 import { AlertDialogContent, AlertDialogHeader, ModalFooter } from '@/components/library';
 import DiscardButton from '@/components/library/components/buttons/DiscardButton';
 import { Dropdown } from '@/components/library/cl';
-import { AGGREGATES, FUNCTIONS, FieldInfo, checkFormula, evaluate } from '@/components/library/functions/formula';
+import { AGGREGATES, CONDITIONS, FUNCTIONS, FieldInfo, checkFormula, evaluate } from '@/components/library/functions/formula';
 
 /**
  * Writing a formula field's formula — `due = total - paid`. Two ways in, one
@@ -39,6 +39,21 @@ const OPS = [
 	{ label: ')', insert: ')', hint: 'Close bracket' },
 ];
 
+/** Conditions: if() and what it tests with. */
+const CONDS = [
+	{ label: 'if()', insert: 'if(', hint: FUNCTIONS.if.hint },
+	{ label: '=', insert: '=', hint: CONDITIONS['='] },
+	{ label: '≠', insert: '!=', hint: CONDITIONS['!='] },
+	{ label: '<', insert: '<', hint: CONDITIONS['<'] },
+	{ label: '≤', insert: '<=', hint: CONDITIONS['<='] },
+	{ label: '>', insert: '>', hint: CONDITIONS['>'] },
+	{ label: '≥', insert: '>=', hint: CONDITIONS['>='] },
+	{ label: 'and', insert: 'and', hint: CONDITIONS.and },
+	{ label: 'or', insert: 'or', hint: CONDITIONS.or },
+	{ label: 'not()', insert: 'not(', hint: FUNCTIONS.not.hint },
+	{ label: '"text"', insert: '""', hint: 'Text to compare a choice or text field with — type it between the quotes' },
+];
+
 const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle, formula, fields }) => {
 	const [text, setText] = useState(formula);
 	const latest = useRef(formula);
@@ -63,16 +78,20 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 
 	const name = fieldTitle || fieldKey;
 	// What the picker inserts: a number field as is; a number in a list's rows
-	// added up (`sum(items.total)`); a list, its row count (`count(items)`).
+	// added up (`sum(items.total)`); a list, its row count (`count(items)`); any
+	// other field as is, to compare in a condition (`discountType = "flat"`).
 	const usable = fields
-		.filter(f => f.key !== fieldKey && (f.numeric || f.list))
+		.filter(f => f.key !== fieldKey)
 		.map(f => {
 			const label = f.label && f.label !== f.key ? f.label : f.key;
 			if (f.list) return { key: f.key, insert: `count(${f.key})`, label: `Number of rows in ${label} — count(${f.key})` };
+			if (!f.numeric && f.inList) return null;
+			if (!f.numeric) return { key: f.key, insert: f.key, label: `${label === f.key ? f.key : `${label} (${f.key})`} — to compare in a condition` };
 			if (f.inList) return { key: f.key, insert: `sum(${f.key})`, label: `Sum of ${label} in ${labelOfList(f.inList)} — sum(${f.key})` };
 			if (f.linked) return { key: f.key, insert: f.key, label: `${label} (${f.key}) — from the linked record` };
 			return { key: f.key, insert: f.key, label: label === f.key ? f.key : `${label} (${f.key})` };
-		});
+		})
+		.filter((f): f is { key: string; insert: string; label: string } => !!f);
 	const hasLists = fields.some(f => f.list);
 	const hasLinks = fields.some(f => f.linked);
 	const checked = useMemo(() => (text.trim() ? checkFormula(text, fields, fieldKey) : null), [text, fields, fieldKey]);
@@ -82,7 +101,9 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 	}
 	const infoOf = (key: string) => fields.find(f => f.key === key);
 	// The sample values by their full key, so a dotted one (tax.amount, billing.fee) is read as typed.
-	const tried = checked?.ok ? Object.fromEntries(checked.refs.map(r => [r, sample[r] ?? ''])) : {};
+	// A yes / no field is tried as yes or no, so if(isVip, …) reads "no" as not holding.
+	const yesNo = (r: string, v: string) => (!infoOf(r)?.numeric && /^(yes|true|no|false)$/i.test(v.trim()) ? /^(yes|true)$/i.test(v.trim()) : v);
+	const tried = checked?.ok ? Object.fromEntries(checked.refs.map(r => [r, yesNo(r, sample[r] ?? '')])) : {};
 	const result = checked?.ok && checked.tree ? evaluate(checked.tree, tried, tried) : null;
 
 	/** Puts `token` in at the cursor (or the end), spaced, and keeps the cursor after it. */
@@ -94,8 +115,9 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 		const before = token === ')' ? prev.slice(0, at).replace(/\s+$/, '') : prev.slice(0, at);
 		const after = prev.slice(at).replace(/^\s+/, '');
 		const pad = /[\s(]$/.test(before) || !before ? '' : ' ';
-		const piece = token === ')' ? token : `${pad}${token}${token.endsWith('(') ? '' : ' '}`;
-		const pos = before.length + piece.length;
+		const piece = token === ')' ? token : `${pad}${token}${token.endsWith('(') || token === '""' ? '' : ' '}`;
+		// Into an empty pair of quotes, to type the text.
+		const pos = before.length + piece.length - (token === '""' ? 1 : 0);
 		change(`${before}${piece}${after}`);
 		cursor.current = pos;
 		requestAnimationFrame(() => {
@@ -146,7 +168,9 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 									fontSize='sm'
 									color='fg.muted'>
 									{name} is calculated from other number fields each time a record is saved, and can&apos;t be
-									typed in. An empty field counts as 0.
+									typed in. An empty field counts as 0. It can depend on a condition — if(discountType =
+									&quot;percentage&quot;, subtotal * discount / 100, flatDiscount) takes a percentage off when
+									Discount type is percentage, and the flat discount when it isn&apos;t.
 									{hasLists &&
 										' A list’s rows are used through sum(), avg() and count() — e.g. sum(items.total) adds up the total of every row.'}
 									{hasLinks &&
@@ -207,7 +231,7 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 											mr={1}>
 											Functions
 										</Text>
-										{[...Object.entries(FUNCTIONS), ...(hasLists ? Object.entries(AGGREGATES) : [])].map(([fn, spec]) => (
+										{[...Object.entries(FUNCTIONS).filter(([fn]) => fn !== 'if' && fn !== 'not'), ...(hasLists ? Object.entries(AGGREGATES) : [])].map(([fn, spec]) => (
 											<Button
 												key={fn}
 												size='xs'
@@ -216,6 +240,28 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 												title={spec.hint}
 												onClick={() => insert(`${fn}(`)}>
 												{fn}()
+											</Button>
+										))}
+									</Flex>
+									<Flex
+										gap={1}
+										flexWrap='wrap'
+										align='center'>
+										<Text
+											fontSize='xs'
+											color='fg.muted'
+											mr={1}>
+											Conditions
+										</Text>
+										{CONDS.map(o => (
+											<Button
+												key={o.label}
+												size='xs'
+												variant='ghost'
+												fontFamily='mono'
+												title={o.hint}
+												onClick={() => insert(o.insert)}>
+												{o.label}
 											</Button>
 										))}
 										<Button
@@ -259,7 +305,7 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 											fontSize='xs'
 											color='fg.muted'>
 											Type a formula, or build it with the buttons above. Use field keys, numbers, + − × ÷ %,
-											brackets and the functions.
+											brackets, the functions and conditions — text goes in quotes.
 										</Text>
 									) : !checked.ok ? (
 										<Box mt={2}>
@@ -367,8 +413,8 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 													</Text>
 													<Input
 														size='xs'
-														type={infoOf(r)?.inList ? 'text' : 'number'}
-														placeholder={infoOf(r)?.inList ? '5, 3, 2' : '0'}
+														type={infoOf(r)?.inList || !infoOf(r)?.numeric ? 'text' : 'number'}
+														placeholder={infoOf(r)?.inList ? '5, 3, 2' : infoOf(r)?.numeric || infoOf(r)?.list ? '0' : 'its value'}
 														value={sample[r] ?? ''}
 														onChange={e => setSample(s => ({ ...s, [r]: e.target.value }))}
 													/>
