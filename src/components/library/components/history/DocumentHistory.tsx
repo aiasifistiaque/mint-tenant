@@ -79,7 +79,7 @@ const DocumentHistory: FC<Props> = ({ id, path, heading = true }) => {
 							/>
 							<Box minW={0}>
 								<Text {...textCss}>{entry?.text}</Text>
-								<Text {...timeCss}>{moment(entry?.createdAt).calendar()}</Text>
+								<Text {...timeCss}>{moment(entry?.createdAt).calendar(null, { sameElse: 'D MMM YYYY' })}</Text>
 							</Box>
 						</Flex>
 					))}

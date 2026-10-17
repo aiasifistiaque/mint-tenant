@@ -22,7 +22,7 @@ const words = (v: any, type?: string): string => {
 	if (typeof v === 'number') return v.toLocaleString();
 	if (type && /date/.test(type) && !Number.isNaN(Date.parse(String(v)))) {
 		const d = new Date(String(v));
-		return type === 'date-only' || /T00:00:00(\.000)?Z$/.test(String(v)) ? d.toLocaleDateString() : d.toLocaleString();
+		return type === 'date-only' || /T00:00:00(\.000)?Z$/.test(String(v)) ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : d.toLocaleString('en-GB', { ...{ day: 'numeric', month: 'short', year: 'numeric' }, hour: 'numeric', minute: '2-digit' });
 	}
 	return String(v);
 };

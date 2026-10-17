@@ -88,7 +88,7 @@ export const cardOf = (record: any, max = 5) => {
 		let value: string;
 		if (typeof v === 'string') {
 			if (!v.trim() || /^[a-f0-9]{24}$/i.test(v) || /<\/?[a-z][\s\S]*>/i.test(v)) continue;
-			value = /^\d{4}-\d{2}-\d{2}T/.test(v) ? new Date(v).toLocaleDateString() : v;
+			value = /^\d{4}-\d{2}-\d{2}T/.test(v) ? new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : v;
 		} else if (typeof v === 'number') value = v.toLocaleString();
 		else if (typeof v === 'boolean') value = v ? 'Yes' : 'No';
 		else if (isRecord(v) && labelOf(v)) value = labelOf(v);

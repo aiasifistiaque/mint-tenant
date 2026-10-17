@@ -12,7 +12,7 @@ const TableData: FC<ComponentProps> = ({ children, ...props }) => {
 		<CustomTd
 			fontSize='.7rem'
 			{...props}>
-			{moment(children).calendar()}
+			{moment(children).calendar(null, { sameElse: 'D MMM YYYY' })}
 		</CustomTd>
 	);
 };

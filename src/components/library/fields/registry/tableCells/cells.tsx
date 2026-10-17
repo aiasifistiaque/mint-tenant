@@ -101,7 +101,7 @@ export const DateCell = ({ children, ...props }: any) => (
 	<CustomTd
 		{...dateCss}
 		{...props}>
-		{children ? moment(children).calendar() : '--'}
+		{children ? moment(children).calendar(null, { sameElse: 'D MMM YYYY' }) : '--'}
 	</CustomTd>
 );
 

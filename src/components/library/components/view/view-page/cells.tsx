@@ -16,7 +16,7 @@ export const cellText = (value: any): string => {
 	if (typeof value === 'object') return value.name || value.title || value.code || value.email || value._id || '—';
 	if (typeof value === 'boolean') return value ? 'Yes' : 'No';
 	if (typeof value === 'number') return value.toLocaleString();
-	if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleDateString();
+	if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 	if (typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)) return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 	return String(value);
 };
