@@ -361,7 +361,17 @@ export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbe
 			// A section: its values as `address.zip`.
 			if (f.kind === 'section')
 				return subs.map(x => ({ key: `${f.key}.${x.key}`, label: `${f.label || f.key} › ${x.label || x.key}`, numeric: numeric(x.kind) }));
-			return [{ key: f.key, label: f.label, numeric: numeric(f.kind), ...(f.kind === 'formula' && { formula: f.formula }) }];
+			return [
+				{
+					key: f.key,
+					label: f.label,
+					numeric: numeric(f.kind),
+					...(f.kind === 'formula' && { formula: f.formula }),
+					// What it can be compared with in a condition.
+					...(f.kind === 'boolean' && { yesNo: true }),
+					...(hasOptions(f) && { options: (f.options || []).filter(o => o.value?.trim()).map(o => ({ value: o.value, label: o.label || o.value })) }),
+				},
+			];
 		});
 
 /**

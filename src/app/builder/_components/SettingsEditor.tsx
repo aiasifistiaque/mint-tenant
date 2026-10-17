@@ -26,6 +26,7 @@ import { FieldInfo, checkFormula } from '@/components/library/functions/formula'
 import FormulaModal from './FormulaModal';
 import ConditionsEditor from './ConditionsEditor';
 import TagColorsEditor, { hasChoices } from './TagColorsEditor';
+import { choicesOf } from '@/components/library/functions/optionColors';
 import FillFromEditor from './FillFromEditor';
 import RollupEditor, { rollupText } from './RollupEditor';
 import SectionFieldsModal from '@/app/model-builder/_components/SectionFieldsModal';
@@ -1078,6 +1079,12 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 				label: f.title,
 				numeric: f.type === 'number' || f.schema?.type === 'formula' || modelByKey.get(f.key)?.instance === 'Number',
 				...(f.schema?.type === 'formula' && { formula: f.schema?.formula }),
+				// What it can be compared with in a condition: its options, or yes / no.
+				...((f.type === 'boolean' || modelByKey.get(f.key)?.instance === 'Boolean')
+					? { yesNo: true }
+					: choicesOf(f.schema, { enum: modelByKey.get(f.key)?.enum }).length
+					? { options: choicesOf(f.schema, { enum: modelByKey.get(f.key)?.enum }) }
+					: {}),
 			},
 			...inside,
 		];

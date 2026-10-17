@@ -2,16 +2,18 @@
 
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Box, Button, CloseButton, Dialog, Flex, Grid, Input, Portal, Text, Textarea } from '@chakra-ui/react';
-import { Calculator, CheckCircle2, CircleAlert } from 'lucide-react';
+import { Blocks, Calculator, CheckCircle2, CircleAlert, Code } from 'lucide-react';
 import { AlertDialogContent, AlertDialogHeader, ModalFooter } from '@/components/library';
 import DiscardButton from '@/components/library/components/buttons/DiscardButton';
 import { Dropdown } from '@/components/library/cl';
-import { AGGREGATES, CONDITIONS, FUNCTIONS, FieldInfo, checkFormula, evaluate } from '@/components/library/functions/formula';
+import { AGGREGATES, CONDITIONS, FUNCTIONS, FieldInfo, Node, checkFormula, evaluate, format, parse } from '@/components/library/functions/formula';
+import FormulaBlocks, { HOLE, holesIn } from './FormulaBlocks';
 
 /**
  * Writing a formula field's formula — `due = total - paid`. Two ways in, one
- * formula: pick fields, operators and functions from the buttons (each goes
- * in at the cursor), or type it. Either way it's checked as it changes —
+ * formula: build it from blocks (FormulaBlocks — picked from menus or dragged
+ * in, the way in for people who don't write code), or type it, with buttons
+ * for fields, operators and functions that go in at the cursor. Either way it's checked as it changes —
  * that it parses, that every name is a number field, that it doesn't use
  * itself — with the problem pointed at, and a small calculator to try it on
  * sample numbers. The server runs the same checks before it publishes.
@@ -68,11 +70,46 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 	const area = useRef<HTMLTextAreaElement>(null);
 	const cursor = useRef<number | null>(null);
 
+	// Blocks: the formula as a tree, while it's being built. Unfinished (empty
+	// boxes), the text is empty, so it can't be saved.
+	const [mode, setMode] = useState<'blocks' | 'text'>('blocks');
+	const [tree, setTree] = useState<Node>(HOLE);
+	const [switchError, setSwitchError] = useState('');
+	const treeOf = (src: string): Node | null => {
+		if (!src.trim()) return HOLE;
+		try {
+			return parse(src);
+		} catch {
+			return null;
+		}
+	};
+	const changeTree = (t: Node) => {
+		setTree(t);
+		change(holesIn(t) ? '' : format(t));
+	};
+	const toBlocks = () => {
+		const t = treeOf(latest.current);
+		if (!t) return setSwitchError('The typed formula has a mistake — fix it (or clear it) to build it with blocks.');
+		setSwitchError('');
+		setTree(t);
+		setMode('blocks');
+	};
+	const toText = () => {
+		setSwitchError('');
+		setMode('text');
+	};
+	const holes = mode === 'blocks' ? holesIn(tree) : 0;
+
 	useEffect(() => {
 		if (isOpen) {
 			change(formula);
 			setSample({});
 			cursor.current = null;
+			setSwitchError('');
+			// A formula that doesn't parse opens as text, to be fixed there.
+			const t = treeOf(formula);
+			setTree(t || HOLE);
+			setMode(t ? 'blocks' : 'text');
 		}
 	}, [isOpen, formula]);
 
@@ -131,7 +168,10 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 
 	return (
 		<Dialog.Root
-			size='lg'
+			// Blocks need the room: an If reads as a sentence on one line.
+			size={mode === 'blocks' ? 'xl' : 'lg'}
+			// Tall with blocks: the body scrolls, the buttons stay in view.
+			scrollBehavior='inside'
 			// Pinned to the top: it grows and shrinks as the formula is checked
 			// (errors, "Try it"), and centred, the buttons moved under the pointer.
 			placement='top'
@@ -178,128 +218,178 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 									{' A field can be used as many times as you need.'}
 								</Text>
 
-								{/* Build it from pieces… */}
 								<Flex
-									direction='column'
-									gap={2}>
+									gap={1}
+									p={0.5}
+									borderRadius='md'
+									bg='bg.muted'
+									alignSelf='flex-start'>
+									<Button
+										size='xs'
+										variant={mode === 'blocks' ? 'solid' : 'ghost'}
+										onClick={toBlocks}>
+										<Blocks size={13} />
+										Build with blocks
+									</Button>
+									<Button
+										size='xs'
+										variant={mode === 'text' ? 'solid' : 'ghost'}
+										onClick={toText}>
+										<Code size={13} />
+										Type it
+									</Button>
+								</Flex>
+								{switchError && (
+									<Text
+										fontSize='sm'
+										color='red.fg'>
+										{switchError}
+									</Text>
+								)}
+
+								{mode === 'blocks' && (
+									<FormulaBlocks
+										tree={tree}
+										onChange={changeTree}
+										fields={fields}
+										self={fieldKey}
+									/>
+								)}
+
+								{/* Build it from pieces… */}
+								{mode === 'text' && (
 									<Flex
-										gap={2}
-										align='center'
-										flexWrap='wrap'>
-										<Dropdown
-											key={picks}
-											size='sm'
-											w='240px'
-											value=''
-											placeholder={usable.length ? 'Insert a field…' : 'No number fields to use'}
-											disabled={!usable.length}
-											onChange={(v: string) => {
-												if (v) insert(v);
-												setPicks(n => n + 1);
-											}}>
-											{usable.map(f => (
-												<option
-													key={f.key}
-													value={f.insert}>
-													{f.label}
-												</option>
+										direction='column'
+										gap={2}>
+										<Flex
+											gap={2}
+											align='center'
+											flexWrap='wrap'>
+											<Dropdown
+												key={picks}
+												size='sm'
+												w='240px'
+												value=''
+												placeholder={usable.length ? 'Insert a field…' : 'No number fields to use'}
+												disabled={!usable.length}
+												onChange={(v: string) => {
+													if (v) insert(v);
+													setPicks(n => n + 1);
+												}}>
+												{usable.map(f => (
+													<option
+														key={f.key}
+														value={f.insert}>
+														{f.label}
+													</option>
+												))}
+											</Dropdown>
+											<Flex gap={1}>
+												{OPS.map(o => (
+													<Button
+														key={o.label}
+														size='sm'
+														variant='outline'
+														minW='36px'
+														px={0}
+														fontFamily='mono'
+														title={o.hint}
+														onClick={() => insert(o.insert)}>
+														{o.label}
+													</Button>
+												))}
+											</Flex>
+										</Flex>
+										<Flex
+											gap={1}
+											flexWrap='wrap'
+											align='center'>
+											<Text
+												fontSize='xs'
+												color='fg.muted'
+												mr={1}>
+												Functions
+											</Text>
+											{[...Object.entries(FUNCTIONS).filter(([fn]) => fn !== 'if' && fn !== 'not'), ...(hasLists ? Object.entries(AGGREGATES) : [])].map(([fn, spec]) => (
+												<Button
+													key={fn}
+													size='xs'
+													variant='ghost'
+													fontFamily='mono'
+													title={spec.hint}
+													onClick={() => insert(`${fn}(`)}>
+													{fn}()
+												</Button>
 											))}
-										</Dropdown>
-										<Flex gap={1}>
-											{OPS.map(o => (
+										</Flex>
+										<Flex
+											gap={1}
+											flexWrap='wrap'
+											align='center'>
+											<Text
+												fontSize='xs'
+												color='fg.muted'
+												mr={1}>
+												Conditions
+											</Text>
+											{CONDS.map(o => (
 												<Button
 													key={o.label}
-													size='sm'
-													variant='outline'
-													minW='36px'
-													px={0}
+													size='xs'
+													variant='ghost'
 													fontFamily='mono'
 													title={o.hint}
 													onClick={() => insert(o.insert)}>
 													{o.label}
 												</Button>
 											))}
+											<Button
+												size='xs'
+												variant='ghost'
+												color='fg.muted'
+												ml='auto'
+												disabled={!text}
+												onClick={() => {
+													change('');
+													cursor.current = 0;
+												}}>
+												Clear
+											</Button>
 										</Flex>
 									</Flex>
-									<Flex
-										gap={1}
-										flexWrap='wrap'
-										align='center'>
-										<Text
-											fontSize='xs'
-											color='fg.muted'
-											mr={1}>
-											Functions
-										</Text>
-										{[...Object.entries(FUNCTIONS).filter(([fn]) => fn !== 'if' && fn !== 'not'), ...(hasLists ? Object.entries(AGGREGATES) : [])].map(([fn, spec]) => (
-											<Button
-												key={fn}
-												size='xs'
-												variant='ghost'
-												fontFamily='mono'
-												title={spec.hint}
-												onClick={() => insert(`${fn}(`)}>
-												{fn}()
-											</Button>
-										))}
-									</Flex>
-									<Flex
-										gap={1}
-										flexWrap='wrap'
-										align='center'>
-										<Text
-											fontSize='xs'
-											color='fg.muted'
-											mr={1}>
-											Conditions
-										</Text>
-										{CONDS.map(o => (
-											<Button
-												key={o.label}
-												size='xs'
-												variant='ghost'
-												fontFamily='mono'
-												title={o.hint}
-												onClick={() => insert(o.insert)}>
-												{o.label}
-											</Button>
-										))}
-										<Button
-											size='xs'
-											variant='ghost'
-											color='fg.muted'
-											ml='auto'
-											disabled={!text}
-											onClick={() => {
-												change('');
-												cursor.current = 0;
-											}}>
-											Clear
-										</Button>
-									</Flex>
-								</Flex>
+
+								)}
 
 								{/* …or type it. */}
 								<Box>
-									<Textarea
-										ref={area}
-										rows={3}
-										fontFamily='mono'
-										fontSize='sm'
-										placeholder='e.g. total - paid'
-										value={text}
-										aria-invalid={checked && !checked.ok ? true : undefined}
-										borderColor={checked && !checked.ok ? 'red.solid' : undefined}
-										onChange={e => {
-											change(e.target.value);
-											cursor.current = e.target.selectionStart;
-										}}
-										onSelect={remember}
-										onKeyUp={remember}
-										onClick={remember}
-									/>
+									{mode === 'text' && (
+										<Textarea
+											ref={area}
+											rows={3}
+											fontFamily='mono'
+											fontSize='sm'
+											placeholder='e.g. total - paid'
+											value={text}
+											aria-invalid={checked && !checked.ok ? true : undefined}
+											borderColor={checked && !checked.ok ? 'red.solid' : undefined}
+											onChange={e => {
+												change(e.target.value);
+												cursor.current = e.target.selectionStart;
+											}}
+											onSelect={remember}
+											onKeyUp={remember}
+											onClick={remember}
+										/>
+									)}
 
-									{!checked ? (
+									{mode === 'blocks' && holes > 0 ? (
+										<Text
+											fontSize='xs'
+											color='fg.muted'>
+											{holes === 1 ? 'One box is still empty' : `${holes} boxes are still empty`} — fill
+											{holes === 1 ? ' it' : ' them'} in to finish the formula.
+										</Text>
+									) : !checked ? (
 										<Text
 											mt={2}
 											fontSize='xs'
@@ -309,7 +399,7 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 										</Text>
 									) : !checked.ok ? (
 										<Box mt={2}>
-											{typeof firstAt === 'number' && (
+											{mode === 'text' && typeof firstAt === 'number' && (
 												<Box
 													as='pre'
 													fontFamily='mono'
@@ -411,13 +501,35 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 														truncate>
 														{infoOf(r)?.inList ? `${labelOf(r)}, each row` : infoOf(r)?.list ? `Rows in ${labelOf(r)}` : labelOf(r)}
 													</Text>
-													<Input
-														size='xs'
-														type={infoOf(r)?.inList || !infoOf(r)?.numeric ? 'text' : 'number'}
-														placeholder={infoOf(r)?.inList ? '5, 3, 2' : infoOf(r)?.numeric || infoOf(r)?.list ? '0' : 'its value'}
-														value={sample[r] ?? ''}
-														onChange={e => setSample(s => ({ ...s, [r]: e.target.value }))}
-													/>
+													{infoOf(r)?.options?.length || infoOf(r)?.yesNo ? (
+														<Dropdown
+															size='xs'
+															placeholder='Pick one'
+															value={sample[r] ?? ''}
+															onChange={(v: string) => setSample(s => ({ ...s, [r]: v }))}>
+															{(infoOf(r)?.yesNo
+																? [
+																		{ value: 'yes', label: 'Yes' },
+																		{ value: 'no', label: 'No' },
+																  ]
+																: infoOf(r)!.options!.map(o => ({ value: String(o.value), label: String(o.label ?? o.value) }))
+															).map(o => (
+																<option
+																	key={o.value}
+																	value={o.value}>
+																	{o.label}
+																</option>
+															))}
+														</Dropdown>
+													) : (
+														<Input
+															size='xs'
+															type={infoOf(r)?.inList || !infoOf(r)?.numeric ? 'text' : 'number'}
+															placeholder={infoOf(r)?.inList ? '5, 3, 2' : infoOf(r)?.numeric || infoOf(r)?.list ? '0' : 'its value'}
+															value={sample[r] ?? ''}
+															onChange={e => setSample(s => ({ ...s, [r]: e.target.value }))}
+														/>
+													)}
 												</Box>
 											))}
 										</Grid>
