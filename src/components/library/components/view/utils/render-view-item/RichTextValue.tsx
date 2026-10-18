@@ -1,26 +1,85 @@
-import { FC } from 'react';
-import { Box, Text } from '@chakra-ui/react';
+'use client';
+
+import { FC, useEffect, useRef, useState } from 'react';
+import { Box, Button, Text } from '@chakra-ui/react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { sanitizeRichText } from '../../../../utils/richText';
 
 /**
  * An `editor` / `basic-editor` value on a record page: sanitized to what the
  * site's text block keeps (utils/richText.ts), so nothing in it runs here, and
  * styled in the panel's tokens — Chakra's reset leaves lists without bullets
- * and headings at body size otherwise.
+ * and headings at body size otherwise. A long one shows its first 20 lines or
+ * so, fading out, with Show more to open it all (and Show less to fold it back).
  */
+
+const LINE = 1.6;
+const LINES = 20;
+/** Folded height, in the text's own em; a little over it still shows whole. */
+const FOLD = LINE * LINES;
+const SLACK = LINE * 3;
+
 const RichTextValue: FC<{ value: any }> = ({ value }) => {
 	const html = sanitizeRichText(value);
+	const ref = useRef<HTMLDivElement>(null);
+	const [long, setLong] = useState(false);
+	const [open, setOpen] = useState(false);
+
+	// Measured, and again as images load or the panel's width changes.
+	useEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+		const measure = () => {
+			const em = parseFloat(getComputedStyle(el).fontSize) || 15;
+			setLong(el.scrollHeight > (FOLD + SLACK) * em);
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(el);
+		Array.from(el.children).forEach(c => observer.observe(c));
+		el.addEventListener('load', measure, true);
+		return () => {
+			observer.disconnect();
+			el.removeEventListener('load', measure, true);
+		};
+	}, [html]);
+
 	if (!html.replace(/<[^>]*>/g, '').trim() && !/<(img|hr)\b/.test(html)) return <Text fontSize='.95rem'>--</Text>;
+	const folded = long && !open;
 	return (
-		<Box
-			fontSize='.95rem'
-			lineHeight='1.6'
-			color='fg'
-			minW={0}
-			overflowWrap='anywhere'
-			css={proseCss}
-			dangerouslySetInnerHTML={{ __html: html }}
-		/>
+		<Box minW={0}>
+			<Box
+				ref={ref}
+				fontSize='.95rem'
+				lineHeight={String(LINE)}
+				color='fg'
+				minW={0}
+				overflowWrap='anywhere'
+				css={proseCss}
+				{...(folded && {
+					maxH: `${FOLD}em`,
+					overflow: 'hidden',
+					style: { maskImage: 'linear-gradient(to bottom, #000 75%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, #000 75%, transparent)' },
+				})}
+				dangerouslySetInnerHTML={{ __html: html }}
+			/>
+			{long && (
+				<Button
+					size='xs'
+					variant='ghost'
+					mt={2}
+					ml='-2'
+					aria-expanded={open}
+					onClick={() => {
+						setOpen(!open);
+						// Folding back from far down brings the field back into view.
+						if (open) window.setTimeout(() => ref.current?.scrollIntoView({ block: 'nearest' }));
+					}}>
+					{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+					{open ? 'Show less' : 'Show more'}
+				</Button>
+			)}
+		</Box>
 	);
 };
 

@@ -4,12 +4,13 @@ import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Box, Button, Center, Flex, IconButton, Spinner, Text } from '@chakra-ui/react';
-import { ArrowLeft, Check, Save } from 'lucide-react';
+import { ArrowLeft, Check, Printer, Save } from 'lucide-react';
 import { AuthWrapper } from '../wrappers';
 import { useWorkspace } from '../tenant/useWorkspace';
 import { useGetByIdQuery, useGetRouteQuery, useGetSchemaQuery, useUpdateByIdMutation } from '../store/services/commonApi';
 import { IS_TENANT_PANEL, getProjectSlug, pagePath, projectHref, tabTitle } from '../config/lib/constants/panel';
 import { DownloadRichTextMenu } from './DownloadRichText';
+import { printRichText } from './printRichText';
 import DocumentEditor, { PageSize, isPageSize } from './inputs/editor/DocumentEditor';
 import PromptDialog from '../modals/modal-components/PromptDialog';
 import { toaster } from '@/components/ui/toaster';
@@ -18,7 +19,8 @@ import { toaster } from '@/components/ui/toaster';
  * One record's rich-text field on a page of its own, like a document: the
  * full toolbar over a sheet of paper. Save (or ⌘S / Ctrl+S) writes that one
  * field and nothing else; Export downloads it as Word, PDF, Markdown or text,
- * saving unsaved words first. Opened from the row menu's "Open in editor"
+ * saving unsaved words first; Print (or ⌘P) prints the words on the chosen
+ * paper, as they are in the editor. Opened from the row menu's "Open in editor"
  * and the field's panel on the record page — /write/<route>/<id>/<field>.
  * It fills the window: no sidebar, just its own bar on top, the editor's
  * toolbar under it, and the paper (inputs/editor/DocumentEditor).
@@ -60,14 +62,20 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 		}
 	}, [dirty, value, update, slug, id, field, label]);
 
-	// ⌘S / Ctrl+S saves, and leaving with unsaved words asks first.
+	// ⌘S / Ctrl+S saves, ⌘P / Ctrl+P prints the paper (not the whole panel),
+	// and leaving with unsaved words asks first.
 	const saveRef = useRef(save);
 	saveRef.current = save;
+	const printRef = useRef<(() => void) | null>(null);
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
-			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+			const key = (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase();
+			if (key === 's') {
 				e.preventDefault();
 				saveRef.current();
+			} else if (key === 'p' && printRef.current) {
+				e.preventDefault();
+				printRef.current();
 			}
 		};
 		window.addEventListener('keydown', onKey);
@@ -138,6 +146,9 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 	}, [pageTitle]);
 
 	const recordName = (routeInfo?.single && routeTitle) || name;
+
+	const print = () => printRichText({ html: current, title: `${recordName} · ${label}`, pageSize });
+	printRef.current = ready && !problem ? print : null;
 
 	// No sidebar or navbar: a writing page. Its own bar on top — back to the
 	// record, where this is, how saving stands, Export and Save — with the
@@ -265,6 +276,19 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 								variant='outline'
 								before={save}
 							/>
+							<Button
+								size='sm'
+								variant='outline'
+								title='Print (⌘P)'
+								aria-label='Print'
+								onClick={print}>
+								<Printer size={14} />
+								<Box
+									as='span'
+									display={{ base: 'none', sm: 'inline' }}>
+									Print
+								</Box>
+							</Button>
 							<Button
 								size='sm'
 								colorPalette='brand'
