@@ -36,8 +36,6 @@ const QuillNoSSRWrapper = dynamic(
 const QuillEditor = ({ value, onChange, name, isRequired, label, helper, type, readOnly }: any) => {
 	// FormInput passes the field's own type ('basic-editor') after the descriptor's 'basic'.
 	const basic = type === 'basic' || type === 'basic-editor';
-	// The full-page editor (RichTextEditorPage): the full toolbar over a page of paper.
-	const doc = type === 'document';
 	// Register quill-resize-image module for React 19 compatibility
 	useEffect(() => {
 		if (basic) return;
@@ -117,9 +115,8 @@ const QuillEditor = ({ value, onChange, name, isRequired, label, helper, type, r
 					key={mount}
 					forwardedRef={quillRef}
 					theme='snow'
-					className={`mint-editor${basic ? ' mint-editor--basic' : ''}${doc ? ' mint-editor--doc' : ''}${readOnly ? ' is-readonly' : ''}`}
+					className={`mint-editor${basic ? ' mint-editor--basic' : ''}${readOnly ? ' is-readonly' : ''}`}
 					readOnly={readOnly}
-					placeholder={doc ? 'Start writing…' : undefined}
 					modules={modules}
 					formats={basic ? BASIC_FORMATS : FULL_FORMATS}
 					defaultValue={emitted.current}

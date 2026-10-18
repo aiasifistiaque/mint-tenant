@@ -10,7 +10,7 @@ import { useWorkspace } from '../tenant/useWorkspace';
 import { useGetByIdQuery, useGetRouteQuery, useGetSchemaQuery, useUpdateByIdMutation } from '../store/services/commonApi';
 import { IS_TENANT_PANEL, getProjectSlug, pagePath, projectHref, tabTitle } from '../config/lib/constants/panel';
 import { DownloadRichTextMenu } from './DownloadRichText';
-import VEditor from './inputs/VEditorr';
+import DocumentEditor, { PageSize, isPageSize } from './inputs/editor/DocumentEditor';
 import PromptDialog from '../modals/modal-components/PromptDialog';
 import { toaster } from '@/components/ui/toaster';
 
@@ -20,7 +20,8 @@ import { toaster } from '@/components/ui/toaster';
  * field and nothing else; Export downloads it as Word, PDF, Markdown or text,
  * saving unsaved words first. Opened from the row menu's "Open in editor"
  * and the field's panel on the record page — /write/<route>/<id>/<field>.
- * It fills the window: no sidebar, just its own bar on top.
+ * It fills the window: no sidebar, just its own bar on top, the editor's
+ * toolbar under it, and the paper (inputs/editor/DocumentEditor).
  */
 
 const RICH = new Set(['editor', 'basic-editor']);
@@ -83,6 +84,22 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 	}, [dirty]);
 
 	const recordHref = projectHref(`/view/${slug}/${id}`);
+
+	// Paper: Infinite unless this field was last written on a page size (kept in this browser).
+	const sizeKey = `mint.docPage.${slug}.${field}`;
+	const [pageSize, setPageSize] = useState<PageSize>('infinite');
+	useEffect(() => {
+		try {
+			const saved = localStorage.getItem(sizeKey);
+			if (isPageSize(saved)) setPageSize(saved);
+		} catch {}
+	}, [sizeKey]);
+	const choosePageSize = (size: PageSize) => {
+		setPageSize(size);
+		try {
+			localStorage.setItem(sizeKey, size);
+		} catch {}
+	};
 
 	// The page's own links leave without the browser asking, so unsaved words
 	// ask here first: keep editing, save and leave, or leave without saving.
@@ -205,6 +222,15 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 									{recordName}
 								</Text>
 							</NextLink>
+							{routeInfo?.draftAndPublish && (
+								<Text
+									as='span'
+									flexShrink={0}
+									display={{ base: 'none', md: 'inline' }}
+									title='Saving updates the draft; publish it from the record page.'>
+									· Draft until published
+								</Text>
+							)}
 							{status && (
 								<Flex
 									as='span'
@@ -227,6 +253,7 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 								route={slug}
 								id={id}
 								field={field}
+								pageSize={pageSize === 'infinite' ? undefined : pageSize}
 								label={
 									<Box
 										as='span'
@@ -251,49 +278,33 @@ const RichTextEditorPage: FC<{ slug: string; id: string; field: string }> = ({ s
 					)}
 				</Flex>
 
-				<Box
-					flex={1}
-					w='full'
-					px={{ base: 2, md: 6 }}
-					pt={{ base: 3, md: 5 }}
-					pb={12}>
-					{routeInfo?.draftAndPublish && !problem && (
-						<Text
-							maxW='840px'
-							mx='auto'
-							mb={3}
-							fontSize='12px'
-							color='fg.muted'>
-							Saving updates the draft; publish it from the record page.
-						</Text>
-					)}
-					{problem ? (
-						<Center
-							flexDirection='column'
-							gap={3}
-							py={24}
-							textAlign='center'>
-							<Text color='fg.muted'>{problem}</Text>
-							<Button
-								asChild
-								size='sm'
-								variant='outline'>
-								<NextLink href={recordHref}>Back to the record</NextLink>
-							</Button>
-						</Center>
-					) : isLoading || schemaLoading || !ready ? (
-						<Center py={24}>
-							<Spinner color='fg.muted' />
-						</Center>
-					) : (
-						<VEditor
-							type='document'
-							name={field}
-							value={current}
-							onChange={(e: any) => setValue(e.target.value)}
-						/>
-					)}
-				</Box>
+				{problem ? (
+					<Center
+						flexDirection='column'
+						gap={3}
+						py={24}
+						textAlign='center'>
+						<Text color='fg.muted'>{problem}</Text>
+						<Button
+							asChild
+							size='sm'
+							variant='outline'>
+							<NextLink href={recordHref}>Back to the record</NextLink>
+						</Button>
+					</Center>
+				) : isLoading || schemaLoading || !ready ? (
+					<Center py={24}>
+						<Spinner color='fg.muted' />
+					</Center>
+				) : (
+					<DocumentEditor
+						value={current}
+						onChange={setValue}
+						pageSize={pageSize}
+						onPageSize={choosePageSize}
+						top={BAR}
+					/>
+				)}
 			</Flex>
 			<PromptDialog
 				open={!!leaving}

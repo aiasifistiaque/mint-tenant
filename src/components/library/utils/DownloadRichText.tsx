@@ -27,10 +27,11 @@ const isFormat = (v: any): v is RichFormat => RICH_FORMATS.some(f => f.value ===
 
 export const useDownloadRichText = () => {
 	const [download, { isLoading }] = useDownloadMutation();
-	const run = async (route: string, id: string, field: string, format: RichFormat = 'docx') => {
+	/** `pageSize` (the full-page editor's paper) sets the Word and PDF page. */
+	const run = async (route: string, id: string, field: string, format: RichFormat = 'docx', pageSize?: string) => {
 		const f = RICH_FORMATS.find(x => x.value === format) || RICH_FORMATS[0];
 		try {
-			await download({ url: `${route}/export/richtext`, body: { id, field, format: f.value }, fallbackName: `${field}${f.ext}` }).unwrap();
+			await download({ url: `${route}/export/richtext`, body: { id, field, format: f.value, ...(pageSize && { pageSize }) }, fallbackName: `${field}${f.ext}` }).unwrap();
 			return true;
 		} catch (e: any) {
 			toaster.create({ type: 'error', title: `Could not make the ${f.label} file`, description: e?.data?.message || e?.message || '' });
@@ -50,16 +51,18 @@ type MenuProps = {
 	variant?: 'ghost' | 'outline';
 	/** Runs first and can stop the download — the editor saves unsaved words. */
 	before?: () => Promise<boolean>;
+	/** The paper the Word and PDF files are set on (the editor's page size). */
+	pageSize?: string;
 };
 
 /** A button that opens the four formats; picking one downloads it. */
-export const DownloadRichTextMenu: FC<MenuProps> = ({ route, id, field, label = 'Download', size = 'xs', variant = 'ghost', before }) => {
+export const DownloadRichTextMenu: FC<MenuProps> = ({ route, id, field, label = 'Download', size = 'xs', variant = 'ghost', before, pageSize }) => {
 	const { download } = useDownloadRichText();
 	const [busy, setBusy] = useState(false);
 	if (!route || !id || !field) return null;
 	const go = async (format: RichFormat) => {
 		setBusy(true);
-		if (!before || (await before())) await download(route, id, field, format);
+		if (!before || (await before())) await download(route, id, field, format, pageSize);
 		setBusy(false);
 	};
 	return (

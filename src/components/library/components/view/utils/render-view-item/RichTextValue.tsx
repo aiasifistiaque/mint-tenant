@@ -46,6 +46,11 @@ const proseCss = {
 	'& pre code': { bg: 'transparent', p: 0 },
 	'& hr': { borderTopWidth: '1px', borderColor: 'border', marginBlock: '1.2em' },
 	'& img': { display: 'block', maxWidth: '100%', height: 'auto', borderRadius: '8px' },
+	'& table': { display: 'block', maxWidth: '100%', overflowX: 'auto', borderCollapse: 'collapse' },
+	'& :is(th, td)': { borderWidth: '1px', borderColor: 'border', px: '0.6em', py: '0.35em', verticalAlign: 'top', textAlign: 'left', minWidth: '5em' },
+	'& th': { fontWeight: '600', bg: 'bg.muted' },
+	// An empty cell keeps its row's height.
+	'& :is(th, td):empty::after': { content: '"\\00a0"' },
 	"& [data-align='center']": { textAlign: 'center' },
 	"& [data-align='right']": { textAlign: 'right' },
 	"& [data-align='justify']": { textAlign: 'justify' },

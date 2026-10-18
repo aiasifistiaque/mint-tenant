@@ -3,7 +3,8 @@
  * Only Chakra's CSS variables — the same tokens as styles.FIELD — so light,
  * dark and every colour theme follow with no `.dark` rules. Loaded after
  * quill.snow.css and scoped to `.mint-editor`; the colour rules also dress
- * FullEditor (`.full-editor-quill`, the full-page blog editor).
+ * FullEditor (`.full-editor-quill`, the full-page blog editor) and the
+ * full-page document editor (`.mint-doc`, DocumentEditor).
  */
 
 .mint-editor {
@@ -41,66 +42,66 @@
 .mint-editor .ql-toolbar.ql-snow .ql-formats {
 	margin-right: 10px;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-stroke {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-stroke {
 	stroke: var(--chakra-colors-fg-muted);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-stroke.ql-fill {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-stroke.ql-fill {
 	fill: var(--chakra-colors-fg-muted);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-picker {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-picker {
 	color: var(--chakra-colors-fg-muted);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:hover .ql-stroke,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:focus .ql-stroke,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button.ql-active .ql-stroke,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-item:hover .ql-stroke,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-stroke {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:hover .ql-stroke,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:focus .ql-stroke,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-item:hover .ql-stroke,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-stroke {
 	stroke: var(--chakra-colors-fg);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:hover .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:focus .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button.ql-active .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-item:hover .ql-fill,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-fill {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:hover .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:focus .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button.ql-active .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-item:hover .ql-fill,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-fill {
 	fill: var(--chakra-colors-fg);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:hover,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:focus,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button.ql-active,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-label:hover,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-label.ql-active,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-item:hover,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:hover,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:focus,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button.ql-active,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-label:hover,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-label.ql-active,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-item:hover,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
 	color: var(--chakra-colors-fg);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button {
 	border-radius: 6px;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button:hover,
-:is(.mint-editor, .full-editor-quill) .ql-snow.ql-toolbar button.ql-active {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button:hover,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow.ql-toolbar button.ql-active {
 	background: var(--chakra-colors-bg-emphasized, var(--chakra-colors-bg-subtle));
 }
 
 /* Dropdowns (heading, align) */
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-picker-options {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-picker-options {
 	background: var(--chakra-colors-bg-panel);
 	border: 1px solid var(--chakra-colors-border) !important;
 	border-radius: 10px;
 	box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
 	padding: 4px 6px;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-picker.ql-expanded .ql-picker-label {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-picker.ql-expanded .ql-picker-label {
 	border-color: var(--chakra-colors-border);
 	border-radius: 6px;
 }
 
 /* Link tooltip */
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-tooltip {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-tooltip {
 	z-index: 3;
 	background: var(--chakra-colors-bg-panel);
 	color: var(--chakra-colors-fg);
@@ -109,7 +110,7 @@
 	box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
 	font-family: inherit;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-tooltip input[type='text'] {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-tooltip input[type='text'] {
 	background: var(--chakra-colors-field-bg);
 	color: var(--chakra-colors-fg);
 	border: 1px solid var(--chakra-colors-field-border);
@@ -117,12 +118,12 @@
 	height: 28px;
 	outline: none;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-tooltip input[type='text']:focus {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-tooltip input[type='text']:focus {
 	border-color: var(--chakra-colors-field-focus-ring);
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-tooltip a.ql-preview,
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-tooltip a.ql-action,
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-tooltip a.ql-remove {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-tooltip a.ql-preview,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-tooltip a.ql-action,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-tooltip a.ql-remove {
 	color: var(--chakra-colors-accent-fg);
 }
 
@@ -141,7 +142,7 @@
 	line-height: 1.6;
 	padding: 12px 14px;
 }
-:is(.mint-editor, .full-editor-quill) .ql-editor.ql-blank::before {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-editor.ql-blank::before {
 	color: var(--chakra-colors-field-placeholder);
 	font-style: normal;
 	left: 14px;
@@ -164,28 +165,28 @@
 	line-height: 1.3;
 	margin: 0.6em 0 0.3em;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-editor a {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-editor a {
 	color: var(--chakra-colors-accent-fg);
 	text-decoration: underline;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-editor blockquote {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-editor blockquote {
 	border-left: 3px solid var(--chakra-colors-border);
 	color: var(--chakra-colors-fg-muted);
 	margin: 6px 0;
 	padding-left: 12px;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-editor code,
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-editor .ql-code-block-container {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-editor code,
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-editor .ql-code-block-container {
 	background: var(--chakra-colors-bg-muted);
 	color: var(--chakra-colors-fg);
 	border-radius: 6px;
 }
-:is(.mint-editor, .full-editor-quill) .ql-snow .ql-editor .ql-code-block-container {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-snow .ql-editor .ql-code-block-container {
 	padding: 8px 12px;
 	font-family: var(--chakra-fonts-mono, monospace);
 	font-size: 0.9em;
 }
-:is(.mint-editor, .full-editor-quill) .ql-editor img {
+:is(.mint-editor, .full-editor-quill, .mint-doc) .ql-editor img {
 	max-width: 100%;
 	height: auto;
 	border-radius: 6px;
@@ -197,77 +198,4 @@
 }
 .mint-editor.is-readonly .ql-toolbar {
 	display: none;
-}
-
-/* The full-page document editor (utils/RichTextEditorPage): the toolbar
- * stays at the top while the page scrolls, over a sheet of paper in the
- * panel's surface colour. */
-.mint-editor.mint-editor--doc,
-.mint-editor.mint-editor--doc:hover,
-.mint-editor.mint-editor--doc:focus-within {
-	border: 0;
-	border-radius: 0;
-	background: transparent;
-	box-shadow: none;
-}
-.mint-editor--doc .ql-toolbar.ql-snow {
-	top: var(--doc-toolbar-top, 0px);
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	row-gap: 4px;
-	width: 100%;
-	max-width: 840px;
-	margin: 0 auto 16px;
-	border: 1px solid var(--chakra-colors-border);
-	border-radius: 12px;
-	background: var(--chakra-colors-bg-panel);
-	box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
-}
-.mint-editor--doc .ql-toolbar.ql-snow .ql-formats {
-	margin-right: 6px;
-	margin-left: 6px;
-}
-.mint-editor--doc .ql-container.ql-snow {
-	width: 100%;
-	max-width: 840px;
-	margin: 0 auto;
-	border: 1px solid var(--chakra-colors-border);
-	border-radius: 12px;
-	background: var(--chakra-colors-bg-panel);
-	box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
-	font-size: 16px;
-}
-.mint-editor--doc .ql-editor {
-	min-height: calc(100vh - 260px);
-	max-height: none;
-	overflow-y: visible;
-	padding: 56px 72px 72px;
-	line-height: 1.7;
-}
-.mint-editor--doc .ql-editor.ql-blank::before {
-	left: 72px;
-	right: 72px;
-}
-.mint-editor--doc .ql-editor h2 {
-	font-size: 1.75em;
-}
-.mint-editor--doc .ql-editor h3 {
-	font-size: 1.4em;
-}
-.mint-editor--doc .ql-editor h4 {
-	font-size: 1.15em;
-}
-.mint-editor--doc .ql-editor :is(h2, h3, h4) {
-	font-weight: 600;
-	margin: 1em 0 0.35em;
-}
-@media (max-width: 640px) {
-	.mint-editor--doc .ql-editor {
-		padding: 24px 18px 40px;
-	}
-	.mint-editor--doc .ql-editor.ql-blank::before {
-		left: 18px;
-		right: 18px;
-	}
 }

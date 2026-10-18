@@ -141,7 +141,7 @@ const ENTITY: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', 
 /** A rich-text value's words, one line: block ends become spaces, entities decoded. */
 const richTextWords = (value: any): string =>
 	sanitizeRichText(value)
-		.replace(/<\/?(p|h[2-4]|li|ul|ol|pre|blockquote)\b[^>]*>|<br>|<hr>/g, ' ')
+		.replace(/<\/?(p|h[2-4]|li|ul|ol|pre|blockquote|table|thead|tbody|tr|th|td)\b[^>]*>|<br>|<hr>/g, ' ')
 		.replace(/<[^>]*>/g, '')
 		.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e) => ENTITY[e])
 		.replace(/\s+/g, ' ')
