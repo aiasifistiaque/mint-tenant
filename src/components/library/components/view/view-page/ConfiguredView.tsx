@@ -12,6 +12,7 @@ import { viewFieldsByKey } from './sections';
 import { cellNode } from './cells';
 import CopyDetails, { DetailLine, detailLine } from './CopyDetails';
 import { pagePath, projectHref } from '../../../config/lib/constants/panel';
+import { DownloadDocxButton } from '../../../utils/DownloadDocx';
 
 /**
  * A record laid out by its route's `view` config — the sections, titles and
@@ -83,7 +84,17 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 							blocks.push(
 								<Panel
 									key={`b-${ii}`}
-									title={field.title}>
+									title={field.title}
+									// A rich-text field (a blog post's body) downloads as a Word file.
+									actions={
+										field.type === 'editor' && doc?._id && valueOf(field) ? (
+											<DownloadDocxButton
+												route={slug}
+												id={doc._id}
+												field={field.dataKey}
+											/>
+										) : undefined
+									}>
 									<ViewRow
 										doc={doc}
 										field={{ ...field, title: '' }}

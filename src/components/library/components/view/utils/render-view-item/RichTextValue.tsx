@@ -26,7 +26,8 @@ const RichTextValue: FC<{ value: any }> = ({ value }) => {
 
 const proseCss = {
 	'& > * + *': { marginTop: '0.7em' },
-	'& :is(h2, h3, h4)': { fontWeight: '500', lineHeight: '1.3', marginTop: '1em' },
+	// As typed: the panel's own headings are uppercase (theme globalCss), a post's aren't.
+	'& :is(h2, h3, h4)': { fontWeight: '500', lineHeight: '1.3', marginTop: '1em', textTransform: 'none', letterSpacing: 'normal' },
 	'& h2': { fontSize: '1.35em' },
 	'& h3': { fontSize: '1.2em' },
 	'& h4': { fontSize: '1.05em' },

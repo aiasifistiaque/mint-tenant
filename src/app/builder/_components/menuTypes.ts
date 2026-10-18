@@ -19,7 +19,8 @@ export type ParamKind =
 	| 'route' //      another page of the panel
 	| 'fieldValue' // a value for the item's `key` field: its options, yes/no, or typed
 	| 'presets' //    add-related: the target's fields filled from this row
-	| 'pdfTemplate'; // one of this page's PDF templates (empty: the default)
+	| 'pdfTemplate' // one of this page's PDF templates (empty: the default)
+	| 'richField'; //  one of this page's rich-text (editor) fields
 
 export type Param = { name: string; label: string; kind: ParamKind; hint?: string; required?: boolean };
 
@@ -82,6 +83,12 @@ export const ROW_MENU_TYPES: MenuType[] = [
 		label: 'Download PDF',
 		hint: 'Downloads the record printed with one of this page’s PDF templates — an invoice, a receipt',
 		params: [{ name: 'template', label: 'Template', kind: 'pdfTemplate', hint: 'Empty: the page’s default template' }],
+	},
+	{
+		value: 'download-docx',
+		label: 'Download DOCX',
+		hint: 'Downloads one rich-text field of the record as a Word file — a blog post’s body',
+		params: [{ name: 'field', label: 'Field', kind: 'richField', required: true, hint: 'Which rich-text field goes in the file' }],
 	},
 	{
 		value: 'update-api',

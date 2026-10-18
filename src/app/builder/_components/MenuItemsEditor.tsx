@@ -466,6 +466,32 @@ const ParamInput: FC<{
 					))}
 				</Select>
 			);
+		case 'richField': {
+			// Download DOCX: only the page's rich-text fields can go in a Word file.
+			const rich = fields.filter(f => f.input === 'editor' || f.input === 'basic-editor');
+			if (!rich.length)
+				return (
+					<Text
+						fontSize='xs'
+						color='fg.muted'>
+						This page has no rich-text field. Add one (kind “Rich text”) to its model first.
+					</Text>
+				);
+			return (
+				<Select
+					value={value || ''}
+					placeholder='Pick a rich-text field'
+					onChange={v => set({ [param.name]: v })}>
+					{rich.map(f => (
+						<option
+							key={f.key}
+							value={f.key}>
+							{f.label} ({f.key})
+						</option>
+					))}
+				</Select>
+			);
+		}
 		case 'keyType':
 			return (
 				<Select
