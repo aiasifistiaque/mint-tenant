@@ -142,6 +142,7 @@ export const DATA_TYPE_LABEL: Record<string, string> = {
 	mixed: 'Anything (not checked)',
 	profit: 'Profit',
 	formula: 'Calculated (formula)',
+	dateformula: 'Calculated date (date formula)',
 };
 
 /**

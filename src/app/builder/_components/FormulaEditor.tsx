@@ -17,6 +17,11 @@ import { FieldInfo, Node, format, parse } from '@/components/library/functions/f
  * "Type it yourself" unlocks it to plain text, where the same buttons put
  * their piece in at the cursor; "Back to buttons" reads the text back.
  *
+ * A Date formula (`returns: 'date'`, docs/date-formulas) gets a row of date
+ * buttons — Today, Add days / weeks / months / years, Add (a unit from a
+ * field), Latest, Earliest — and a number formula gets Days between when the
+ * fields hold dates.
+ *
  * The formula is the engine's own tree (formula.ts `Node`), turned into text
  * with `format` and read back with `parse`. An empty box is a field
  * reference with no key; while there is one, the formula is unfinished and
@@ -95,20 +100,38 @@ const levelOf = (n: Node): number | null =>
 
 /* ---------- what an empty box is for ---------- */
 
-type Spot = { role: 'value' | 'cond' | 'compared'; hint: string; prompt: string };
+type Spot = { role: 'value' | 'cond' | 'compared' | 'date' | 'unit'; hint: string; prompt: string };
 const COND: Spot = { role: 'cond', hint: 'condition', prompt: 'Choose the condition — a field to check, then what it should be.' };
+const DATE_SPOT = (hint: string): Spot => ({ role: 'date', hint, prompt: 'Choose a date — a date field, Today, or Add days… to move one.' });
 
-const spotOf = (tree: Node, path: Path): Spot => {
+/** `date`: the formula works out a date (a Date formula field). */
+const spotOf = (tree: Node, path: Path, date = false): Spot => {
 	if (!path.length)
-		return { role: 'value', hint: 'start here', prompt: 'Start with a field or a number — or If, to choose between two values by a condition.' };
+		return date
+			? { role: 'date', hint: 'start here', prompt: 'Start with a date — Add days, Add months…, Latest of, Today or a date field — or If, to choose between two dates.' }
+			: { role: 'value', hint: 'start here', prompt: 'Start with a field or a number — or If, to choose between two values by a condition.' };
 	const p = getAt(tree, path.slice(0, -1));
 	const i = path[path.length - 1];
+	// An If's answers are dates when the If itself stands where a date goes.
+	const dated = date && spotOf(tree, path.slice(0, -1), date).role === 'date';
 	if (p.t === 'fn' && p.name === 'if')
 		return i === 0
 			? COND
 			: i === 1
-			? { role: 'value', hint: 'then', prompt: 'Choose the value when the condition holds — a field, a number or a calculation.' }
+			? dated
+				? DATE_SPOT('then')
+				: { role: 'value', hint: 'then', prompt: 'Choose the value when the condition holds — a field, a number or a calculation.' }
+			: dated
+			? { ...DATE_SPOT('otherwise'), prompt: 'Choose the date otherwise — or Otherwise if, to check another condition first.' }
 			: { role: 'value', hint: 'otherwise', prompt: 'Choose the value otherwise — or Otherwise if, to check another condition first.' };
+	if (p.t === 'fn' && p.name.startsWith('add'))
+		return i === 0
+			? DATE_SPOT('date')
+			: i === 1
+			? { role: 'value', hint: 'how many', prompt: 'Choose how many — a number, or a number field (a plan’s length). Below 0 goes back in time.' }
+			: { role: 'unit', hint: 'unit', prompt: 'Choose the unit — days, weeks, months or years — or a field holding one (a plan’s unit).' };
+	if (p.t === 'fn' && (p.name === 'latest' || p.name === 'earliest')) return DATE_SPOT('date');
+	if (p.t === 'fn' && p.name === 'daysBetween') return DATE_SPOT(i === 0 ? 'from' : 'to');
 	if ((p.t === 'fn' && p.name === 'not') || p.t === 'logic') return COND;
 	if (p.t === 'cmp')
 		return i === 0
@@ -342,6 +365,18 @@ const FNS: { name: FnName; label: string; title: string }[] = [
 	{ name: 'min', label: 'Smallest of', title: 'min(a, b) — the smallest' },
 	{ name: 'max', label: 'Largest of', title: 'max(a, b) — the largest' },
 ];
+const DATE_FNS: { name: FnName; label: string; title: string; date: boolean }[] = [
+	{ name: 'today', label: 'Today', title: 'today() — now, when the record is saved', date: true },
+	{ name: 'addDays', label: 'Add days', title: 'addDays(date, n) — n days later (earlier below 0)', date: true },
+	{ name: 'addWeeks', label: 'Add weeks', title: 'addWeeks(date, n)', date: true },
+	{ name: 'addMonths', label: 'Add months', title: 'addMonths(date, n) — 31 Jan + 1 month is the end of February', date: true },
+	{ name: 'addYears', label: 'Add years', title: 'addYears(date, n)', date: true },
+	{ name: 'add', label: 'Add…', title: 'add(date, n, unit) — the unit from a field: add(start, plan.length, plan.unit)', date: true },
+	{ name: 'latest', label: 'Latest of', title: 'latest(a, b) — the later date; an empty one is left out: latest(expiresAt, today())', date: true },
+	{ name: 'earliest', label: 'Earliest of', title: 'earliest(a, b) — the earlier date', date: true },
+	{ name: 'daysBetween', label: 'Days between', title: 'daysBetween(from, to) — a number of whole days', date: false },
+];
+const UNITS = ['days', 'weeks', 'months', 'years'];
 
 /* ---------- the editor ---------- */
 
@@ -354,9 +389,13 @@ type Props = {
 	/** The formula field itself — not offered. */
 	self?: string;
 	invalid?: boolean;
+	/** What it works out: a number (a formula), or a date (a Date formula). */
+	returns?: 'number' | 'date';
+	/** What the formula sets, shown before it (`self` by default): a rule's "Expires at". */
+	lhs?: string;
 };
 
-const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) => {
+const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid, returns = 'number', lhs }) => {
 	const [start] = useState(() => treeOf(initial));
 	// A formula with a mistake opens unlocked, to be fixed by hand.
 	const [locked, setLocked] = useState(!!start);
@@ -377,7 +416,10 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 	const latest = useRef(initial);
 
 	const fieldOf = (key: string) => fields.find(f => f.key === key);
-	const spot = spotOf(tree, sel);
+	const isDate = returns === 'date';
+	const spot = spotOf(tree, sel, isDate);
+	// Dates on offer: a Date formula, or a number formula with date fields (Days between).
+	const hasDates = isDate || fields.some(f => f.key !== self && f.date);
 	const cur = getAt(tree, sel);
 
 	/* --- building, locked --- */
@@ -427,7 +469,13 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 					: [HOLE, HOLE, HOLE]
 				: name === 'round'
 				? [keep, { t: 'num', v: 2 }]
-				: name === 'min' || name === 'max'
+				: name === 'min' || name === 'max' || name === 'latest' || name === 'earliest' || name === 'daysBetween'
+				? [keep, HOLE]
+				: name === 'today'
+				? []
+				: name === 'add'
+				? [keep, HOLE, HOLE]
+				: name.startsWith('add')
 				? [keep, HOLE]
 				: [keep];
 		place({ t: 'fn', name, args, at: 0 } as Node);
@@ -488,7 +536,7 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 		if (p.t === 'bin' || p.t === 'logic' || p.t === 'cmp') return commit(setAt(tree, up, i === 0 ? p.b : p.a), up);
 		if (p.t === 'neg') return commit(setAt(tree, up, HOLE), up);
 		if (p.t !== 'fn') return;
-		if ((p.name === 'min' || p.name === 'max') && p.args.length > 2)
+		if ((p.name === 'min' || p.name === 'max' || p.name === 'latest' || p.name === 'earliest') && p.args.length > 2)
 			return commit(setAt(tree, up, { ...p, args: p.args.filter((_, k) => k !== i) }), up);
 		// An "otherwise if" with no condition: its own otherwise takes its place.
 		const outer = up.length ? getAt(tree, up.slice(0, -1)) : null;
@@ -573,7 +621,7 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 
 	/* --- what's on offer --- */
 
-	type Entry = { value: string; label: string; node: Node; typed: string; numeric: boolean };
+	type Entry = { value: string; label: string; node: Node; typed: string; numeric: boolean; date?: boolean };
 	const entries: Entry[] = fields
 		.filter(f => f.key !== self)
 		.flatMap((f): Entry[] => {
@@ -594,17 +642,25 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 			return [
 				{
 					value: `ref:${f.key}`,
-					label: f.numeric ? (f.linked ? `${named} — from the linked record` : named) : `${named} — to check in a condition`,
+					label: f.date
+						? `${named} — a date${f.linked ? ' from the linked record' : ''}`
+						: f.numeric
+						? f.linked
+							? `${named} — from the linked record`
+							: named
+						: `${named} — to check in a condition`,
 					node: { t: 'ref', key: f.key, at: 0 },
 					typed: f.key,
 					numeric: !!f.numeric,
+					date: !!f.date,
 				},
 			];
 		});
-	// What the box most likely wants first: numbers to calculate with, anything to check.
-	const wantsNumber = !locked || spot.role === 'value';
-	const sorted = [...entries.filter(e => e.numeric === wantsNumber), ...entries.filter(e => e.numeric !== wantsNumber)];
-	const hasText = fields.some(f => f.key !== self && !f.numeric && !f.list && !f.inList);
+	// What the box most likely wants first: dates for a date, numbers to calculate with, anything to check.
+	const rank = (e: Entry) =>
+		locked && spot.role === 'date' ? (e.date ? 0 : 1) : locked && spot.role === 'unit' ? (!e.numeric && !e.date ? 0 : 1) : (!locked || spot.role === 'value') === e.numeric ? 0 : 1;
+	const sorted = [...entries].sort((a, b) => rank(a) - rank(b));
+	const hasText = hasDates || fields.some(f => f.key !== self && !f.numeric && !f.list && !f.inList);
 	const hasYesNo = fields.some(f => f.key !== self && f.yesNo);
 
 	// Checking a choice or yes / no field: its values, to pick from.
@@ -615,7 +671,9 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 		const other = sel[sel.length - 1] === 0 ? p.b : p.a;
 		return other.t === 'ref' && other.key ? fieldOf(other.key) : undefined;
 	})();
-	const choices = side?.options?.length
+	const choices = locked && spot.role === 'unit'
+		? UNITS.map(u => ({ value: `s:${u}`, label: u, node: { t: 'str', v: u, at: 0 } as Node }))
+		: side?.options?.length
 		? side.options.map(o => ({ value: `s:${o.value}`, label: String(o.label ?? o.value), node: { t: 'str', v: String(o.value), at: 0 } as Node }))
 		: side?.yesNo
 		? [
@@ -691,7 +749,7 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 							size='xs'
 							w='180px'
 							value=''
-							placeholder={`${fieldLabel(side)} is…`}
+							placeholder={spot.role === 'unit' ? 'Unit…' : `${fieldLabel(side)} is…`}
 							onChange={(v: string) => {
 								const c = choices.find(x => x.value === v);
 								if (c) putLeaf(c.node);
@@ -788,6 +846,26 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 						</Key>
 					))}
 				</Row>
+				{hasDates && (
+					<Row label='Dates'>
+						{DATE_FNS.filter(f => (isDate ? true : !f.date)).map(f => (
+							<Key
+								key={f.name}
+								title={f.title}
+								tone='cyan'
+								onClick={() => use(f.name === 'today' ? 'today()' : `${f.name}(`, () => putFn(f.name))}>
+								{f.label}
+							</Key>
+						))}
+						{!isDate && (
+							<Text
+								fontSize='xs'
+								color='fg.muted'>
+								A date itself needs a Date formula field.
+							</Text>
+						)}
+					</Row>
+				)}
 				<Row label='Decide'>
 					<Key
 						title='if(condition, then, otherwise) — one value or another, by a condition'
@@ -906,7 +984,7 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 							<Text
 								as='span'
 								color='fg.muted'>
-								{self ? `${self} = ` : '= '}
+								{lhs ? `${lhs} = ` : self ? `${self} = ` : '= '}
 							</Text>
 							<Part
 								n={tree}
@@ -920,7 +998,7 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid }) =>
 						rows={3}
 						fontFamily='mono'
 						fontSize='sm'
-						placeholder='e.g. total - paid'
+						placeholder={isDate ? 'e.g. addDays(invoiceDate, 30)' : 'e.g. total - paid'}
 						value={text}
 						aria-invalid={invalid || undefined}
 						borderColor={invalid ? 'red.solid' : undefined}

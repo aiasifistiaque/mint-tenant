@@ -1,8 +1,8 @@
 'use client';
 
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, CloseButton, Dialog, Flex, IconButton, Input, Portal, SegmentGroup, Text } from '@chakra-ui/react';
-import { Link2, Plus, X } from 'lucide-react';
+import { Calculator, CalendarClock, Link2, Plus, X } from 'lucide-react';
 import { AlertDialogContent, AlertDialogHeader, ModalFooter, useGetBuilderRouteQuery } from '@/components/library';
 import DiscardButton from '@/components/library/components/buttons/DiscardButton';
 import { Dropdown } from '@/components/library/cl';
@@ -11,6 +11,8 @@ import { ModelField } from './filterTypes';
 import { SettingsField } from './SettingsEditor';
 import { DocLink, FieldLabel, Toggle } from './ui';
 import { ACTIONS, Assignment, HOW, HowKind, LinkedRule, UNDO, howOf, ruleProblems, ruleSentence, stepIsField, stepOf, withHow } from './linkedRules';
+import FormulaModal from './FormulaModal';
+import { FieldInfo } from '@/components/library/functions/formula';
 
 /**
  * One Linked Relationship, edited as the sentence it reads as: when this
@@ -20,6 +22,12 @@ import { ACTIONS, Assignment, HOW, HowKind, LinkedRule, UNDO, howOf, ruleProblem
  * right (only those that may be edited there). The sentence on top follows
  * the choices. Nothing is saved until Save rule, and nothing goes live until
  * the page is published.
+ *
+ * A value can also come from a record this one picks — Copy from Plan › Price
+ * (`plan.price`) — and Work out is built by clicking in the formula window,
+ * over this record (`this.…`), the records it picks (`this.plan.price`) and the
+ * linked record (`target.…`); a date field gets a date formula
+ * (docs/date-formulas).
  */
 
 type Props = {
@@ -42,6 +50,33 @@ const labelOf = (fields: SettingsField[], key: string) => {
 const settingsOf = (data: any): SettingsField[] =>
 	(data?.settings?.draft ?? data?.settings?.data)?.fields || data?.code?.settings?.fields || [];
 
+/** A field's own label. */
+const titleOf = (f: SettingsField) => f?.schema?.label || f?.title || f?.key;
+const isDateField = (f?: SettingsField) => !!f && (f.type === 'date' || f.type === 'date-only' || f.schema?.returns === 'date');
+const isNumberField = (f?: SettingsField) => !!f && !isDateField(f) && (f.type === 'number' || f.schema?.type === 'formula');
+/** What a formula may know of a settings field, under `key`. */
+const infoOf = (f: SettingsField, key: string, label: string, linked?: string): FieldInfo => {
+	const options = Array.isArray(f.schema?.options) ? f.schema.options.map((o: any) => ({ value: o?.value ?? o, label: o?.label ?? o?.value ?? o })) : [];
+	return {
+		key,
+		label,
+		numeric: isNumberField(f),
+		...(isDateField(f) && { date: true }),
+		...(f.type === 'boolean' && { yesNo: true }),
+		...(options.length && { options }),
+		...(linked && { linked }),
+	};
+};
+
+/** One record picker's page, fetched while the dialog is open: what Copy from and Work out can read through it. */
+const LinkFields: FC<{ link: string; route: string; onFields: (link: string, fields: SettingsField[]) => void }> = ({ link, route, onFields }) => {
+	const { data } = useGetBuilderRouteQuery(route);
+	useEffect(() => {
+		if (data) onFields(link, settingsOf(data));
+	}, [data, link, onFields]);
+	return null;
+};
+
 const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, fields, modelFields }) => {
 	const [r, setR] = useState<LinkedRule>(rule);
 	useEffect(() => {
@@ -63,13 +98,34 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 	// What a rule may set: editable there, not worked out by itself.
 	const settable = targetFields.filter(f => f.edit && f.schema?.type !== 'formula' && !f.rollup);
 	const numbersHere = fields.filter(f => f.type === 'number');
+	// The fields of the records this one picks (Plan › Price), by link.
+	const [linkFields, setLinkFields] = useState<Record<string, SettingsField[]>>({});
+	const onLinkFields = useCallback((link: string, f: SettingsField[]) => setLinkFields(x => (x[link] === f ? x : { ...x, [link]: f })), []);
+	const throughLinks = pickers.flatMap(p =>
+		(linkFields[p.key] || [])
+			.filter(lf => !['_id', 'createdAt', 'updatedAt'].includes(lf.key) && !lf.rollup)
+			.map(lf => ({ key: `${p.key}.${lf.key}`, label: `${labelOf(fields, p.key)} › ${titleOf(lf)}`, f: lf, link: p.key }))
+	);
+	// What Work out can read: this record, the records it picks, the linked record as it is.
+	const formulaInfo: FieldInfo[] = useMemo(
+		() => [
+			...fields.map(f => infoOf(f, `this.${f.key}`, `This ${title.toLowerCase()} › ${labelOf(fields, f.key)}`)),
+			...throughLinks.map(x => infoOf(x.f, `this.${x.key}`, x.label, x.link)),
+			...targetFields.map(f => infoOf(f, `target.${f.key}`, `${targetTitle} › ${titleOf(f)} (now)`)),
+		],
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[fields, linkFields, targetFields, title, targetTitle]
+	);
+	// The change whose formula is being built.
+	const [formulaRow, setFormulaRow] = useState<number | null>(null);
+	const formulaAssignment = formulaRow !== null ? (r.set || [])[formulaRow] : undefined;
 	// Conditions may compare with one of this record's fields: "Balance is less than this Transfer’s Amount".
 	const compareWith = { label: title, fields: fields.map(f => ({ key: f.key, label: labelOf(fields, f.key) })) };
 
 	const isBlock = !!r.block;
 	const problems = ruleProblems(r);
 	const sentence = ruleSentence(r, {
-		self: k => labelOf(fields, k),
+		self: k => throughLinks.find(x => x.key === k)?.label || labelOf(fields, k),
 		target: k => labelOf(targetFields, k),
 		title,
 		targetTitle,
@@ -91,6 +147,14 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 							key={f.key}
 							value={f.key}>
 							{labelOf(fields, f.key)}
+						</option>
+					))}
+					{/* Through a link: the plan's price, for a renewal's fee. */}
+					{throughLinks.map(x => (
+						<option
+							key={x.key}
+							value={x.key}>
+							{x.label}
 						</option>
 					))}
 				</Dropdown>
@@ -129,17 +193,26 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 					/>
 				</Flex>
 			);
-		if (how === 'formula')
+		if (how === 'formula') {
+			const date = isDateField(targetFields.find(f => f.key === a.field));
 			return (
-				<Input
+				<Button
 					size='xs'
-					w='240px'
-					fontFamily='mono'
-					placeholder='target.paidAmount + this.amount'
-					value={a.formula || ''}
-					onChange={e => setRow(i, { field: a.field, formula: e.target.value })}
-				/>
+					variant='outline'
+					maxW='280px'
+					disabled={!a.field}
+					title={a.field ? 'Build the formula' : 'Pick the field to change first'}
+					onClick={() => setFormulaRow(i)}>
+					{date ? <CalendarClock size={12} /> : <Calculator size={12} />}
+					<Text
+						as='span'
+						fontFamily={a.formula ? 'mono' : undefined}
+						truncate>
+						{a.formula ? `= ${a.formula}` : 'Build the formula'}
+					</Text>
+				</Button>
 			);
+		}
 		// A value: a choice field offers its options, a yes/no field Yes/No.
 		const tf = targetFields.find(f => f.key === a.field);
 		const options: any[] = Array.isArray(tf?.schema?.options) ? tf!.schema.options : [];
@@ -574,6 +647,29 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 					</AlertDialogContent>
 				</Dialog.Positioner>
 			</Portal>
+			{open &&
+				pickers.map(p => (
+					<LinkFields
+						key={p.key}
+						link={p.key}
+						route={p.schema.model}
+						onFields={onLinkFields}
+					/>
+				))}
+			<FormulaModal
+				isOpen={!!formulaAssignment}
+				onClose={() => setFormulaRow(null)}
+				fieldKey={formulaAssignment?.field || ''}
+				fieldTitle={formulaAssignment ? labelOf(targetFields, formulaAssignment.field) : ''}
+				formula={formulaAssignment?.formula || ''}
+				fields={formulaInfo}
+				returns={isDateField(targetFields.find(f => f.key === formulaAssignment?.field)) ? 'date' : 'number'}
+				rule={{ target: targetTitle }}
+				onSave={formula => {
+					if (formulaRow !== null && formulaAssignment) setRow(formulaRow, { field: formulaAssignment.field, formula });
+					setFormulaRow(null);
+				}}
+			/>
 		</Dialog.Root>
 	);
 };

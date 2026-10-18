@@ -47,10 +47,10 @@ export const ACTIONS: { value: LinkedAction; label: string }[] = [
 
 export const HOW: { value: HowKind; label: string; hint: string }[] = [
 	{ value: 'value', label: 'Set to', hint: 'A value you choose — Status to Paid' },
-	{ value: 'from', label: 'Copy from this record', hint: 'One of this record’s fields — its Payment date' },
+	{ value: 'from', label: 'Copy from this record', hint: 'One of this record’s fields — its Payment date — or of a record it picks: Plan › Price' },
 	{ value: 'inc', label: 'Add', hint: 'A number, or this record’s number field — taken off again when it’s undone' },
 	{ value: 'dec', label: 'Take off', hint: 'A number, or this record’s number field — given back when it’s undone' },
-	{ value: 'formula', label: 'Work out', hint: 'A formula over this.<field> and target.<field>' },
+	{ value: 'formula', label: 'Work out', hint: 'A formula over this record, the records it picks and the linked record — numbers or dates' },
 	{ value: 'clear', label: 'Empty it', hint: 'Clear the field' },
 ];
 

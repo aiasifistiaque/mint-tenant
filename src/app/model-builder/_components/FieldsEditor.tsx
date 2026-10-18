@@ -2,7 +2,7 @@
 
 import { DragEvent, FC, KeyboardEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Menu, Portal, Switch, Text } from '@chakra-ui/react';
-import { AlertTriangle, ArrowDown, ArrowUp, Copy, Ellipsis, ListPlus, Calculator, ChevronDown, ListTree, GripVertical, Plus, Puzzle, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Copy, Ellipsis, ListPlus, Calculator, CalendarClock, ChevronDown, ListTree, GripVertical, Plus, Puzzle, Trash2, X } from 'lucide-react';
 import { radius, useGetModelComponentsQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import {
@@ -27,6 +27,8 @@ import {
 	newUid,
 	sectionPreset,
 	toKey,
+	DATE_KINDS,
+	isFormulaKind,
 } from './modelKinds';
 import SectionFieldsModal from './SectionFieldsModal';
 import KindIcon from './KindIcon';
@@ -50,8 +52,15 @@ import GuideLink from '@/components/library/tenant/GuideLink';
  * flagged: the data stays in the records, but a new kind may not read it.
  */
 
-/** `numbers`: the target's number fields — what a formula may read through a link to it (`tax.amount`). */
-export type LinkTarget = { name: string; route: string; title?: string; display: string; built: boolean; numbers?: { key: string; label: string }[] };
+/** `numbers`: the target's numbers, dates and short texts — what a formula may read through a link to it (`tax.amount`, `plan.unit`). */
+export type LinkTarget = {
+	name: string;
+	route: string;
+	title?: string;
+	display: string;
+	built: boolean;
+	numbers?: { key: string; label: string; date?: boolean; text?: boolean }[];
+};
 
 type Props = {
 	fields: EditableField[];
@@ -503,9 +512,16 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 	}, [open]);
 	// The formula field whose formula is being written.
 	const [formulaFor, setFormulaFor] = useState<string | null>(null);
-	// What a formula may use: this model's numbers, and those of the records its links pick (`tax.amount`).
+	// What a formula may use: this model's numbers and dates, and those of the records its links pick (`tax.amount`).
 	const formulaFields = useMemo(() => {
-		const own = fields.filter(f => f.key && (f.kind === 'number' || f.kind === 'formula')).map(f => ({ key: f.key, label: f.label || f.key }));
+		const own = fields
+			.filter(f => f.key && (f.kind === 'number' || f.kind === 'formula' || DATE_KINDS.includes(f.kind) || f.kind === 'text' || f.kind === 'select'))
+			.map(f => ({
+				key: f.key,
+				label: f.label || f.key,
+				...(DATE_KINDS.includes(f.kind) && { date: true }),
+				...((f.kind === 'text' || f.kind === 'select') && { text: true }),
+			}));
 		return formulaFieldsOf(fields, ref => (ref && ref === selfName ? own : targets.find(t => t.name === ref)?.numbers));
 	}, [fields, targets, selfName]);
 	const formulaField = formulaFor ? fields.find(f => f.uid === formulaFor) : undefined;
@@ -576,7 +592,8 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			...(!ENUM_KINDS.includes(kind) && { options: undefined }),
 			...(!canBeUnique(kind) && { unique: false }),
 			// A formula is calculated: never required, no default.
-			...(kind === 'formula' && { required: false }),
+			...(isFormulaKind(kind) && { required: false }),
+			...(kind !== 'dateformula' && { calc: undefined }),
 			// A component field starts on the first component, once (docs/cms D3).
 			...(kind === 'component'
 				? { component: f.component || components[0]?.uid, unique: false, fields: undefined, required: false }
@@ -586,7 +603,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			...(kind === 'uid'
 				? { unique: true, from: f.from || fields.find(x => x.uid !== f.uid && UID_SOURCES.includes(x.kind) && x.key)?.key }
 				: { from: undefined }),
-			default: kind === 'formula' || SECTION_KINDS.includes(kind) ? undefined : nextDefault,
+			default: isFormulaKind(kind) || SECTION_KINDS.includes(kind) ? undefined : nextDefault,
 			// A section starts from a preset, changed in its field builder; between the two section kinds its fields stay.
 			...(SECTION_KINDS.includes(kind)
 				? {
@@ -599,8 +616,8 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 		});
 		// Choosing a section opens its field builder.
 		if (SECTION_KINDS.includes(kind)) setSectionFor(f.uid);
-		// Choosing Formula opens the formula window.
-		if (kind === 'formula') setFormulaFor(f.uid);
+		// Choosing Formula or Date formula opens the formula window.
+		if (isFormulaKind(kind)) setFormulaFor(f.uid);
 		// Choosing Options opens the input to type them in.
 		if (toOptions) setTimeout(() => document.getElementById(`options-${f.uid}`)?.focus(), 0);
 	};
@@ -625,7 +642,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 		setOpen(null);
 		setPicking(null);
 		// Focus lands on the new row's label once it renders; a formula or a section opens its own window.
-		if (kind === 'formula') setFormulaFor(uid);
+		if (isFormulaKind(kind)) setFormulaFor(uid);
 		else if (isSection) setSectionFor(uid);
 		else setTimeout(() => document.getElementById(`label-${uid}`)?.focus(), 0);
 	};
@@ -693,7 +710,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				const kindChanged = hasRecords && savedKinds[f.key] && savedKinds[f.key] !== f.kind;
 				const isRef = REFERENCE_KINDS.includes(f.kind);
 				// Calculated, or holding other fields: never required.
-				const noRequired = f.kind === 'formula' || SECTION_KINDS.includes(f.kind);
+				const noRequired = isFormulaKind(f.kind) || SECTION_KINDS.includes(f.kind);
 				const openKey = () => {
 					setOpen(f.uid);
 					setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
@@ -1056,10 +1073,10 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 										)}
 									</Flex>
 								)}
-								{f.kind === 'formula' && (
+								{isFormulaKind(f.kind) && (
 									<Box maxW='320px'>
 										{(() => {
-											const c = f.formula?.trim() ? checkFormula(f.formula, formulaFields, f.key) : null;
+											const c = f.formula?.trim() ? checkFormula(f.formula, formulaFields, f.key, f.kind === 'dateformula' ? 'date' : 'number') : null;
 											return (
 												<Button
 													size='xs'
@@ -1069,13 +1086,22 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 													color={error?.on === 'formula' ? 'red.fg' : undefined}
 													title='Write the formula'
 													onClick={() => setFormulaFor(f.uid)}>
-													<Calculator size={12} />
+													{f.kind === 'dateformula' ? <CalendarClock size={12} /> : <Calculator size={12} />}
 													<Text
 														as='span'
 														fontFamily='mono'
 														truncate>
 														{c ? `= ${c.formatted || f.formula}` : 'Set formula'}
 													</Text>
+													{f.kind === 'dateformula' && f.calc === 'once' && (
+														<Badge
+															size='xs'
+															variant='subtle'
+															colorPalette='blue'
+															title='Worked out when the record is added, then kept'>
+															once
+														</Badge>
+													)}
 												</Button>
 											);
 										})()}
@@ -1445,8 +1471,10 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				fieldTitle={formulaField?.label || formulaField?.key}
 				formula={formulaField?.formula || ''}
 				fields={formulaFields}
-				onSave={formula => {
-					if (formulaField) set(formulaField.uid, { formula });
+				returns={formulaField?.kind === 'dateformula' ? 'date' : 'number'}
+				calc={formulaField?.calc}
+				onSave={(formula, calc) => {
+					if (formulaField) set(formulaField.uid, { formula, calc: formulaField.kind === 'dateformula' ? calc : undefined });
 					setFormulaFor(null);
 				}}
 			/>

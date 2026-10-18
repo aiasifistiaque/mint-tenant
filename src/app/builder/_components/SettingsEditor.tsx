@@ -6,6 +6,7 @@ import {
 	ArrowDown,
 	ArrowUp,
 	Calculator,
+	CalendarClock,
 	ChevronDown,
 	ChevronRight,
 	Copy,
@@ -238,6 +239,8 @@ type RowProps = {
 	readOnly?: boolean;
 	/** The model stores a number here, so `formula` is offered. */
 	modelNumber: boolean;
+	/** The model stores a date here, so a date formula is offered. */
+	modelDate?: boolean;
 	/** A formula field's button: its text, tooltip, and whether the formula checks out. */
 	formulaLabel?: string;
 	formulaTitle?: string;
@@ -421,6 +424,7 @@ const FieldRow = memo(function FieldRow({
 	link,
 	readOnly,
 	modelNumber,
+	modelDate,
 	formulaLabel,
 	formulaTitle,
 	formulaOk,
@@ -630,7 +634,7 @@ const FieldRow = memo(function FieldRow({
 								title={`${formula.title}: ${formula.label}`}
 								aria-label={formula.title}
 								onClick={() => actions.editFormula(f.key)}>
-								<Calculator size={12} />
+								{f.schema?.returns === 'date' ? <CalendarClock size={12} /> : <Calculator size={12} />}
 							</IconButton>
 						</Flex>
 					) : (
@@ -993,7 +997,7 @@ const FieldRow = memo(function FieldRow({
 											size='sm'
 											disabled={locked}
 											title='How the value is stored and checked. Calculated: a number worked out from other number fields'
-											value={f.schema?.type === 'formula' ? 'formula' : f.type || 'string'}
+											value={f.schema?.type === 'formula' ? (f.schema?.returns === 'date' ? 'dateformula' : 'formula') : f.type || 'string'}
 											onChange={v => actions.pickType(f.key, v)}>
 											{DATA_TYPES.map(t => (
 												<option
@@ -1003,8 +1007,12 @@ const FieldRow = memo(function FieldRow({
 												</option>
 											))}
 											{/* Offered where the model stores a number — a formula's result has to fit. */}
-											{(f.type === 'number' || f.schema?.type === 'formula' || modelNumber) && (
+											{(f.type === 'number' || (f.schema?.type === 'formula' && f.schema?.returns !== 'date') || modelNumber) && (
 												<option value='formula'>{DATA_TYPE_LABEL.formula}</option>
+											)}
+											{/* …and a date formula where it stores a date (docs/date-formulas). */}
+											{(f.type === 'date' || f.schema?.returns === 'date' || modelDate) && (
+												<option value='dateformula'>{DATA_TYPE_LABEL.dateformula}</option>
 											)}
 										</Dropdown>
 									</Box>
@@ -1159,15 +1167,26 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 	const pickInput = (key: string, input: string) => {
 		const f = fields.find(x => x.key === key)!;
 		const data = INPUTS.find(i => i.value === input)?.data;
-		if (input === 'formula') {
-			// Calculated, never typed: a number, not editable, not required.
+		if (input === 'formula' || input === 'dateformula') {
+			// Calculated, never typed: a number (a date, for a date formula), not editable, not required.
 			// Cancelling the formula window straight away puts the field back as it was.
-			if (f.schema?.type !== 'formula') setFormulaUndo({ key, type: f.type, edit: f.edit, required: f.required, schema: f.schema });
+			const date = input === 'dateformula';
+			const kind = date ? 'date' : 'number';
+			if (f.schema?.type !== 'formula' || (f.schema?.returns === 'date') !== date)
+				setFormulaUndo({ key, type: f.type, edit: f.edit, required: f.required, schema: f.schema });
+			const { returns: _r, calc: _c, ...was } = f.schema || {};
 			set(key, {
-				type: 'number',
+				type: kind,
 				edit: undefined,
 				required: undefined,
-				schema: clean({ ...(f.schema || {}), type: 'formula', formula: f.schema?.formula || '', tableType: 'number', viewType: 'number' }),
+				schema: clean({
+					...was,
+					type: 'formula',
+					...(date && { returns: 'date', ...(f.schema?.returns === 'date' && f.schema?.calc && { calc: f.schema.calc }) }),
+					formula: (f.schema?.returns === 'date') === date ? f.schema?.formula || '' : '',
+					tableType: kind,
+					viewType: kind,
+				}),
 			});
 			setSchemaRev(r => r + 1);
 			setFormulaFor(key);
@@ -1186,7 +1205,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 			setSectionFor(key);
 			return;
 		}
-		const { formula: _dropped, ...schema } = f.schema || {};
+		const { formula: _dropped, returns: _returns, calc: _calc, ...schema } = f.schema || {};
 		set(key, {
 			schema: clean({
 				...schema,
@@ -1202,9 +1221,9 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 	/** A data type; `formula` makes it a calculated number, and any other type undoes that. */
 	const pickType = (key: string, type: string) => {
 		const f = fields.find(x => x.key === key)!;
-		if (type === 'formula') return pickInput(key, 'formula');
+		if (type === 'formula' || type === 'dateformula') return pickInput(key, type);
 		if (f.schema?.type !== 'formula') return set(key, { type });
-		const { formula: _dropped, type: _input, tableType: _t, viewType: _v, ...schema } = f.schema || {};
+		const { formula: _dropped, returns: _returns, calc: _calc, type: _input, tableType: _t, viewType: _v, ...schema } = f.schema || {};
 		set(key, { type, schema: clean(schema) });
 		setSchemaRev(r => r + 1);
 	};
@@ -1217,11 +1236,13 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 		// A list is used through sum() / avg() / count(); a section's values as `billing.fee`.
 		const inside = sectionFormulaInfo(f);
 		if (inside.some(x => x.list)) return inside;
+		const date = f.schema?.returns === 'date' || f.type === 'date' || f.type === 'date-only' || modelByKey.get(f.key)?.instance === 'Date';
 		return [
 			{
 				key: f.key,
 				label: f.title,
-				numeric: f.type === 'number' || f.schema?.type === 'formula' || modelByKey.get(f.key)?.instance === 'Number',
+				numeric: !date && (f.type === 'number' || f.schema?.type === 'formula' || modelByKey.get(f.key)?.instance === 'Number'),
+				...(date && { date: true }),
 				...(f.schema?.type === 'formula' && { formula: f.schema?.formula }),
 				// What it can be compared with in a condition: its options, or yes / no.
 				...((f.type === 'boolean' || modelByKey.get(f.key)?.instance === 'Boolean')
@@ -1374,7 +1395,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 				const q = query.trim().toLowerCase();
 				if (q && ![f.key, f.title, f.schema?.label].some(v => String(v || '').toLowerCase().includes(q))) return null;
 				const isFormula = f.schema?.type === 'formula';
-				const check = isFormula ? checkFormula(f.schema?.formula || '', formulaInfo, f.key) : null;
+				const check = isFormula ? checkFormula(f.schema?.formula || '', formulaInfo, f.key, f.schema?.returns === 'date' ? 'date' : 'number') : null;
 				const empty = !String(f.schema?.formula || '').trim();
 				const isOpen = open === f.key;
 				return (
@@ -1392,6 +1413,7 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 						link={linkOf(f.key)}
 						readOnly={readOnly}
 						modelNumber={modelByKey.get(f.key)?.instance === 'Number'}
+						modelDate={modelByKey.get(f.key)?.instance === 'Date'}
 						formulaLabel={check ? (empty ? 'Set formula' : `= ${check.formatted || f.schema.formula}`) : undefined}
 						formulaTitle={
 							check ? (check.ok ? 'Edit the formula' : empty ? 'Set the formula' : check.errors.map(e => e.message).join('; ')) : undefined
@@ -1522,8 +1544,10 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 				fieldTitle={formulaField?.title}
 				formula={formulaField?.schema?.formula || ''}
 				fields={formulaInfo}
-				onSave={formula => {
-					if (formulaField) setSchema(formulaField.key, { formula });
+				returns={formulaField?.schema?.returns === 'date' ? 'date' : 'number'}
+				calc={formulaField?.schema?.calc}
+				onSave={(formula, calc) => {
+					if (formulaField) setSchema(formulaField.key, { formula, ...(formulaField.schema?.returns === 'date' && { calc }) });
 					setFormulaUndo(null);
 					setFormulaFor(null);
 				}}

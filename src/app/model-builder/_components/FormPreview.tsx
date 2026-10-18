@@ -2,7 +2,7 @@
 
 import { FC, ReactNode } from 'react';
 import { Badge, Box, Flex, Grid, Text } from '@chakra-ui/react';
-import { Calculator, Calendar, ChevronDown, Lock, Plus, Upload } from 'lucide-react';
+import { Calculator, Calendar, ChevronDown, Lock, Plus, Upload, CalendarClock } from 'lucide-react';
 import { EditableField, REFERENCE_KINDS, SELF, kindLabel } from './modelKinds';
 
 /**
@@ -195,6 +195,7 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 				</Box_>
 			);
 		case 'formula':
+		case 'dateformula':
 			return (
 				<Box_ muted>
 					<Text
@@ -203,7 +204,7 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 						truncate>
 						= {f.formula?.trim() || 'calculated'}
 					</Text>
-					<Calculator {...ICON} />
+					{f.kind === 'dateformula' ? <CalendarClock {...ICON} /> : <Calculator {...ICON} />}
 				</Box_>
 			);
 		case 'image':

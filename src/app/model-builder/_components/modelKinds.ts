@@ -16,6 +16,7 @@ export type FieldKind =
 	| 'uid'
 	| 'number'
 	| 'formula'
+	| 'dateformula'
 	| 'boolean'
 	| 'date'
 	| 'select'
@@ -63,6 +64,12 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 	},
 	{ value: 'boolean', label: 'Yes / No', hint: 'A switch, on or off — like “Paid” or “Featured”', group: 'Values' },
 	{ value: 'date', label: 'Date', hint: 'A day, like a due date or a birthday — the table can filter by it', group: 'Values' },
+	{
+		value: 'dateformula',
+		label: 'Date formula',
+		hint: 'A date worked out from other fields — e.g. due = addDays(invoiceDate, 30), or a renewal’s new expiry. Read-only',
+		group: 'Values',
+	},
 	// One entry in the kind picker: "Options". Whether one or several can be
 	// picked is a switch beside it — multiselect is the "several" form.
 	{ value: 'select', label: 'Options', hint: 'A choice from a list you type in, like Draft / Sent / Paid', group: 'Choices' },
@@ -158,13 +165,18 @@ export const ENUM_KINDS: FieldKind[] = ['text', 'number', 'select', 'multiselect
 export const NEEDS_OPTIONS: FieldKind[] = ['select', 'multiselect'];
 /** Kinds stored as a list — their default is a list too. */
 export const ARRAY_KINDS: FieldKind[] = ['multiselect', 'tags', 'images', 'files', 'references'];
-export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks'];
+export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'dateformula', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks'];
 /** What an address (uid) can be made from — the same list as the backend's UID_SOURCES. */
 export const UID_SOURCES: FieldKind[] = ['text', 'email', 'url', 'select', 'textarea'];
 /** Shown as dots — its key may say what it holds (password, pin, token). Same as the backend's SECRET_KINDS. */
 export const SECRET_KINDS: FieldKind[] = ['password'];
-const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'password', 'component', 'blocks', ...ARRAY_KINDS, ...SECTION_KINDS];
+const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'dateformula', 'password', 'component', 'blocks', ...ARRAY_KINDS, ...SECTION_KINDS];
 export const canBeUnique = (kind: FieldKind) => !CANT_BE_UNIQUE.includes(kind);
+/** Kinds worked out by a formula, never typed: a number and a date (docs/date-formulas). */
+export const FORMULA_KINDS: FieldKind[] = ['formula', 'dateformula'];
+export const isFormulaKind = (kind?: string) => FORMULA_KINDS.includes(kind as FieldKind);
+/** Kinds holding a date — what a Date formula reads. */
+export const DATE_KINDS: FieldKind[] = ['date', 'dateformula'];
 export const hasLength = (kind: FieldKind) => ['text', 'email', 'url', 'textarea', 'editor'].includes(kind);
 export const hasOptions = (f: Pick<EditableField, 'kind' | 'options'>) =>
 	ENUM_KINDS.includes(f.kind) && (f.options || []).some(o => o.value?.trim());
@@ -199,6 +211,8 @@ export type EditableField = {
 	helper?: string;
 	/** The formula kind's calculation, e.g. `total - paid`. */
 	formula?: string;
+	/** A Date formula worked out once (when the record is added) and kept, instead of on every save. */
+	calc?: 'once';
 	/** A section's own fields (SUB_KINDS only). */
 	fields?: EditableField[];
 	/** A section list's add button, e.g. "Add item". */
@@ -307,7 +321,8 @@ export const toServer = (fields: EditableField[]): any[] =>
 			} else if (out.addLabel) out.addLabel = String(out.addLabel);
 		}
 		if (f.kind === 'uid') out.unique = true;
-		if (f.kind !== 'formula') delete out.formula;
+		if (f.kind !== 'dateformula' || out.calc !== 'once') delete out.calc;
+		if (!isFormulaKind(f.kind)) delete out.formula;
 		else {
 			// Calculated, never typed.
 			delete out.required;
@@ -336,9 +351,10 @@ const defaultValues = (f: EditableField): string[] =>
 export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields' | 'from' | 'component';
 export type FieldError = { message: string; on: FieldErrorOn };
 
-/** What a formula may use: the model's fields, and which hold numbers. */
-/** A model's number fields, as a link to it offers them to formulas: `tax.amount`. */
-export type LinkedNumbers = (ref?: string) => { key: string; label: string }[] | undefined;
+/** A model's numbers, dates (`date`) and short texts (`text`), as a link to it offers them to formulas: `tax.amount`, `plan.unit`. */
+export type LinkedNumbers = (ref?: string) => { key: string; label: string; date?: boolean; text?: boolean }[] | undefined;
+
+/** What a formula may use: the model's fields, and which hold numbers or dates. */
 
 export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbers): FieldInfo[] =>
 	fields
@@ -350,7 +366,13 @@ export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbe
 			if (f.kind === 'reference')
 				return [
 					{ key: f.key, label: f.label, numeric: false },
-					...(numbersOf?.(f.ref) || []).map(n => ({ key: `${f.key}.${n.key}`, label: `${f.label || f.key} › ${n.label}`, numeric: true, linked: f.key })),
+					...(numbersOf?.(f.ref) || []).map(n => ({
+						key: `${f.key}.${n.key}`,
+						label: `${f.label || f.key} › ${n.label}`,
+						numeric: !n.date && !n.text,
+						...(n.date && { date: true }),
+						linked: f.key,
+					})),
 				];
 			// A list: itself for count(), each row's values for sum() / avg().
 			if (f.kind === 'sectionlist')
@@ -366,7 +388,8 @@ export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbe
 					key: f.key,
 					label: f.label,
 					numeric: numeric(f.kind),
-					...(f.kind === 'formula' && { formula: f.formula }),
+					...(DATE_KINDS.includes(f.kind) && { date: true }),
+					...(isFormulaKind(f.kind) && { formula: f.formula }),
 					// What it can be compared with in a condition.
 					...(f.kind === 'boolean' && { yesNo: true }),
 					...(hasOptions(f) && { options: (f.options || []).filter(o => o.value?.trim()).map(o => ({ value: o.value, label: o.label || o.value })) }),
@@ -376,8 +399,8 @@ export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbe
 
 /**
  * For checking a formula without the linked models at hand: any `link.x` it
- * reads through one of the fields' links counts as a number — the server
- * checks the linked model really has it.
+ * reads through one of the fields' links is let through as any kind — the
+ * server checks the linked model really has it, and what it holds.
  */
 const withLinkedReads = (infos: FieldInfo[], fields: EditableField[], formula: string): FieldInfo[] => {
 	const links = new Set(fields.filter(f => f.kind === 'reference' && f.key).map(f => f.key));
@@ -391,7 +414,7 @@ const withLinkedReads = (infos: FieldInfo[], fields: EditableField[], formula: s
 	const known = new Set(infos.map(i => i.key));
 	const extra = refs
 		.filter(r => !known.has(r) && links.has(r.split('.')[0]) && r.includes('.'))
-		.map(r => ({ key: r, numeric: true, linked: r.split('.')[0] }));
+		.map(r => ({ key: r, numeric: true, any: true, linked: r.split('.')[0] }));
 	return extra.length ? [...infos, ...extra] : infos;
 };
 
@@ -444,9 +467,9 @@ export const validateFields = (
 			const src = fields.find(x => x.key === f.from);
 			if (!src || !UID_SOURCES.includes(src.kind)) return fail(f.uid, 'from', 'Make it from a text field of this model, or let it be typed');
 		}
-		if (f.kind === 'formula') {
+		if (isFormulaKind(f.kind)) {
 			if (!f.formula?.trim()) return fail(f.uid, 'formula', 'Write its formula');
-			const checked = checkFormula(f.formula, withLinkedReads(formulaFieldsOf(fields), fields, f.formula), f.key);
+			const checked = checkFormula(f.formula, withLinkedReads(formulaFieldsOf(fields), fields, f.formula), f.key, f.kind === 'dateformula' ? 'date' : 'number');
 			if (!checked.ok) return fail(f.uid, 'formula', checked.errors.map(e => e.message).join('; '));
 		}
 	});
