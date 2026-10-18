@@ -42,8 +42,8 @@
  *   its milliseconds, so if / comparisons work on dates as they do on
  *   numbers; an empty date stays empty (null), never 1970. Months and years
  *   are calendar ones in UTC — 31 January + 1 month is the end of February,
- *   as MongoDB's $dateAdd has it. A Date formula field (`returns: 'date'`)
- *   works out a date; a number formula can use dates only through
+ *   as MongoDB's $dateAdd has it. A Formula (date) field (input type
+ *   `dateformula`) works out a date; a number formula can use dates only through
  *   daysBetween() or in a comparison.
  *
  * Parsed once, a formula is evaluated in JS for one record (create, update)
@@ -514,8 +514,8 @@ export const checkFormula = (src: string, fields: FieldInfo[], self?: string, re
 		n.args.forEach((a, i) => walk(a, kinds[i] || 'num'));
 	};
 	const result = kindOf(tree);
-	if (returns === 'number' && result === 'date') say('This works out a date — use a Date formula field, or daysBetween(…) for a number of days');
-	else if (returns === 'date' && result !== 'date') say('A date formula works out a date — like addDays(startDate, 30) or a date field');
+	if (returns === 'number' && result === 'date') say('This works out a date — use a Formula (date) field, or daysBetween(…) for a number of days');
+	else if (returns === 'date' && result !== 'date') say('A Formula (date) works out a date — like addDays(startDate, 30) or a date field');
 	else walk(tree, returns === 'date' ? 'date' : 'num');
 
 	// Through other formula fields back to this one.
@@ -779,6 +779,11 @@ export const evaluateValue = (tree: Node, doc: any, linked?: Linked): number | D
 
 /* ---------- a form's formula fields, live ---------- */
 
+/** An input worked out by a formula: a number (`formula`) or a date (`dateformula`) — two types of their own. */
+export const isFormulaType = (type: any) => type === 'formula' || type === 'dateformula';
+/** A Formula (date)'s settings — `dateformula`, or a formula marked `returns: 'date'` as the first build saved it. */
+export const isDateFormulaSchema = (schema: any) => schema?.type === 'dateformula' || (schema?.type === 'formula' && schema?.returns === 'date');
+
 const tryParse = (src: any): Node | null => {
 	if (typeof src !== 'string' || !src.trim()) return null;
 	try {
@@ -797,7 +802,7 @@ const tryParse = (src: any): Node | null => {
  * left alone. `fields` are the form's items: `{ name, type, formula }`, and a
  * list's `section.dataModel` / a section's `dataModel`. `linked`: the numbers
  * read through links (`tax.amount`), as useLinkedFormulaValues fetches them.
- * A Date formula (`returns: 'date'`) works out a Date; one worked out once
+ * A Formula (date) (`dateformula`) works out a Date; one worked out once
  * (`calc: 'once'`) keeps what the record already holds.
  */
 /** Where withFormulaValues leaves the linked values, for a formula input that works its own value out. */
@@ -824,8 +829,8 @@ export const withFormulaValues = (values: any, fields: any[] = [], linked?: Link
 
 	// Then the record's, in the order they depend on each other.
 	const formulas = fields
-		.filter(f => f?.type === 'formula' && f?.name)
-		.map(f => ({ name: f.name as string, tree: tryParse(f.formula), date: f.returns === 'date', once: f.calc === 'once' }))
+		.filter(f => isFormulaType(f?.type) && f?.name)
+		.map(f => ({ name: f.name as string, tree: tryParse(f.formula), date: isDateFormulaSchema(f), once: f.calc === 'once' }))
 		.filter((f): f is { name: string; tree: Node; date: boolean; once: boolean } => !!f.tree);
 	const byName = new Map(formulas.map(f => [f.name, f]));
 	const state = new Map<string, 'visiting' | 'done'>();

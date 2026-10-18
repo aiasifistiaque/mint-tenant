@@ -36,7 +36,7 @@ const opsFor = (kind: string): Op[] => {
 	if (kind === 'owner') return ['is', 'empty', 'filled'];
 	if (kind === 'id') return ['is', 'not', 'in'];
 	if (kind === 'boolean') return ['is', 'not'];
-	if (['number', 'formula', 'date'].includes(kind)) return ['is', 'not', 'gt', 'gte', 'lt', 'lte', 'empty', 'filled'];
+	if (['number', 'formula', 'date', 'dateformula'].includes(kind)) return ['is', 'not', 'gt', 'gte', 'lt', 'lte', 'empty', 'filled'];
 	if (['select', 'reference', 'references'].includes(kind)) return ['is', 'not', 'in', 'empty', 'filled'];
 	return ['is', 'not', 'contains', 'in', 'empty', 'filled'];
 };

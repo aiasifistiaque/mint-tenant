@@ -17,7 +17,7 @@ import FormulaEditor from './FormulaEditor';
  * itself — with the problem pointed at, and a small calculator to try it on
  * sample numbers. The server runs the same checks before it publishes.
  *
- * A Date formula (`returns: 'date'`, docs/date-formulas) works out a date
+ * A Formula (date) (`returns: 'date'`, docs/date-formulas) works out a date
  * — `dueDate = addDays(invoiceDate, 30)` — tried on sample dates, and says
  * when it's worked out: on every save, or once (`calc: 'once'`) and kept.
  */
@@ -109,7 +109,7 @@ const FormulaModal: FC<Props> = ({ isOpen, onClose, onSave, fieldKey, fieldTitle
 								align='center'
 								gap={2}>
 								{isDate ? <CalendarClock size={16} /> : <Calculator size={16} />}
-								{rule ? `Work out ${name}` : `${isDate ? 'Date formula' : 'Formula'} for ${name}`}
+								{rule ? `Work out ${name}` : `${isDate ? 'Formula (date)' : 'Formula (number)'} for ${name}`}
 							</Flex>
 						</AlertDialogHeader>
 						<Dialog.CloseTrigger

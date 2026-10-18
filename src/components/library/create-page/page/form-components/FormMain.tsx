@@ -166,7 +166,7 @@ const FormMain: FC<FormMainType> = ({
 							key={i}>
 							<>
 								<FormInput
-									formData={item?.type === 'formula' ? calculated : formData}
+									formData={item?.type === 'formula' || item?.type === 'dateformula' ? calculated : formData}
 									setFormData={setFormData}
 									setChangedData={setChangedData}
 									isRequired={item?.isRequired || requiredNow(item)}

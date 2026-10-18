@@ -12,7 +12,7 @@ export type Page = { route: string; name: string; title: string; noun: string; f
 
 export const REFERENCE_KINDS = ['reference', 'references'];
 /** Kinds an action can't write (the server refuses them too). */
-const UNWRITABLE = new Set(['formula', 'section', 'sectionlist', 'password']);
+const UNWRITABLE = new Set(['formula', 'dateformula', 'section', 'sectionlist', 'password']);
 
 /** The model builder's definitions as pages. */
 export const pagesOf = (defs: any[] = []): Page[] =>

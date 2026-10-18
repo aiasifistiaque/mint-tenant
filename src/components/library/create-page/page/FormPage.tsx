@@ -125,7 +125,7 @@ const FormPage: FC<FormPageType> = ({
 											options={item?.options}
 											dataModel={item?.dataModel}
 											item={item}
-											formData={item?.type === 'formula' ? calculated : formData}
+											formData={item?.type === 'formula' || item?.type === 'dateformula' ? calculated : formData}
 										/>
 									)}
 								</FormItem>

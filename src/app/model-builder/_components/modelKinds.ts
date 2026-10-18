@@ -58,7 +58,7 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 	{ value: 'number', label: 'Number', hint: 'An amount, a quantity, a price — can have a lowest and highest value', group: 'Values' },
 	{
 		value: 'formula',
-		label: 'Formula',
+		label: 'Formula (number)',
 		hint: 'A number calculated from other number fields — e.g. due = total - paid. Read-only',
 		group: 'Values',
 	},
@@ -66,7 +66,7 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 	{ value: 'date', label: 'Date', hint: 'A day, like a due date or a birthday — the table can filter by it', group: 'Values' },
 	{
 		value: 'dateformula',
-		label: 'Date formula',
+		label: 'Formula (date)',
 		hint: 'A date worked out from other fields — e.g. due = addDays(invoiceDate, 30), or a renewal’s new expiry. Read-only',
 		group: 'Values',
 	},

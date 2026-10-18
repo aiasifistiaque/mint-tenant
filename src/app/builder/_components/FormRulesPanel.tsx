@@ -57,8 +57,8 @@ export const kindOf = (f?: RuleField): Kind => {
 	if (!f) return 'text';
 	if (BOOL_INPUTS.includes(f.input || '') || f.type === 'boolean') return 'bool';
 	if (f.options?.length) return 'choice';
-	// A date formula is checked like a date, not a number.
-	if (f.input === 'formula' && f.type === 'date') return 'text';
+	// A Formula (date) is checked like a date, not a number.
+	if (f.input === 'dateformula' || (f.input === 'formula' && f.type === 'date')) return 'text';
 	if (NUMBER_INPUTS.includes(f.input || '') || f.type === 'number') return 'number';
 	if (RECORD_INPUTS.includes(f.input || '')) return 'record';
 	return 'text';

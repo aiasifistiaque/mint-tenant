@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, CloseButton, Dialog, Flex, IconButton, Input, Portal, SegmentGroup, Text } from '@chakra-ui/react';
 import { Calculator, CalendarClock, Link2, Plus, X } from 'lucide-react';
 import { AlertDialogContent, AlertDialogHeader, ModalFooter, useGetBuilderRouteQuery } from '@/components/library';
@@ -12,7 +12,8 @@ import { SettingsField } from './SettingsEditor';
 import { DocLink, FieldLabel, Toggle } from './ui';
 import { ACTIONS, Assignment, HOW, HowKind, LinkedRule, UNDO, howOf, ruleProblems, ruleSentence, stepIsField, stepOf, withHow } from './linkedRules';
 import FormulaModal from './FormulaModal';
-import { FieldInfo } from '@/components/library/functions/formula';
+import { FieldInfo, isFormulaType } from '@/components/library/functions/formula';
+import { infoOf, isDateField, linkedEntries, settingsOf, singlePickers, titleOf, useLinkFields } from './linkedFields';
 
 /**
  * One Linked Relationship, edited as the sentence it reads as: when this
@@ -46,37 +47,6 @@ const labelOf = (fields: SettingsField[], key: string) => {
 	return f?.schema?.label || f?.title || key;
 };
 
-/** The linked page's settings fields, as it runs now (draft first: that's what the builder shows). */
-const settingsOf = (data: any): SettingsField[] =>
-	(data?.settings?.draft ?? data?.settings?.data)?.fields || data?.code?.settings?.fields || [];
-
-/** A field's own label. */
-const titleOf = (f: SettingsField) => f?.schema?.label || f?.title || f?.key;
-const isDateField = (f?: SettingsField) => !!f && (f.type === 'date' || f.type === 'date-only' || f.schema?.returns === 'date');
-const isNumberField = (f?: SettingsField) => !!f && !isDateField(f) && (f.type === 'number' || f.schema?.type === 'formula');
-/** What a formula may know of a settings field, under `key`. */
-const infoOf = (f: SettingsField, key: string, label: string, linked?: string): FieldInfo => {
-	const options = Array.isArray(f.schema?.options) ? f.schema.options.map((o: any) => ({ value: o?.value ?? o, label: o?.label ?? o?.value ?? o })) : [];
-	return {
-		key,
-		label,
-		numeric: isNumberField(f),
-		...(isDateField(f) && { date: true }),
-		...(f.type === 'boolean' && { yesNo: true }),
-		...(options.length && { options }),
-		...(linked && { linked }),
-	};
-};
-
-/** One record picker's page, fetched while the dialog is open: what Copy from and Work out can read through it. */
-const LinkFields: FC<{ link: string; route: string; onFields: (link: string, fields: SettingsField[]) => void }> = ({ link, route, onFields }) => {
-	const { data } = useGetBuilderRouteQuery(route);
-	useEffect(() => {
-		if (data) onFields(link, settingsOf(data));
-	}, [data, link, onFields]);
-	return null;
-};
-
 const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, fields, modelFields }) => {
 	const [r, setR] = useState<LinkedRule>(rule);
 	useEffect(() => {
@@ -96,16 +66,12 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 	const targetTitle: string =
 		(target?.config?.draft ?? target?.config?.data ?? target?.code?.config)?.route?.title || via?.schema?.label || via?.title || targetRoute || 'record';
 	// What a rule may set: editable there, not worked out by itself.
-	const settable = targetFields.filter(f => f.edit && f.schema?.type !== 'formula' && !f.rollup);
+	const settable = targetFields.filter(f => f.edit && !isFormulaType(f.schema?.type) && !f.rollup);
 	const numbersHere = fields.filter(f => f.type === 'number');
 	// The fields of the records this one picks (Plan › Price), by link.
-	const [linkFields, setLinkFields] = useState<Record<string, SettingsField[]>>({});
-	const onLinkFields = useCallback((link: string, f: SettingsField[]) => setLinkFields(x => (x[link] === f ? x : { ...x, [link]: f })), []);
-	const throughLinks = pickers.flatMap(p =>
-		(linkFields[p.key] || [])
-			.filter(lf => !['_id', 'createdAt', 'updatedAt'].includes(lf.key) && !lf.rollup)
-			.map(lf => ({ key: `${p.key}.${lf.key}`, label: `${labelOf(fields, p.key)} › ${titleOf(lf)}`, f: lf, link: p.key }))
-	);
+	const reads = useMemo(() => singlePickers(fields), [fields]);
+	const { byLink: linkFields, loaders } = useLinkFields(reads, open);
+	const throughLinks = linkedEntries(reads, linkFields, k => labelOf(fields, k));
 	// What Work out can read: this record, the records it picks, the linked record as it is.
 	const formulaInfo: FieldInfo[] = useMemo(
 		() => [
@@ -647,15 +613,7 @@ const LinkedRuleDialog: FC<Props> = ({ open, onClose, onSave, rule, title, field
 					</AlertDialogContent>
 				</Dialog.Positioner>
 			</Portal>
-			{open &&
-				pickers.map(p => (
-					<LinkFields
-						key={p.key}
-						link={p.key}
-						route={p.schema.model}
-						onFields={onLinkFields}
-					/>
-				))}
+			{loaders}
 			<FormulaModal
 				isOpen={!!formulaAssignment}
 				onClose={() => setFormulaRow(null)}

@@ -189,6 +189,7 @@ export const exampleOf = (f: ApiField): any => {
 		case 'boolean':
 			return true;
 		case 'date':
+		case 'dateformula':
 			return '2026-10-02';
 		case 'color':
 			return '#2563eb';

@@ -30,6 +30,7 @@ import {
 	ToggleRight,
 	Type,
 	Video,
+	CalendarClock,
 } from 'lucide-react';
 import { ToneIcon } from './areas';
 import { INPUTS } from './inputTypes';
@@ -53,6 +54,7 @@ const INPUT_ICON: Record<string, LucideIcon> = {
 	'view-only': Eye,
 	number: Hash,
 	formula: Calculator,
+	dateformula: CalendarClock,
 	slider: SlidersHorizontal,
 	checkbox: ToggleRight,
 	switch: ToggleRight,
@@ -141,8 +143,8 @@ export const DATA_TYPE_LABEL: Record<string, string> = {
 	object: 'Group of values',
 	mixed: 'Anything (not checked)',
 	profit: 'Profit',
-	formula: 'Calculated (formula)',
-	dateformula: 'Calculated date (date formula)',
+	formula: 'Formula (number)',
+	dateformula: 'Formula (date)',
 };
 
 /**

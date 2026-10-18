@@ -211,7 +211,7 @@ const PresetsInput: FC<{ item: MenuItem; fields: TableField[]; recordName: strin
 	set,
 }) => {
 	const { data: target, isFetching } = useGetBuilderRouteQuery(item.route as string, { skip: !item.route });
-	const targetFields = useMemo(() => settingsOf(target).filter(f => f.schema?.type !== 'formula' && !f.rollup), [target]);
+	const targetFields = useMemo(() => settingsOf(target).filter(f => f.schema?.type !== 'formula' && f.schema?.type !== 'dateformula' && !f.rollup), [target]);
 	const presets: Preset[] = Array.isArray(item.presets) ? item.presets : [];
 	const setPresets = (next: Preset[]) => set({ presets: next.length ? next : undefined });
 	const setOne = (i: number, patch: Partial<Preset>) => setPresets(presets.map((p, j) => (j === i ? { ...p, ...patch } : p)));

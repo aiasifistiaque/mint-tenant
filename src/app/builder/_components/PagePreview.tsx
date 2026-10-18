@@ -189,7 +189,7 @@ const Control: FC<{ f?: TableField; value?: any }> = ({ f, value }) => {
 				</Flex>
 			</Fake>
 		);
-	if (input === 'formula' || input === 'read-only' || input === 'view-only')
+	if (input === 'formula' || input === 'dateformula' || input === 'read-only' || input === 'view-only')
 		return (
 			<Fake muted>
 				<Text>{text || 'Worked out for you'}</Text>

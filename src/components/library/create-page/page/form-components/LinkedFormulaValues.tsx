@@ -19,7 +19,7 @@ const linkedReadsOf = (fields: any[] = []): Read[] => {
 	if (!links.size) return [];
 	const out = new Map<string, Read>();
 	for (const f of fields) {
-		if (f?.type !== 'formula' || typeof f.formula !== 'string') continue;
+		if ((f?.type !== 'formula' && f?.type !== 'dateformula') || typeof f.formula !== 'string') continue;
 		let refs: Set<string>;
 		try {
 			refs = refsOf(parse(f.formula));

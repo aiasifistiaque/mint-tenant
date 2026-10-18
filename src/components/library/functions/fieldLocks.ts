@@ -163,7 +163,7 @@ const PLAIN = new Set([
 	'data-select', 'tag', 'data-tag', 'checkbox', 'switch', 'boolean', 'color', 'slug', 'array-string',
 ]);
 /** Already shown muted on their own. */
-const SHOWN_MUTED = new Set(['formula', 'rollup', 'read-only', 'locked', 'view-only']);
+const SHOWN_MUTED = new Set(['formula', 'dateformula', 'rollup', 'read-only', 'locked', 'view-only']);
 
 /**
  * The edit form's fields for this record: what it can't change shows muted,

@@ -17,7 +17,7 @@ import { FieldInfo, Node, format, parse } from '@/components/library/functions/f
  * "Type it yourself" unlocks it to plain text, where the same buttons put
  * their piece in at the cursor; "Back to buttons" reads the text back.
  *
- * A Date formula (`returns: 'date'`, docs/date-formulas) gets a row of date
+ * A Formula (date) (`returns: 'date'`, docs/date-formulas) gets a row of date
  * buttons — Today, Add days / weeks / months / years, Add (a unit from a
  * field), Latest, Earliest — and a number formula gets Days between when the
  * fields hold dates.
@@ -861,7 +861,7 @@ const FormulaEditor: FC<Props> = ({ initial, onText, fields, self, invalid, retu
 							<Text
 								fontSize='xs'
 								color='fg.muted'>
-								A date itself needs a Date formula field.
+								A date itself needs a Formula (date) field.
 							</Text>
 						)}
 					</Row>

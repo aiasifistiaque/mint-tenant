@@ -36,7 +36,7 @@ const OPTIONAL_FIELD_PROPS = [
 	'style',
 	'renderIf',
 	'formula',
-	// A Date formula: works out a date (`returns: 'date'`), maybe once (`calc: 'once'`) — docs/date-formulas.
+	// A Formula (date): worked out once (`calc: 'once'`) or on every save; `returns: 'date'` as the first build saved it.
 	'returns',
 	'calc',
 	'folder',
