@@ -73,6 +73,8 @@ export type TenantProject = {
 	type: ProjectType;
 	description?: string;
 	icon?: string;
+	/** The project's own logo (its business details), from the list only; empty when it has none. */
+	logo?: string;
 	color?: string;
 	domains?: string[];
 	mediaScope?: MediaScope;

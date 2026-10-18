@@ -435,13 +435,29 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 				p={4}
 				textAlign='left'
 				cursor={archived ? 'default' : 'pointer'}>
-				<Center
-					{...GLYPH}
-					boxSize='36px'
-					borderRadius='10px'
-					color={TONES[KIND_TONE[project.type] || 'emerald'].fg}>
-					{(KIND[project.type] || KIND.app).icon}
-				</Center>
+				{project.logo ? (
+					<Center
+						boxSize='36px'
+						borderRadius='10px'
+						borderWidth='1px'
+						borderColor='border'
+						bg='white'
+						overflow='hidden'>
+						<img
+							src={project.logo}
+							alt=''
+							style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+						/>
+					</Center>
+				) : (
+					<Center
+						{...GLYPH}
+						boxSize='36px'
+						borderRadius='10px'
+						color={TONES[KIND_TONE[project.type] || 'emerald'].fg}>
+						{(KIND[project.type] || KIND.app).icon}
+					</Center>
+				)}
 				<Box minW={0}>
 					<Text
 						fontSize='14px'
@@ -554,13 +570,15 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 	const { organization, project, can, role } = useWorkspace();
 	const [showArchived, setShowArchived] = useState(false);
+	const [kind, setKind] = useState<'all' | ProjectType>('all');
 	const { data, isLoading } = useGetProjectsQuery({ archived: showArchived });
 	const [creating, setCreating] = useState(false);
 	const [createType, setCreateType] = useState<ProjectType>('app');
-	const projects = data?.doc || [];
+	const all = data?.doc || [];
+	const projects = kind === 'all' ? all : all.filter(p => p.type === kind);
 	const canCreate = can('create-projects');
 	// Home, before the organization's first project: the first steps take the page (FirstSteps).
-	const firstRun = welcome && !isLoading && !showArchived && !projects.length && canCreate;
+	const firstRun = welcome && !isLoading && !showArchived && !all.length && canCreate;
 	const create = (type: ProjectType = 'app') => {
 		setCreateType(type);
 		setCreating(true);
@@ -573,7 +591,7 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 			pt={2}>
 			{welcome && !isLoading && (
 				<FirstSteps
-					projects={projects}
+					projects={all}
 					onCreate={create}
 				/>
 			)}
@@ -617,6 +635,22 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 							)}
 						</Flex>
 					}>
+					{all.length > 1 && (
+						<SegmentGroup.Root
+							size='sm'
+							mb={3}
+							value={kind}
+							onValueChange={d => setKind((d.value as any) || 'all')}
+							w='fit-content'>
+							<SegmentGroup.Indicator />
+							<SegmentGroup.Items
+								items={[
+									{ value: 'all', label: `All (${all.length})` },
+									...TYPES.map(t => ({ value: t.value, label: `${t.title} (${all.filter(p => p.type === t.value).length})` })),
+								]}
+							/>
+						</SegmentGroup.Root>
+					)}
 					{isLoading ? (
 						<Grid
 							templateColumns='repeat(auto-fill, minmax(240px, 1fr))'
