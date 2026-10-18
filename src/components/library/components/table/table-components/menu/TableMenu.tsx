@@ -3,6 +3,7 @@ import { Menu } from '@chakra-ui/react';
 import {
 	ArrowUpRight,
 	FileDown,
+	FilePenLine,
 	FileText,
 	Copy,
 	Eye,
@@ -33,11 +34,11 @@ import {
 	ViewServerModal,
 	useGetConfigQuery,
 } from '../../../..';
-import { pagePath, projectHref } from '../../../../config/lib/constants/panel';
+import { pagePath, projectHref, writePath } from '../../../../config/lib/constants/panel';
 import { meets } from '../../../../functions/fieldLocks';
 import AddRelatedDialog from './AddRelatedDialog';
 import { useDownloadPdf } from '../../../../pdf/DownloadPdf';
-import { useDownloadDocx } from '../../../../utils/DownloadDocx';
+import { DownloadFormatDialog, RichFormat, useDownloadRichText } from '../../../../utils/DownloadRichText';
 import { useGetPdfTemplatesQuery } from '../../../../store/services/pdfTemplatesApi';
 
 type TableMenuProps = {
@@ -103,6 +104,8 @@ const iconFor = (item: any) => {
 			return <FileDown {...ICON} />;
 		case 'download-docx':
 			return <FileText {...ICON} />;
+		case 'open-editor':
+			return <FilePenLine {...ICON} />;
 		case 'delete':
 			return <Trash2 {...ICON} />;
 		case 'link':
@@ -154,8 +157,9 @@ const TableMenu: FC<TableMenuProps> = ({
 	const closeActive = () => setActiveIndex(null);
 	// Route builder → Row menu → "Download PDF" (docs/pdf-templates): straight to a file.
 	const { download: downloadPdf } = useDownloadPdf();
-	// Row menu → "Download DOCX": one rich-text field of the row as a Word file.
-	const { download: downloadDocx } = useDownloadDocx();
+	// Row menu → "Download document": one rich-text field of the row as Word, PDF,
+	// Markdown or text — the item's format, or a dialog to pick one.
+	const { download: downloadRich } = useDownloadRichText();
 	// Only published templates download (PT-33): an item for a draft — or, with none named, on a
 	// page with no published one — isn't offered. Asked once the menu opens; cached per page.
 	const needsPdf = data?.some((item: any) => item?.type === 'download-pdf');
@@ -207,7 +211,16 @@ const TableMenu: FC<TableMenuProps> = ({
 				return (
 					<MenuItem
 						key={i}
-						onClick={() => downloadDocx(path, id, item.field)}>
+						onClick={() => (item.format ? downloadRich(path, id, item.field, item.format as RichFormat) : setActiveIndex(i))}>
+						{item?.title}
+					</MenuItem>
+				);
+			case 'open-editor':
+				if (!item?.field) return null;
+				return (
+					<MenuItem
+						key={i}
+						href={writePath(path, id, item.field)}>
 						{item?.title}
 					</MenuItem>
 				);
@@ -311,6 +324,16 @@ const TableMenu: FC<TableMenuProps> = ({
 		};
 
 		switch (item.type) {
+			case 'download-docx':
+				return (
+					<DownloadFormatDialog
+						route={path}
+						id={id}
+						field={item.field}
+						label={String(item.field || '').replace(/[-_]+/g, ' ').replace(/^./, (c: string) => c.toUpperCase())}
+						onClose={closeActive}
+					/>
+				);
 			case 'add-related':
 				return (
 					<AddRelatedDialog

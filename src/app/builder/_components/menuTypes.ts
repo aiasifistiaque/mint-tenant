@@ -20,7 +20,8 @@ export type ParamKind =
 	| 'fieldValue' // a value for the item's `key` field: its options, yes/no, or typed
 	| 'presets' //    add-related: the target's fields filled from this row
 	| 'pdfTemplate' // one of this page's PDF templates (empty: the default)
-	| 'richField'; //  one of this page's rich-text (editor) fields
+	| 'richField' //   one of this page's rich-text (editor) fields
+	| 'docFormat'; //  Word, PDF, Markdown or text — or ask each time
 
 export type Param = { name: string; label: string; kind: ParamKind; hint?: string; required?: boolean };
 
@@ -85,10 +86,20 @@ export const ROW_MENU_TYPES: MenuType[] = [
 		params: [{ name: 'template', label: 'Template', kind: 'pdfTemplate', hint: 'Empty: the page’s default template' }],
 	},
 	{
+		value: 'open-editor',
+		label: 'Open in editor',
+		hint: 'Opens one rich-text field of the record on a full page, like a document — Save writes only that field; Export downloads it',
+		params: [{ name: 'field', label: 'Field', kind: 'richField', required: true, hint: 'Which rich-text field the editor opens' }],
+	},
+	{
+		// The type keeps its first name so items saved before PDF, Markdown and text still work.
 		value: 'download-docx',
-		label: 'Download DOCX',
-		hint: 'Downloads one rich-text field of the record as a Word file — a blog post’s body',
-		params: [{ name: 'field', label: 'Field', kind: 'richField', required: true, hint: 'Which rich-text field goes in the file' }],
+		label: 'Download document',
+		hint: 'Downloads one rich-text field of the record — a blog post’s body — as Word, PDF, Markdown or plain text',
+		params: [
+			{ name: 'field', label: 'Field', kind: 'richField', required: true, hint: 'Which rich-text field goes in the file' },
+			{ name: 'format', label: 'Format', kind: 'docFormat', hint: 'Ask each time: the person picks Word, PDF, Markdown or text' },
+		],
 	},
 	{
 		value: 'update-api',

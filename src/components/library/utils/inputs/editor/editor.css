@@ -198,3 +198,76 @@
 .mint-editor.is-readonly .ql-toolbar {
 	display: none;
 }
+
+/* The full-page document editor (utils/RichTextEditorPage): the toolbar
+ * stays at the top while the page scrolls, over a sheet of paper in the
+ * panel's surface colour. */
+.mint-editor.mint-editor--doc,
+.mint-editor.mint-editor--doc:hover,
+.mint-editor.mint-editor--doc:focus-within {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+.mint-editor--doc .ql-toolbar.ql-snow {
+	top: var(--doc-toolbar-top, 0px);
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	row-gap: 4px;
+	width: 100%;
+	max-width: 840px;
+	margin: 0 auto 16px;
+	border: 1px solid var(--chakra-colors-border);
+	border-radius: 12px;
+	background: var(--chakra-colors-bg-panel);
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+.mint-editor--doc .ql-toolbar.ql-snow .ql-formats {
+	margin-right: 6px;
+	margin-left: 6px;
+}
+.mint-editor--doc .ql-container.ql-snow {
+	width: 100%;
+	max-width: 840px;
+	margin: 0 auto;
+	border: 1px solid var(--chakra-colors-border);
+	border-radius: 12px;
+	background: var(--chakra-colors-bg-panel);
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+	font-size: 16px;
+}
+.mint-editor--doc .ql-editor {
+	min-height: calc(100vh - 260px);
+	max-height: none;
+	overflow-y: visible;
+	padding: 56px 72px 72px;
+	line-height: 1.7;
+}
+.mint-editor--doc .ql-editor.ql-blank::before {
+	left: 72px;
+	right: 72px;
+}
+.mint-editor--doc .ql-editor h2 {
+	font-size: 1.75em;
+}
+.mint-editor--doc .ql-editor h3 {
+	font-size: 1.4em;
+}
+.mint-editor--doc .ql-editor h4 {
+	font-size: 1.15em;
+}
+.mint-editor--doc .ql-editor :is(h2, h3, h4) {
+	font-weight: 600;
+	margin: 1em 0 0.35em;
+}
+@media (max-width: 640px) {
+	.mint-editor--doc .ql-editor {
+		padding: 24px 18px 40px;
+	}
+	.mint-editor--doc .ql-editor.ql-blank::before {
+		left: 18px;
+		right: 18px;
+	}
+}

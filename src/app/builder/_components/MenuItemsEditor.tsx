@@ -467,7 +467,7 @@ const ParamInput: FC<{
 				</Select>
 			);
 		case 'richField': {
-			// Download DOCX: only the page's rich-text fields can go in a Word file.
+			// Download document / Open in editor: only the page's rich-text fields.
 			const rich = fields.filter(f => f.input === 'editor' || f.input === 'basic-editor');
 			if (!rich.length)
 				return (
@@ -492,6 +492,19 @@ const ParamInput: FC<{
 				</Select>
 			);
 		}
+		case 'docFormat':
+			// Empty: the person downloading picks the format each time.
+			return (
+				<Select
+					value={value || 'ask'}
+					onChange={v => set({ [param.name]: v === 'ask' ? undefined : v })}>
+					<option value='ask'>Ask each time</option>
+					<option value='docx'>Word (.docx)</option>
+					<option value='pdf'>PDF (.pdf)</option>
+					<option value='md'>Markdown (.md)</option>
+					<option value='txt'>Plain text (.txt)</option>
+				</Select>
+			);
 		case 'keyType':
 			return (
 				<Select

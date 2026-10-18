@@ -12,7 +12,8 @@ import { viewFieldsByKey } from './sections';
 import { cellNode } from './cells';
 import CopyDetails, { DetailLine, detailLine } from './CopyDetails';
 import { pagePath, projectHref } from '../../../config/lib/constants/panel';
-import { DownloadDocxButton } from '../../../utils/DownloadDocx';
+import { DownloadRichTextMenu } from '../../../utils/DownloadRichText';
+import OpenEditorButton from '../../../utils/OpenEditorButton';
 
 /**
  * A record laid out by its route's `view` config — the sections, titles and
@@ -85,14 +86,24 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 								<Panel
 									key={`b-${ii}`}
 									title={field.title}
-									// A rich-text field (a blog post's body) downloads as a Word file.
+									// A rich-text field (a blog post's body) opens in the full-page
+									// editor, and downloads as Word, PDF, Markdown or text.
 									actions={
-										field.type === 'editor' && doc?._id && valueOf(field) ? (
-											<DownloadDocxButton
-												route={slug}
-												id={doc._id}
-												field={field.dataKey}
-											/>
+										field.type === 'editor' && doc?._id ? (
+											<>
+												<OpenEditorButton
+													route={slug}
+													id={doc._id}
+													field={field.dataKey}
+												/>
+												{valueOf(field) && (
+													<DownloadRichTextMenu
+														route={slug}
+														id={doc._id}
+														field={field.dataKey}
+													/>
+												)}
+											</>
 										) : undefined
 									}>
 									<ViewRow

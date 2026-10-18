@@ -39,7 +39,7 @@ export const API_ORIGIN = BACKEND.replace(/\/(tenant|admin)\/api\/?$/, '');
 export const PROJECT_PAGES = new Set([
 	'dashboard', 't', 'view', 'model-builder', 'builder', 'sidebar-builder', 'dashboard-builder', 'images', 'public-api',
 	'analytics', 'site-setup', 'get-started', 'activity', 'webhooks', 'widgets', 'site-payments', 'site-builder',
-	'pdf-templates', 'project-settings', 'project-people', 'automations', 'email-accounts', 'components', 'content',
+	'pdf-templates', 'project-settings', 'project-people', 'automations', 'email-accounts', 'components', 'content', 'write',
 ]);
 
 // Every top-level page folder (next.config.mjs); any other first segment is a project.
@@ -162,6 +162,13 @@ export const createPath = (route = ''): string => {
 	const r = String(route).replace(/^\/+/, '');
 	return IS_TENANT_PANEL ? projectHref(`/t/${r}/create`) : `/${r}/create`;
 };
+
+/**
+ * A record's rich-text field in the full-page editor (RichTextEditorPage):
+ * /write/<route>/<id>/<field>, in a project /<project>/write/<route>/<id>/<field>.
+ */
+export const writePath = (route = '', id = '', field = ''): string =>
+	projectHref(`/write/${String(route).replace(/^\/+/, '')}/${id}/${encodeURIComponent(field)}`);
 
 /**
  * Where a table's add button set to open a page goes. The route builder saves
