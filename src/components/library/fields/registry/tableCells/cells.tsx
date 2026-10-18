@@ -12,6 +12,7 @@ import CustomTd from '@/components/library/components/table/table-components/dat
 import Align from '@/components/library/containers/AlignCenter';
 import Price from '@/components/library/utils/texts/Price';
 import SecretValue from '@/components/library/cl/SecretValue';
+import { sanitizeRichText } from '@/components/library/utils/richText';
 
 const dateCss: any = { fontSize: { base: '1rem', md: '.8rem' } };
 const badgeCss: BadgeProps = { fontSize: '12px', size: 'xs' };
@@ -134,6 +135,23 @@ export const PasswordCell = ({ children, ...props }: any) => (
 );
 
 export const TextCell = ({ children, ...props }: any) => <CustomTd {...props}>{children}</CustomTd>;
+
+const ENTITY: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
+
+/** A rich-text value's words, one line: block ends become spaces, entities decoded. */
+const richTextWords = (value: any): string =>
+	sanitizeRichText(value)
+		.replace(/<\/?(p|h[2-4]|li|ul|ol|pre|blockquote)\b[^>]*>|<br>|<hr>/g, ' ')
+		.replace(/<[^>]*>/g, '')
+		.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e) => ENTITY[e])
+		.replace(/\s+/g, ' ')
+		.trim();
+
+/** An `editor` / `basic-editor` column: the words, not the HTML, clipped. */
+export const RichTextCell = ({ children, ...props }: any) => {
+	const words = richTextWords(children);
+	return <CustomTd {...props}>{words ? (words.length > 140 ? `${words.slice(0, 140).trimEnd()}…` : words) : '--'}</CustomTd>;
+};
 
 const INVITATION_STATUS_COLOR: Record<string, string> = {
 	pending: 'orange',

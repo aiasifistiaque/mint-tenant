@@ -17,6 +17,7 @@ import {
 	DataArrayCountCell,
 	InvitationStatusCell,
 	PasswordCell,
+	RichTextCell,
 } from './cells';
 import HistoryCell from './HistoryCell';
 
@@ -56,5 +57,7 @@ export const CELLS_WITH_DOC = new Set(['history']);
 export const getTableCell = (type: TableTypeId | string | undefined) => {
 	if (type === 'invitation-status') return InvitationStatusCell;
 	if (type === 'history') return HistoryCell;
+	// Rich text shows its words — the raw HTML read as `<p>…` tags in a text cell.
+	if (type === 'editor' || type === 'basic-editor') return RichTextCell;
 	return (type && TABLE_CELLS[type as TableTypeId]) || TextCell;
 };

@@ -1,10 +1,12 @@
 'use client';
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import 'react-quill-new/dist/quill.snow.css';
+import './editor/editor.css';
 import { FormControl } from './input-components';
 import ImageUploader from '../../modals/upload-modal/ImageUploader';
 import { useDisclosure } from '@chakra-ui/react';
+import { BASIC_FORMATS, BASIC_TOOLBAR, FULL_FORMATS, FULL_TOOLBAR, editorHtml } from './editor/quill';
 
 const QuillNoSSRWrapper = dynamic(
 	async () => {
@@ -21,13 +23,22 @@ const QuillNoSSRWrapper = dynamic(
 	},
 	{
 		ssr: false,
-		loading: () => <p>Loading ...</p>,
+		loading: () => <div style={{ height: 200 }} />,
 	}
 );
 
-const QuillEditor = ({ value, onChange, name, isRequired, label, helper }: any) => {
+/**
+ * The `editor` and `basic-editor` field input (Quill). It saves clean HTML
+ * (editor/quill.ts) a site can show. Quill keeps its own markup inside, so it
+ * runs uncontrolled while typing: a value from outside (the record loading,
+ * a reset) remounts it.
+ */
+const QuillEditor = ({ value, onChange, name, isRequired, label, helper, type, readOnly }: any) => {
+	// FormInput passes the field's own type ('basic-editor') after the descriptor's 'basic'.
+	const basic = type === 'basic' || type === 'basic-editor';
 	// Register quill-resize-image module for React 19 compatibility
 	useEffect(() => {
+		if (basic) return;
 		const registerImageResize = async () => {
 			if (typeof window !== 'undefined') {
 				try {
@@ -45,47 +56,45 @@ const QuillEditor = ({ value, onChange, name, isRequired, label, helper }: any) 
 		};
 
 		registerImageResize();
-	}, []);
+	}, [basic]);
 
 	const quillRef = useRef(null);
 	const { onOpen, open: isOpen, onClose } = useDisclosure();
 
+	// What this editor last sent; any other value came from outside.
+	const emitted = useRef<string>(value || '');
+	const [mount, setMount] = useState(0);
+	useEffect(() => {
+		if ((value || '') !== emitted.current) {
+			emitted.current = value || '';
+			setMount(m => m + 1);
+		}
+	}, [value]);
+
 	const handleImage = (image: string) => {
 		const quillObj: any = (quillRef as any)?.current?.getEditor();
-		if (!quillObj) console.log('Quill Object Not Found');
-		const range = quillObj.getSelection() || { index: 0 };
-		quillObj.insertEmbed(range.index, 'image', image);
+		if (!quillObj) return;
+		const range = quillObj.getSelection() || { index: quillObj.getLength() };
+		quillObj.insertEmbed(range.index, 'image', image, 'user');
 		quillObj.setSelection(range.index + 1);
 	};
 
 	const modules = useMemo(
-		() => ({
-			resize: {
-				locale: {},
-			},
-			toolbar: {
-				clipboard: {
-					// toggle to add extra line breaks when pasting HTML:
-					matchVisual: false,
-				},
-				container: [
-					[{ header: [1, 2, 3, 4, 5, 6, false] }],
-					['bold', 'italic', 'underline', 'strike'],
-					// [{ font: [] }],
-					[{ align: [] }],
-					[{ script: 'sub' }, { script: 'super' }],
-					[{ color: [] }, { background: [] }], // dropdown with defaults from theme
-					['blockquote', 'code-block'],
-					['clean'],
-					[{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
-					['image', 'link'],
-				],
-				handlers: {
-					image: onOpen,
-				},
-			},
-		}),
-		[]
+		() =>
+			basic
+				? { toolbar: { container: BASIC_TOOLBAR } }
+				: {
+						resize: {
+							locale: {},
+						},
+						toolbar: {
+							container: FULL_TOOLBAR,
+							handlers: {
+								image: onOpen,
+							},
+						},
+					},
+		[basic]
 	);
 
 	return (
@@ -94,58 +103,36 @@ const QuillEditor = ({ value, onChange, name, isRequired, label, helper }: any) 
 				isRequired={isRequired}
 				label={label}
 				helper={helper}>
-				<ImageUploader
-					handleImage={handleImage}
-					isOpen={isOpen}
-					onClose={onClose}
-					onOpen={onOpen}
-				/>
+				{!basic && (
+					<ImageUploader
+						handleImage={handleImage}
+						isOpen={isOpen}
+						onClose={onClose}
+						onOpen={onOpen}
+					/>
+				)}
 				<QuillNoSSRWrapper
+					key={mount}
 					forwardedRef={quillRef}
 					theme='snow'
-					style={{
-						backgroundColor: 'white',
-						minHeight: '600px',
-						height: '600px',
-						marginBottom: '50px',
-					}}
+					className={`mint-editor${basic ? ' mint-editor--basic' : ''}${readOnly ? ' is-readonly' : ''}`}
+					readOnly={readOnly}
 					modules={modules}
-					formats={formats}
-					value={value}
-					onChange={(content: any, delta: any, source: any, editor: any) => {
-						// Assuming you want to capture the HTML content and pass it along with a name
-						const htmlContent = editor.getHTML(); // or editor.getText() for plain text
-						// Construct an event-like object or directly use the content as needed
-						const customEvent = {
-							target: {
-								name: name,
-								value: htmlContent,
-							},
-						};
-						onChange(customEvent);
+					formats={basic ? BASIC_FORMATS : FULL_FORMATS}
+					defaultValue={emitted.current}
+					onChange={(_html: string, _delta: any, source: string, editor: any) => {
+						// Only typing and the toolbar: Quill also reports loading a value
+						// (source 'api'), which would mark an untouched record as changed.
+						if (source !== 'user') return;
+						const html = editorHtml(editor);
+						if (html === emitted.current) return;
+						emitted.current = html;
+						onChange({ target: { name, value: html } });
 					}}
 				/>
 			</FormControl>
 		</>
 	);
 };
-
-const formats = [
-	'header',
-	'bold',
-	'italic',
-	'underline',
-	'strike',
-	'align',
-	'script',
-	'color',
-	'background',
-	'blockquote',
-	'code-block',
-	'list',
-	'indent',
-	'image',
-	'link',
-];
 
 export default QuillEditor;

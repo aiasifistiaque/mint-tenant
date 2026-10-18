@@ -12,6 +12,7 @@ import { labelOf } from '../record-link/linked';
 import { SectionObject, SectionRows } from './SectionValues';
 import SecretValue from '../../../../cl/SecretValue';
 import DocumentTiles from './DocumentTiles';
+import RichTextValue from './RichTextValue';
 
 const textCss: TextProps & LinkProps = {
 	fontSize: '.95rem',
@@ -399,9 +400,8 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 				</Text>
 			);
 		case 'editor':
-			return <div dangerouslySetInnerHTML={{ __html: children }} />;
 		case 'basic-editor':
-			return <div dangerouslySetInnerHTML={{ __html: children }} />;
+			return <RichTextValue value={children} />;
 		// WO-15: the remaining declared-but-unhandled ViewDataTypes.
 		case 'price':
 			return children === undefined || children === null || children === '' ? (

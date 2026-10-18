@@ -1,10 +1,12 @@
 'use client';
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Box, Text } from '@chakra-ui/react';
 import ImageUploader from '../../../modals/upload-modal/ImageUploader';
 import { useDisclosure } from '@chakra-ui/react';
+import '../editor/editor.css';
 import './style.css';
+import { FULL_FORMATS, FULL_TOOLBAR, editorHtml } from '../editor/quill';
 
 const QuillNoSSRWrapper = dynamic(
 	async () => {
@@ -50,11 +52,22 @@ const FullEditor = ({ value, onChange, name, isRequired, label, helper }: any) =
 	const quillRef = useRef(null);
 	const { onOpen, open: isOpen, onClose } = useDisclosure();
 
+	// Uncontrolled while typing (it saves clean HTML, not what Quill holds);
+	// a value from outside — the record loading — remounts it.
+	const emitted = useRef<string>(value || '');
+	const [mount, setMount] = useState(0);
+	useEffect(() => {
+		if ((value || '') !== emitted.current) {
+			emitted.current = value || '';
+			setMount(m => m + 1);
+		}
+	}, [value]);
+
 	const handleImage = (image: string) => {
 		const quillObj: any = (quillRef as any)?.current?.getEditor();
-		if (!quillObj) console.log('Quill Object Not Found');
-		const range = quillObj.getSelection() || { index: 0 };
-		quillObj.insertEmbed(range.index, 'image', image);
+		if (!quillObj) return;
+		const range = quillObj.getSelection() || { index: quillObj.getLength() };
+		quillObj.insertEmbed(range.index, 'image', image, 'user');
 		quillObj.setSelection(range.index + 1);
 	};
 
@@ -64,22 +77,7 @@ const FullEditor = ({ value, onChange, name, isRequired, label, helper }: any) =
 				locale: {},
 			},
 			toolbar: {
-				clipboard: {
-					// toggle to add extra line breaks when pasting HTML:
-					matchVisual: false,
-				},
-				container: [
-					[{ header: [1, 2, 3, 4, 5, 6, false] }],
-					['bold', 'italic', 'underline', 'strike'],
-					// [{ font: [] }],
-					[{ align: [] }],
-					// [{ script: 'sub' }, { script: 'super' }],
-					// [{ color: [] }, { background: [] }], // dropdown with defaults from theme
-					['blockquote', 'code-block'],
-					// ['clean'],
-					[{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
-					['image', 'link'],
-				],
+				container: FULL_TOOLBAR,
 				handlers: {
 					image: onOpen,
 				},
@@ -122,6 +120,7 @@ const FullEditor = ({ value, onChange, name, isRequired, label, helper }: any) =
 					onOpen={onOpen}
 				/>
 				<QuillNoSSRWrapper
+					key={mount}
 					forwardedRef={quillRef}
 					theme='snow'
 					className='custom-quill-editor'
@@ -131,40 +130,21 @@ const FullEditor = ({ value, onChange, name, isRequired, label, helper }: any) =
 						marginBottom: '20px',
 					}}
 					modules={modules}
-					formats={formats}
-					value={value}
-					onChange={(content: any, delta: any, source: any, editor: any) => {
-						const htmlContent = editor.getHTML();
-						const customEvent = {
-							target: {
-								name: name,
-								value: htmlContent,
-							},
-						};
-						onChange(customEvent);
+					formats={FULL_FORMATS}
+					defaultValue={emitted.current}
+					onChange={(_html: string, _delta: any, source: string, editor: any) => {
+						// Only typing and the toolbar: Quill also reports loading a value
+						// (source 'api'), which would mark an untouched record as changed.
+						if (source !== 'user') return;
+						const html = editorHtml(editor);
+						if (html === emitted.current) return;
+						emitted.current = html;
+						onChange({ target: { name, value: html } });
 					}}
 				/>
 			</Box>
 		</div>
 	);
 };
-
-const formats = [
-	'header',
-	'bold',
-	'italic',
-	'underline',
-	'strike',
-	'align',
-	'script',
-	'color',
-	'background',
-	'blockquote',
-	'code-block',
-	'list',
-	'indent',
-	'image',
-	'link',
-];
 
 export default FullEditor;
