@@ -14,7 +14,7 @@ const KEY_TAG = 'project-key';
 
 export type EndpointAction = 'list' | 'get' | 'create' | 'update' | 'delete';
 export type EndpointWho = 'anyone' | 'customer' | 'key';
-export type CustomerRef = { ref: 'customer' | 'customer.email' | 'customer.name' | 'customer.phone' };
+export type CustomerRef = { ref: 'customer' | 'customer.email' | 'customer.name' | 'customer.phone' | 'customer.role' };
 export type EndpointCondition = { field: string; op: string; value?: any };
 
 export type Endpoint = {
@@ -27,7 +27,8 @@ export type Endpoint = {
 	path: string;
 	standard: boolean;
 	enabled: boolean;
-	access: { who: EndpointWho; when: EndpointCondition[]; match: 'all' | 'any' };
+	/** `roles`: signed-in customers only — just these roles of the sign-in model's Role field (docs/widgets W-26); empty = any. */
+	access: { who: EndpointWho; when: EndpointCondition[]; match: 'all' | 'any'; roles?: string[] };
 	fields: { out: string[] | null; write: string[] | null; readOnly: string[] };
 	list: { filters: EndpointCondition[]; callerFilters: boolean; sort: string; limit: number; maxLimit: number };
 	/** The links a read may fill with ?populate= (backend docs/cms CMS-09); null = every link one step away. */
@@ -36,6 +37,17 @@ export type Endpoint = {
 	createdAt: string;
 	updatedAt: string;
 };
+
+/** The sign-in model's Role field and its options — what an endpoint can admit (W-26); null without one. */
+export type SignInRoles = {
+	model: string;
+	modelTitle: string;
+	route: string;
+	field: string;
+	fieldLabel: string;
+	default: string | null;
+	roles: { value: string; label: string }[];
+} | null;
 
 export type EndpointInput = Partial<Pick<Endpoint, 'name' | 'note' | 'model' | 'action' | 'path' | 'enabled'>> & {
 	access?: Partial<Endpoint['access']>;
@@ -139,7 +151,7 @@ export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, KEY_T
 			query: () => 'api-builder/endpoints',
 			providesTags: [TAG],
 		}),
-		getApiEndpoint: builder.query<Endpoint & { modelInfo: ApiModel | null }, string>({
+		getApiEndpoint: builder.query<Endpoint & { modelInfo: ApiModel | null; signIn?: SignInRoles }, string>({
 			query: id => `api-builder/endpoints/${id}`,
 			providesTags: [TAG],
 		}),

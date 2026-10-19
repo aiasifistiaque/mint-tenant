@@ -17,7 +17,7 @@ import {
 	useToggleApiEndpointMutation,
 	useUpdateApiEndpointMutation,
 } from '@/components/library/store/services/apiBuilderApi';
-import type { ApiModel, Endpoint, EndpointCondition } from '@/components/library/store/services/apiBuilderApi';
+import type { ApiModel, Endpoint, EndpointCondition, SignInRoles } from '@/components/library/store/services/apiBuilderApi';
 import { ApiTabs, MethodBadge, WhoBadge, actionOf, apiBase, apiHref, errorOf } from '../../_components/shared';
 import WhoCards from '../../_components/WhoCards';
 import RuleEditor from '../../_components/RuleEditor';
@@ -38,10 +38,62 @@ import { ApiLogs } from '../../_components/logs';
  */
 
 type Draft = Pick<Endpoint, 'name' | 'note' | 'path' | 'access' | 'fields' | 'list' | 'populate'>;
-const draftOf = (e: Endpoint): Draft => ({ name: e.name, note: e.note, path: e.path, access: e.access, fields: e.fields, list: e.list, populate: e.populate ?? null });
+const draftOf = (e: Endpoint): Draft => ({ name: e.name, note: e.note, path: e.path, access: { ...e.access, roles: e.access.roles || [] }, fields: e.fields, list: e.list, populate: e.populate ?? null });
 const OWNER: EndpointCondition = { field: '_customer', op: 'is', value: { ref: 'customer' } };
 const isOwner = (c: EndpointCondition) => c.field === '_customer' && c.op === 'is' && (c.value as any)?.ref === 'customer';
 const NO_FIELDS = new Set(['section', 'sectionlist']);
+
+/**
+ * Which roles a customers' endpoint admits (docs/widgets W-26): the sign-in
+ * model's Role field's options. None ticked: any signed-in customer.
+ */
+const RolesPicker: FC<{ signIn: SignInRoles; value: string[]; onChange: (v: string[]) => void; error?: string }> = ({ signIn, value, onChange, error }) => (
+	<Box
+		mt={3}
+		p={3}
+		borderRadius='lg'
+		bg='bg.subtle'>
+		<Text
+			fontSize='13.5px'
+			fontWeight='500'>
+			Which roles
+		</Text>
+		{signIn && signIn.roles.length ? (
+			<>
+				<Text
+					fontSize='12px'
+					color='fg.muted'
+					mb={2}>
+					From the {signIn.fieldLabel} field of {signIn.modelTitle}, your sign-in model. None ticked: any signed-in customer. Others get “Your account can’t use this” (403).
+				</Text>
+				<Flex
+					gap={4}
+					wrap='wrap'>
+					{signIn.roles.map(r => (
+						<Checkbox.Root
+							key={r.value}
+							size='sm'
+							checked={value.includes(r.value)}
+							onCheckedChange={x => onChange(x.checked ? [...value, r.value] : value.filter(v => v !== r.value))}>
+							<Checkbox.HiddenInput />
+							<Checkbox.Control />
+							<Checkbox.Label fontSize='13px'>{r.label}</Checkbox.Label>
+						</Checkbox.Root>
+					))}
+				</Flex>
+			</>
+		) : (
+			<Text
+				fontSize='12px'
+				color='fg.muted'>
+				Any signed-in customer. To let in only some kinds of people (staff, members, VIPs), give your sign-in model a Role field and choose it in
+				Widgets → Login & account.
+				{value.length > 0 && ` This endpoint still lists ${value.join(', ')} — nobody has a role now, so it refuses everyone.`}
+			</Text>
+		)}
+		{error && <Text {...errCss}>{error}</Text>}
+	</Box>
+);
 
 const Section: FC<{ title: string; hint?: ReactNode; guide?: string; children: ReactNode }> = ({ title, hint, guide, children }) => (
 	<Panel
@@ -404,10 +456,19 @@ export default function EndpointPage() {
 													who,
 													// Rules about the customer only make sense on a customers' endpoint.
 													when: who === 'customer' ? draft.access.when : draft.access.when.filter(c => c.field !== '_customer' && !(c.value as any)?.ref),
+													roles: who === 'customer' ? draft.access.roles : [],
 												})
 											}
 										/>
 										{error?.on === 'access.who' && <Text {...errCss}>{error.message}</Text>}
+										{draft.access.who === 'customer' && (
+											<RolesPicker
+												signIn={data.signIn ?? null}
+												value={draft.access.roles || []}
+												onChange={roles => setAccess({ roles })}
+												error={error?.on === 'access.roles' ? error.message : undefined}
+											/>
+										)}
 									</Section>
 									<Section
 										title='Which records it reaches'

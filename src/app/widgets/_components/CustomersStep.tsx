@@ -26,7 +26,16 @@ const FIELDS: { key: keyof AuthMapping['fields']; label: string; kinds: string[]
 	{ key: 'email', label: 'Email', kinds: ['email', 'text'], required: true, help: 'One record per email.' },
 	{ key: 'name', label: 'Name', kinds: ['text'], help: 'Filled from the sign-up form.' },
 	{ key: 'phone', label: 'Phone', kinds: ['text'], help: 'Filled when the customer gives one.' },
+	{
+		key: 'role',
+		label: 'Role',
+		kinds: ['select'],
+		help: 'An options field (Customer, Staff…). Sign-ups get its default; only your team changes it. Endpoints can let in only some roles.',
+	},
 ];
+
+/** Field kinds as the model builder names them. */
+const KIND_WORD: Record<string, string> = { email: 'Email', text: 'Text', select: 'Options' };
 
 const MODES: { value: AuthMapping['accounts']; title: string; text: (model: string) => string }[] = [
 	{
@@ -70,6 +79,7 @@ const CustomersStep: FC<{ auth?: AuthView; missing?: boolean; value: AuthMapping
 				email: guess(['email', 'text'], /e-?mail/i) || '',
 				name: guess(['text'], /^(name|full_?name|customer_?name)$/i),
 				phone: guess(['text'], /phone|mobile/i),
+				role: guess(['select'], /role/i),
 			},
 		});
 	};
@@ -179,7 +189,7 @@ const CustomersStep: FC<{ auth?: AuthView; missing?: boolean; value: AuthMapping
 									{...help}
 									color={f.required && !value.fields[f.key] ? 'orange.fg' : 'fg.muted'}>
 									{fits.length === 0
-										? `${model.title} has no ${f.kinds.join(' or ')} field for this.`
+										? `${model.title} has no ${f.kinds.map(k => KIND_WORD[k] || k).join(' or ')} field for this.`
 										: f.key === 'email' && value.accounts === 'model'
 											? 'What customers sign in with.'
 											: f.help}
