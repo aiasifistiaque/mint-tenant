@@ -76,6 +76,7 @@ export const emptyWorking = (): ModelWorking => ({
 	draftAndPublish: false,
 	code: { enabled: false, prefix: '', padding: 4, start: 1 },
 	access: { enabled: false, default: 'private' },
+	signIn: false,
 	fields: [],
 	active: true,
 	sidebarCategory: '',

@@ -13,7 +13,8 @@ import { help, label } from './parts';
  * own can be named instead, with which of its fields are the email, name and
  * phone, and how: a linked copy of each account (accounts stay in MINT's
  * Customers), or the model holds the accounts itself (a record is an
- * account). Passwords always stay with MINT (backend
+ * account). Only models switched on for sign-in (their Advanced tab, W-25)
+ * are offered. Passwords always stay with MINT (backend
  * functions/authMapping.function.ts). Field kinds kept in step with the
  * backend's AUTH_KINDS.
  */
@@ -100,6 +101,12 @@ const CustomersStep: FC<{ auth?: AuthView; missing?: boolean; value: AuthMapping
 					items={[{ value: BUILT_IN, label: 'MINT’s Customers (default)' }, ...auth.models.map(m => ({ value: m.name, label: m.title }))]}
 				/>
 				<Text {...help}>{model ? `Customers are kept with ${model.title}.` : 'Accounts show on your Customers page.'}</Text>
+				{!model && (auth.models.length === 0 || !!auth.closed) && (
+					<Text {...help}>
+						{auth.models.length === 0 ? 'None of your models is open to sign-in yet. ' : 'Only models open to sign-in are listed. '}
+						To use one, switch on <b>People can sign up and sign in</b> on its Advanced tab (Models → the model → Advanced).
+					</Text>
+				)}
 				{suggested && (
 					<Button
 						size='xs'

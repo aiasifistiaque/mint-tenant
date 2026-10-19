@@ -6,7 +6,7 @@ import { useCheckModelNameQuery } from '@/components/library';
 import { Dropdown, Panel } from '@/components/library/cl';
 import { DocLink } from '@/app/builder/_components/ui';
 import { ToneTitle } from '@/app/builder/_components/areas';
-import { Hash, ListChecks, Lock, NotebookPen, Send, Tag } from 'lucide-react';
+import { Hash, KeyRound, ListChecks, Lock, NotebookPen, Send, Tag } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import FieldsEditor, { LinkTarget } from './FieldsEditor';
 import {
@@ -40,6 +40,8 @@ export type ModelWorking = {
 	code: { enabled: boolean; prefix: string; padding: number; start: number };
 	/** Per-record access: an owner, a privacy and an access list on every record. */
 	access: { enabled: boolean; default: string };
+	/** People can sign up and sign in as one of its records — the Login widget's customers (docs/widgets W-25). */
+	signIn: boolean;
 	fields: EditableField[];
 	active: boolean;
 	sidebarCategory: string;
@@ -55,6 +57,7 @@ export const emptyModel = (): ModelWorking => ({
 	draftAndPublish: false,
 	code: { enabled: false, prefix: '', padding: 4, start: 1 },
 	access: { enabled: false, default: 'private' },
+	signIn: false,
 	fields: [{ uid: newUid(), key: 'name', label: 'Name', kind: 'text', required: true, showInTable: true, keyTouched: true }],
 	active: true,
 	sidebarCategory: '',
@@ -70,6 +73,7 @@ export const modelFromDoc = (doc: any): ModelWorking => ({
 	draftAndPublish: !!doc.draftAndPublish,
 	code: { enabled: false, prefix: '', padding: 4, start: 1, ...(doc.code || {}) },
 	access: { enabled: !!doc.access?.enabled, default: doc.access?.default || 'private' },
+	signIn: !!doc.signIn?.enabled,
 	fields: fromServer(doc.fields),
 	active: doc.active !== false,
 	sidebarCategory: doc.sidebarCategory || '',
@@ -85,6 +89,7 @@ export const modelBody = (w: ModelWorking) => ({
 	code: { ...w.code, prefix: w.code.prefix.trim() },
 	// Privacy is chosen per record, in the form; new records start Private.
 	access: { enabled: w.access.enabled, default: 'private' },
+	signIn: { enabled: w.signIn },
 	fields: toServer(w.fields),
 	active: w.active,
 	sidebar: { category: w.sidebarCategory || '' },
@@ -168,7 +173,7 @@ type Props = {
 	onOpenField?: (uid: string | null) => void;
 };
 
-export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'fields';
+export type ModelPanelName = 'basics' | 'names' | 'numbers' | 'privacy' | 'signin' | 'fields';
 
 export const useFieldErrors = (fields: EditableField[], accessEnabled = false) =>
 	useMemo(() => validateFields(fields, { accessEnabled }), [fields, accessEnabled]);
@@ -603,6 +608,58 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 						)}
 					</Flex>
 				</Panel>
+			)}
+
+			{show('signin') && IS_TENANT_PANEL && (
+			<Panel
+				title={
+					<ToneTitle
+						icon={KeyRound}
+						palette='teal'>
+						Sign-in
+					</ToneTitle>
+				}
+				subtitle='Let people sign up and sign in to your site or app as one of these records.'
+				actions={<DocLink section='models-signin' />}>
+				<Flex
+					direction='column'
+					gap={2}>
+					<Switch.Root
+						size='sm'
+						checked={working.signIn}
+						disabled={working.kind === 'single'}
+						onCheckedChange={e => set({ signIn: e.checked })}>
+						<Switch.HiddenInput />
+						<Switch.Control>
+							<Switch.Thumb />
+						</Switch.Control>
+						<Switch.Label fontSize='sm'>People can sign up and sign in</Switch.Label>
+					</Switch.Root>
+					<Text
+						fontSize='xs'
+						color='fg.muted'>
+						{working.kind === 'single'
+							? 'This model holds one record, so it can’t hold accounts — people sign in as records of a list.'
+							: working.signIn
+								? 'The Login widget can now keep its customers here: choose this model in Widgets → Login & account. Passwords are kept safely by MINT, never in these records.'
+								: 'Off: this model isn’t offered when you set up the Login widget.'}
+					</Text>
+					{working.signIn && !working.fields.some(f => f.kind === 'email' || f.kind === 'text') && (
+						<Text
+							fontSize='xs'
+							color='orange.fg'>
+							Add an Email field — people sign in with it.
+						</Text>
+					)}
+					{!isNew && base?.signIn && !working.signIn && (
+						<Text
+							fontSize='xs'
+							color='orange.fg'>
+							If the Login widget keeps its customers here, choose another model in Widgets first — until then this can’t be saved.
+						</Text>
+					)}
+				</Flex>
+			</Panel>
 			)}
 
 			{show('fields') && (

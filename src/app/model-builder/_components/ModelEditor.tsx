@@ -653,6 +653,17 @@ export const ModelEditorView: FC<ModelEditorViewProps> = ({
 					<Flex
 						direction='column'
 						gap={5}>
+						{IS_TENANT_PANEL && (
+							<ModelPanels
+								only={['signin']}
+								working={working}
+								onChange={setWorking}
+								mode='edit'
+								doc={doc}
+								base={base}
+								targets={targets}
+							/>
+						)}
 						<Panel
 							title={
 								<ToneTitle

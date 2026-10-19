@@ -30,7 +30,7 @@ import { EmailRowActions } from '@/app/automations/_components/SentEmailDialog';
  */
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const KIND_LABEL: Record<string, string> = { test: 'Test', 'customer-welcome': 'Customer welcome', record: 'Receipt', campaign: 'Newsletter', automation: 'Automation' };
+const KIND_LABEL: Record<string, string> = { test: 'Test', 'customer-welcome': 'Customer welcome', 'customer-reset': 'Password reset', record: 'Receipt', campaign: 'Newsletter', automation: 'Automation' };
 
 /** Green when the last check or send worked, red when the last one failed, grey before any. */
 const statusOf = (a: MailAccount) => {

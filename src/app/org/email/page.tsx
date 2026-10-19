@@ -30,7 +30,7 @@ const PRESETS: { value: string; label: string; host: string; port: number; secur
 	{ value: 'other', label: 'Another server', host: '', port: 587, secure: false, note: 'Your email host’s help pages list its SMTP server and port.' },
 ];
 
-const KIND_LABEL: Record<string, string> = { test: 'Test', 'customer-welcome': 'Customer welcome', record: 'From a record', campaign: 'Newsletter', automation: 'Automation' };
+const KIND_LABEL: Record<string, string> = { test: 'Test', 'customer-welcome': 'Customer welcome', 'customer-reset': 'Password reset', record: 'From a record', campaign: 'Newsletter', automation: 'Automation' };
 
 const blank: MailSettingsInput = { host: '', port: 587, secure: false, username: '', password: '', fromName: '', fromAddress: '', replyTo: '', customerWelcome: true };
 const fromSaved = (s: MailSettings | null): MailSettingsInput =>

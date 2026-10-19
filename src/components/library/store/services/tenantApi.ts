@@ -362,7 +362,10 @@ export type AuthView = {
 	problem: string | null;
 	/** A model that looks like customers, to start from. */
 	guess: AuthMapping | null;
+	/** Only models switched on for sign-in (their Advanced tab, docs/widgets W-25). */
 	models: ShopModel[];
+	/** How many other lists there are, not switched on for sign-in. */
+	closed?: number;
 };
 
 /* The organization's own email server (backend routes-tenant/org/mail.router.ts, docs/messaging M-02). */
