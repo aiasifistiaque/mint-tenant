@@ -349,10 +349,12 @@ export type ShopView = {
 
 /**
  * Login & account's customer model (backend functions/authMapping.function.ts,
- * docs/widgets W-24): which of the project's models gets a record per customer
- * account, and which fields are its email, name and phone. Passwords never go there.
+ * docs/widgets W-24): which of the project's models has the customers, and
+ * which fields are its email, name and phone. `accounts`: 'mint' — accounts in
+ * MINT's Customers, each with a linked copy in the model; 'model' — the model
+ * holds the accounts (a record is an account). Passwords never go there.
  */
-export type AuthMapping = { model: string; fields: { email: string; name?: string; phone?: string } };
+export type AuthMapping = { model: string; accounts: 'mint' | 'model'; fields: { email: string; name?: string; phone?: string } };
 export type AuthView = {
 	auth: AuthMapping | null;
 	/** What's saved, when it no longer fits the models (`problem` says why). */

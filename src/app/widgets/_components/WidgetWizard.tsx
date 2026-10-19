@@ -123,7 +123,8 @@ const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, aut
 		setName(first);
 		setStep(0);
 		setValue(first ? data.widgets[first] : null);
-		setMapping(auth?.auth || auth?.guess || null);
+		// MINT's Customers unless a model was chosen before (the step offers a likely one).
+		setMapping(auth?.auth || null);
 	}, [open]);
 
 	const pick = (n: string) => {
@@ -384,9 +385,11 @@ const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, aut
 												<Text
 													fontSize='13px'
 													color='fg.muted'>
-													{mapping?.model
-														? `Each new account also gets a record in ${auth?.models.find(m => m.name === mapping.model)?.title || mapping.model}.`
-														: 'Accounts are kept in MINT’s Customers page.'}
+													{!mapping?.model
+														? 'Accounts are kept in MINT’s Customers page.'
+														: mapping.accounts === 'model'
+															? `${auth?.models.find(m => m.name === mapping.model)?.title || mapping.model} holds the accounts: every sign-up is a record there.`
+															: `Accounts are kept in MINT’s Customers, each with a record in ${auth?.models.find(m => m.name === mapping.model)?.title || mapping.model}.`}
 												</Text>
 											</Box>
 										)}
