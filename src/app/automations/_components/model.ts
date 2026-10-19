@@ -122,13 +122,25 @@ export const sentence = (a: AutomationInput, pages: Page[]) => {
 	return `When ${page ? `a ${page.noun}` : 'a record'} is ${events || '…'}${changed}${conds}: ${actions || '…'}.`;
 };
 
-/** The placeholders a text of `page` can use. */
-export const placeholdersOf = (page?: Page) => [
-	...(page?.fields || []).filter(f => !['section', 'sectionlist', 'password'].includes(f.kind)).map(f => ({ key: f.key, label: f.label })),
+export type Placeholder = { key: string; label: string; /** The linked record it's read from ("Member"); none for the record's own. */ group?: string };
+
+const HIDDEN_KINDS = ['section', 'sectionlist', 'password'];
+const shownFields = (p?: Page) => (p?.fields || []).filter(f => !HIDDEN_KINDS.includes(f.kind));
+
+/**
+ * The placeholders a text of `page` can use: its fields, the extras, then each
+ * linked record's fields — `{{member.email}}` shows the Member's email (one
+ * level; the server checks the same).
+ */
+export const placeholdersOf = (page?: Page, pages: Page[] = []): Placeholder[] => [
+	...shownFields(page).map(f => ({ key: f.key, label: f.label })),
 	{ key: 'link', label: 'Link' },
 	{ key: 'page', label: 'Page' },
 	{ key: 'project', label: 'Project' },
 	{ key: 'actor', label: 'Who saved' },
 	{ key: 'event', label: 'Event' },
 	{ key: 'today', label: 'Today' },
+	...shownFields(page)
+		.filter(f => REFERENCE_KINDS.includes(f.kind))
+		.flatMap(f => shownFields(pageOfRef(pages, f.ref)).map(x => ({ key: `${f.key}.${x.key}`, label: `${f.label} → ${x.label}`, group: f.label }))),
 ];

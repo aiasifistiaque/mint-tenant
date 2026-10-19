@@ -81,7 +81,7 @@ const ITALIC = /(^|[^*\w])\*(?=[^\s*])([^*\n]*?[^\s*])?\*(?![*\w])/g;
  */
 export const previewHtml = (text: string, labelOf: (key: string) => string) => {
 	const chips: string[] = [];
-	const marked = text.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_, k) => {
+	const marked = text.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*\}\}/g, (_, k) => {
 		chips.push(labelOf(k));
 		return `${chips.length - 1}`;
 	});

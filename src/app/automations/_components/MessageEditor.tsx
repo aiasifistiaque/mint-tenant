@@ -1,7 +1,7 @@
 'use client';
 
 import { FC, ReactNode, useEffect, useRef, useState } from 'react';
-import { Box, Button, chakra, Flex, Text, Textarea } from '@chakra-ui/react';
+import { Box, Button, chakra, Flex, Input, Text, Textarea } from '@chakra-ui/react';
 import { Bold, Braces, Eye, Italic, List, PenLine } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
 import { Page, placeholdersOf } from './model';
@@ -19,7 +19,7 @@ import { Edit, insertToken, marksAt, previewHtml, toggleList, toggleMark } from 
 
 const MENU_W = 236;
 
-const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: Page; placeholder?: string }> = ({ value, onChange, page, placeholder }) => {
+const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: Page; pages?: Page[]; placeholder?: string }> = ({ value, onChange, page, pages, placeholder }) => {
 	const ref = useRef<HTMLTextAreaElement>(null);
 	const wrap = useRef<HTMLDivElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -27,7 +27,10 @@ const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: P
 	const [fieldsOpen, setFieldsOpen] = useState(false);
 	const [marks, setMarks] = useState({ bold: false, italic: false, list: false });
 	const [preview, setPreview] = useState(false);
-	const fields = placeholdersOf(page);
+	const fields = placeholdersOf(page, pages);
+	// Typed in the menu's search box: narrows a long list (a linked record's fields make it long).
+	const [find, setFind] = useState('');
+	const found = find.trim() ? fields.filter(f => f.label.toLowerCase().includes(find.trim().toLowerCase()) || f.key.toLowerCase().includes(find.trim().toLowerCase())) : fields;
 	// Where the cursor was when the box last had it — a field picked from the Dropdown below goes there.
 	const touched = useRef(false);
 
@@ -67,6 +70,7 @@ const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: P
 		const [s, e] = range();
 		setMarks(marksAt(value, s, e));
 		setFieldsOpen(false);
+		setFind('');
 		setMenu({ x: Math.max(0, Math.min(clientX - box.left - 16, box.width - MENU_W)), y: clientY - box.top + 14 });
 	};
 
@@ -208,26 +212,68 @@ const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: P
 								pt={1}
 								borderTopWidth='1px'
 								borderColor='border'
-								maxH='200px'
+								maxH='240px'
 								overflowY='auto'>
-								{fields.map(f => (
-									<chakra.button
-										key={f.key}
-										type='button'
-										role='menuitem'
-										display='block'
-										w='full'
-										textAlign='left'
+								{fields.length > 8 && (
+									<Input
+										size='xs'
+										mb={1}
+										value={find}
+										placeholder='Find a field…'
+										aria-label='Find a field'
+										// The search box takes the focus; the message keeps its cursor for the insert.
+										onMouseDown={e => e.stopPropagation()}
+										onChange={e => setFind(e.target.value)}
+										onKeyDown={e => {
+											if (e.key === 'Escape') setMenu(null);
+											if (e.key === 'Enter' && found[0]) {
+												e.preventDefault();
+												insert(found[0].key);
+											}
+										}}
+									/>
+								)}
+								{found.map((f, i) => (
+									<Box key={f.key}>
+										{f.group && f.group !== found[i - 1]?.group && (
+											<Text
+												px={2}
+												pt={1.5}
+												pb={0.5}
+												fontSize='11px'
+												fontWeight='600'
+												color='fg.muted'
+												textTransform='uppercase'
+												letterSpacing='0.04em'>
+												{f.group}’s details
+											</Text>
+										)}
+										<chakra.button
+											type='button'
+											role='menuitem'
+											display='block'
+											w='full'
+											textAlign='left'
+											px={2}
+											py={1}
+											borderRadius='6px'
+											fontSize='13px'
+											onMouseDown={keep}
+											onClick={() => insert(f.key)}
+											_hover={{ bg: 'bg.muted' }}>
+											{f.group ? f.label.slice(f.group.length + 3) : f.label}
+										</chakra.button>
+									</Box>
+								))}
+								{!found.length && (
+									<Text
 										px={2}
 										py={1}
-										borderRadius='6px'
-										fontSize='13px'
-										onMouseDown={keep}
-										onClick={() => insert(f.key)}
-										_hover={{ bg: 'bg.muted' }}>
-										{f.label}
-									</chakra.button>
-								))}
+										fontSize='12.5px'
+										color='fg.muted'>
+										No field called that.
+									</Text>
+								)}
 							</Box>
 						)}
 					</Box>

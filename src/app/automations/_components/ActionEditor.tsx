@@ -57,10 +57,12 @@ export const PlaceholderText: FC<{
 	value: string;
 	onChange: (v: string) => void;
 	page?: Page;
+	/** Every page — for the fields of the records `page` links to ({{member.email}}). */
+	pages?: Page[];
 	multiline?: boolean;
 	placeholder?: string;
 	mono?: boolean;
-}> = ({ value, onChange, page, multiline, placeholder }) => {
+}> = ({ value, onChange, page, pages, multiline, placeholder }) => {
 	const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
 	// Only once the box has had the cursor does its selection mean anything; before that, a field goes at the end.
 	const touched = useRef(false);
@@ -103,7 +105,7 @@ export const PlaceholderText: FC<{
 					value=''
 					placeholder='Insert a field'
 					aria-label='Insert a field'
-					items={placeholdersOf(page).map(p => ({ value: p.key, label: p.label }))}
+					items={placeholdersOf(page, pages).map(p => ({ value: p.key, label: p.label }))}
 					onChange={insert}
 				/>
 			</Flex>
@@ -160,7 +162,8 @@ const SetRows: FC<{
 	allowClear: boolean;
 	errorAt: (path: string) => string | undefined;
 	at: string;
-}> = ({ set, onChange, source, target, allowClear, errorAt, at }) => {
+	pages: Page[];
+}> = ({ set, onChange, source, target, allowClear, errorAt, at, pages }) => {
 	const fields = writable(target);
 	const put = (i: number, s: AutomationSet) => onChange(set.map((x, j) => (j === i ? s : x)));
 	const mode = (s: AutomationSet) => (s.clear ? 'clear' : s.from !== undefined ? 'copy' : 'value');
@@ -236,6 +239,7 @@ const SetRows: FC<{
 											value={String(s.value ?? '')}
 											onChange={v => put(i, { field: s.field, value: v })}
 											page={source}
+											pages={pages}
 											placeholder={f?.kind === 'date' ? '{{today}} or 2026-12-31' : 'Value'}
 										/>
 									)
@@ -308,6 +312,7 @@ const ActionEditor: FC<{
 						value={a.title}
 						onChange={v => onChange({ ...a, title: v })}
 						page={page}
+						pages={pages}
 						placeholder='{{title}} was won'
 					/>
 				</Part>
@@ -318,6 +323,7 @@ const ActionEditor: FC<{
 						value={a.message || ''}
 						onChange={v => onChange({ ...a, message: v })}
 						page={page}
+						pages={pages}
 						placeholder='Optional — a line under the title'
 					/>
 				</Part>
@@ -429,6 +435,7 @@ const ActionEditor: FC<{
 						value={a.subject}
 						onChange={v => onChange({ ...a, subject: v })}
 						page={page}
+						pages={pages}
 						placeholder='Thanks for your order {{title}}'
 					/>
 				</Part>
@@ -440,6 +447,7 @@ const ActionEditor: FC<{
 						value={a.body}
 						onChange={v => onChange({ ...a, body: v })}
 						page={page}
+						pages={pages}
 						placeholder={'Hello,\n\nWe got your order {{title}}.'}
 					/>
 				</Part>
@@ -519,6 +527,7 @@ const ActionEditor: FC<{
 						allowClear
 						errorAt={errorAt}
 						at={`${at}.set`}
+						pages={pages}
 					/>
 				</Part>
 			</>
@@ -558,6 +567,7 @@ const ActionEditor: FC<{
 							allowClear={false}
 							errorAt={errorAt}
 							at={`${at}.set`}
+							pages={pages}
 						/>
 					</Part>
 				)}
