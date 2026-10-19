@@ -227,13 +227,17 @@ export const exampleOf = (f: ApiField): any => {
 export const exampleBody = (m: ApiModel, all = false): Record<string, any> =>
 	Object.fromEntries(m.fields.filter(f => sendable(f) && (all || f.required)).map(f => [f.key, exampleOf(f)]));
 
+/** A field's value in an answer: as in a body, but a link comes back as the linked record's _id. */
+const answerOf = (f: ApiField) =>
+	f.kind === 'reference' ? '66f0c1d2e3a4b5c6d7e8f9a2' : f.kind === 'references' ? ['66f0c1d2e3a4b5c6d7e8f9a2', '66f0c1d2e3a4b5c6d7e8f9a3'] : exampleOf(f);
+
 /** A record as the API returns it. */
 export const exampleRecord = (m: ApiModel) => {
 	// An endpoint that sends back chosen fields only (docs/api-builder) sends those and _id.
 	const chosen = m.fields.some(f => f.out === false);
 	return {
 		_id: '66f0c1d2e3a4b5c6d7e8f901',
-		...Object.fromEntries(m.fields.filter(f => f.out !== false).map(f => [f.key, exampleOf(f)])),
+		...Object.fromEntries(m.fields.filter(f => f.out !== false).map(f => [f.key, answerOf(f)])),
 		...(!chosen && { createdAt: '2026-10-02T09:30:00.000Z', updatedAt: '2026-10-02T09:30:00.000Z' }),
 		// A drafts model's record says when it went live (docs/cms CMS-09).
 		...(m.drafts && { publishedAt: '2026-10-02T10:00:00.000Z' }),

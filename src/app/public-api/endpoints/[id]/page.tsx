@@ -23,6 +23,7 @@ import WhoCards from '../../_components/WhoCards';
 import RuleEditor from '../../_components/RuleEditor';
 import ApiTester, { Trial } from '../../_components/ApiTester';
 import ExampleRequest from '../../_components/ExampleRequest';
+import EndpointReference from '../../_components/EndpointReference';
 import { exampleOf } from '../../_components/api';
 import { ApiLogs } from '../../_components/logs';
 
@@ -30,7 +31,8 @@ import { ApiLogs } from '../../_components/logs';
  * API → Endpoints → one endpoint (backend docs/api-builder AB-04): who can call
  * it and which records it reaches (Access), which fields go out and which a
  * call may write (Fields), a list's fixed filters, order and page sizes
- * (Filters), a live request (Try it), and the code to call it (Code). Edits
+ * (Filters), its request and answer as JSON (Reference), a live request (Try it),
+ * and the code to call it (Code). Edits
  * stay a draft until Save; on/off and Delete act at once. A read also picks the
  * links a caller may fill with ?populate= (Fields → Linked records, docs/cms CMS-09).
  */
@@ -382,6 +384,7 @@ export default function EndpointPage() {
 								{ value: 'access', label: 'Access' },
 								{ value: 'fields', label: 'Fields' },
 								...(isList ? [{ value: 'filters', label: 'Filters' }] : []),
+								{ value: 'reference', label: 'Reference' },
 								{ value: 'try', label: 'Try it' },
 								{ value: 'code', label: 'Code' },
 								{ value: 'logs', label: 'Logs' },
@@ -689,6 +692,16 @@ export default function EndpointPage() {
 									</Flex>
 								</Tabs.Content>
 							)}
+
+							<Tabs.Content value='reference'>
+								<EndpointReference
+									endpoint={data}
+									draft={draft}
+									model={model}
+									base={base}
+									dirty={dirty}
+								/>
+							</Tabs.Content>
 
 							<Tabs.Content value='try'>
 								<Flex
