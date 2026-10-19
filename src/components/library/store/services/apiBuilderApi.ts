@@ -49,6 +49,12 @@ export type SignInRoles = {
 	roles: { value: string; label: string }[];
 } | null;
 
+/** Customer sign-in (/auth/*), built into every project's API: the model holding the customers (Login & account), how many signed up. */
+export type CustomerAuth = {
+	model: { title: string; route: string; accounts: 'mint' | 'model' } | null;
+	customers: number;
+};
+
 export type EndpointInput = Partial<Pick<Endpoint, 'name' | 'note' | 'model' | 'action' | 'path' | 'enabled'>> & {
 	access?: Partial<Endpoint['access']>;
 	fields?: Partial<Endpoint['fields']>;
@@ -147,7 +153,7 @@ export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, KEY_T
 			query: () => 'api-builder/overview',
 			providesTags: [TAG],
 		}),
-		getApiEndpoints: builder.query<{ doc: Endpoint[]; total: number; models: ApiModel[] }, void>({
+		getApiEndpoints: builder.query<{ doc: Endpoint[]; total: number; models: ApiModel[]; customerAuth?: CustomerAuth }, void>({
 			query: () => 'api-builder/endpoints',
 			providesTags: [TAG],
 		}),
@@ -161,7 +167,7 @@ export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, KEY_T
 		}),
 		generateApiEndpoints: builder.mutation<
 			{ made: Endpoint[]; turnedOn: Endpoint[]; skipped: string[] },
-			{ model: string; actions: EndpointAction[]; who: EndpointWho }
+			{ model: string; actions: EndpointAction[]; who: EndpointWho; own?: boolean }
 		>({
 			query: body => ({ url: 'api-builder/endpoints/generate', method: 'POST', body }),
 			invalidatesTags: [TAG, 'builder'],

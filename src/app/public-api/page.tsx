@@ -3,7 +3,7 @@
 import { FC, useState } from 'react';
 import NextLink from 'next/link';
 import { Box, Button, Flex, Grid, Skeleton, Text } from '@chakra-ui/react';
-import { ArrowRight, Copy, KeyRound, Route, Sparkles, UserRound } from 'lucide-react';
+import { ArrowRight, KeyRound, Route, Sparkles, UserRound } from 'lucide-react';
 import { Layout } from '@/components/library';
 import { CopyValue, EmptyState, PageHeader, Panel, StatTile } from '@/components/library/cl';
 import { HOME, IS_TENANT_PANEL, pagePath } from '@/components/library/config/lib/constants/panel';
@@ -15,6 +15,7 @@ import { MONO_CAPS } from '@/theme/tones';
 import { ApiTabs, MethodBadge, WhoBadge, apiBase, apiHref, publicBase, useProjectKey } from './_components/shared';
 import { withKey } from './_components/api';
 import ProjectKey from './_components/ProjectKey';
+import Snippet from './_components/Snippet';
 import GenerateDialog from './_components/GenerateDialog';
 import { LogsGlance } from './_components/logs';
 
@@ -26,45 +27,6 @@ import { LogsGlance } from './_components/logs';
  * browser or a server. The endpoints themselves are on Endpoints; keys on
  * Keys; every endpoint documented on Reference.
  */
-
-const Snippet: FC<{ code: string; label: string }> = ({ code, label }) => {
-	const [copied, setCopied] = useState(false);
-	return (
-		<Box
-			position='relative'
-			borderWidth='1px'
-			borderColor='border'
-			borderRadius='md'
-			bg='bg.subtle'>
-			<Box
-				as='pre'
-				m={0}
-				p={3}
-				pr={12}
-				fontSize='12px'
-				fontFamily='mono'
-				whiteSpace='pre-wrap'
-				wordBreak='break-all'
-				aria-label={label}>
-				{code}
-			</Box>
-			<Button
-				position='absolute'
-				top={1.5}
-				right={1.5}
-				size='xs'
-				variant='ghost'
-				aria-label={`Copy ${label}`}
-				onClick={() => {
-					navigator.clipboard?.writeText(code);
-					setCopied(true);
-					setTimeout(() => setCopied(false), 1500);
-				}}>
-				{copied ? 'Copied' : <Copy size={14} />}
-			</Button>
-		</Box>
-	);
-};
 
 const Step: FC<{ n: number; title: string; done?: boolean; children: React.ReactNode }> = ({ n, title, done, children }) => (
 	<Flex
@@ -352,12 +314,13 @@ export default function ApiOverviewPage() {
 										<Text {...hCss}>Signed-in customers</Text>
 									</Flex>
 									<Text {...pCss}>
-										Drop the sign-in where it should show. Afterwards <code>MintAuth.fetch('&lt;path&gt;')</code> calls the API as the signed-in
-										customer.
+										Sign-in is built in (<code>/auth/login</code>, <code>/auth/register</code>) — its token calls endpoints for signed-in customers.
+										Or drop the Login widget where it should show; afterwards <code>Mint.auth.fetch('&lt;path&gt;')</code> calls the API as them.{' '}
+										<NextLink href={`${apiHref('/endpoints')}#customer-sign-in`}>How the token works →</NextLink>
 									</Text>
 									<Snippet
 										label='sign-in widget snippet'
-										code={`<script src="${origin}/public/widget.js" data-key="${apiKey || '<project key>'}" async></script>\n<div data-mint-login></div>`}
+										code={`<script src="${origin}/public/mint.js" data-key="${apiKey || '<project key>'}" async></script>\n<div data-mint="login"></div>`}
 									/>
 								</Box>
 								<Box>

@@ -219,7 +219,16 @@ export default function WidgetsPage() {
 	const { data: shop } = useGetWidgetsShopQuery(undefined, { skip: !allowed });
 	const { data: auth, isError: authMissing } = useGetWidgetsAuthQuery(undefined, { skip: !allowed });
 	const [save, removing] = useSaveWidgetsMutation();
-	const [wizard, setWizard] = useState<{ editing: string | null } | null>(null);
+	const [wizard, setWizard] = useState<{ editing: string | null; start?: string } | null>(null);
+	// /widgets?add=login (the API's Customer sign-in → Set up sign-in): open that widget's setup — or its edit, once added.
+	useEffect(() => {
+		// After Login & account's settings too: the wizard reads them as it opens.
+		if (!data || (!auth && !authMissing)) return;
+		const want = new URLSearchParams(window.location.search).get('add');
+		if (!want || !data.catalog.some(t => t.name === want)) return;
+		setWizard(isAdded(data.widgets[want]) ? { editing: want } : { editing: null, start: want });
+		window.history.replaceState(null, '', window.location.pathname);
+	}, [!!data, !!auth || authMissing]);
 	const [removal, setRemoval] = useState<WidgetType | null>(null);
 
 	// Added widgets, in the order they were added.
@@ -345,6 +354,7 @@ export default function WidgetsPage() {
 					onClose={() => setWizard(null)}
 					data={data}
 					editing={wizard.editing}
+					start={wizard.start}
 					shop={shop}
 					auth={auth}
 					authMissing={authMissing}

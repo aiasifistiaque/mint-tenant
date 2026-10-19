@@ -46,6 +46,7 @@ const GUIDE_OF: Record<string, string> = {
 	// The API builder (docs/api-builder).
 	'api-endpoints': 'public-api',
 	'api-generate': 'public-api',
+	'api-customer-sign-in': 'public-api',
 	'api-new-endpoint': 'public-api',
 	'api-access': 'public-api',
 	'api-conditions': 'public-api',

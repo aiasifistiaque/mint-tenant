@@ -264,6 +264,8 @@ export const AUTH_ENDPOINTS: Endpoint[] = [
 	{ method: 'GET', path: '/auth/me', summary: 'The signed-in customer', customer: true },
 	{ method: 'PUT', path: '/auth/me', summary: 'Change their name or phone', customer: true, body: { name: 'Ada King', phone: '+44 20 0000 0000' } },
 	{ method: 'POST', path: '/auth/logout-everywhere', summary: 'Sign them out on every device', customer: true },
+	{ method: 'POST', path: '/auth/forgot', summary: 'Email a link to choose a new password', body: { email: 'ada@example.com', returnTo: 'https://your-site.com/account' } },
+	{ method: 'POST', path: '/auth/reset', summary: 'A new password, from the emailed link → { token, customer }', body: { token: '<from the link>', password: 'at-least-8-characters' } },
 ];
 
 /** A website project's content endpoints. */

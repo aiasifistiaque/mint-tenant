@@ -16,17 +16,22 @@ import WhoCards from './WhoCards';
  * List and Read one ticked to start with — at its own address (/<route>,
  * /<route>/:id), for the "who" picked here. What a model has already is left
  * alone (turned back on if it was off). Rules come after, on each endpoint.
+ * For signed-in customers, "Only their own records" adds the owner condition
+ * (a create makes the customer its owner) — how a customer's token reaches
+ * just their data.
  */
-const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[]; endpoints: Endpoint[]; model?: string }> = ({
+const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[]; endpoints: Endpoint[]; model?: string; who?: EndpointWho }> = ({
 	open,
 	onClose,
 	models,
 	endpoints,
 	model: preset,
+	who: presetWho,
 }) => {
 	const [model, setModel] = useState('');
 	const [actions, setActions] = useState<EndpointAction[]>(['list', 'get']);
 	const [who, setWho] = useState<EndpointWho>('anyone');
+	const [own, setOwn] = useState(true);
 	const [error, setError] = useState<{ message: string; on?: string } | null>(null);
 	const [generate, { isLoading }] = useGenerateApiEndpointsMutation();
 
@@ -34,7 +39,8 @@ const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[
 		if (!open) return;
 		setModel(preset || models[0]?.route || '');
 		setActions(['list', 'get']);
-		setWho('anyone');
+		setWho(presetWho || 'anyone');
+		setOwn(true);
 		setError(null);
 	}, [open]);
 
@@ -44,7 +50,7 @@ const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[
 
 	const submit = async () => {
 		setError(null);
-		const res = await generate({ model, actions, who });
+		const res = await generate({ model, actions, who, ...(who === 'customer' && { own }) });
 		if ('error' in res) return setError(errorOf(res.error, 'Couldn’t generate — try again.'));
 		const n = res.data.made.length + res.data.turnedOn.length;
 		toaster.create({
@@ -152,6 +158,26 @@ const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[
 								onChange={setWho}
 								compact
 							/>
+							{who === 'customer' && (
+								<Checkbox.Root
+									size='sm'
+									mt={3}
+									checked={own}
+									onCheckedChange={x => setOwn(!!x.checked)}
+									alignItems='flex-start'>
+									<Checkbox.HiddenInput />
+									<Checkbox.Control mt='2px' />
+									<Checkbox.Label fontWeight='400'>
+										<Text fontSize='13px'>Only their own records</Text>
+										<Text
+											fontSize='12px'
+											color='fg.muted'>
+											Each customer sees and changes only what’s theirs — records they made through the API, and their own record in the
+											model they sign up to. Off, every signed-in customer reaches every record.
+										</Text>
+									</Checkbox.Label>
+								</Checkbox.Root>
+							)}
 							{error && !error.on && <Text {...errCss}>{error.message}</Text>}
 							<Box mt={4}>
 								<GuideLink

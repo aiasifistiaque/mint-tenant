@@ -13,17 +13,19 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
 import { ago } from '@/components/library/modals/CreateModal/CreateModal';
 import { useGetApiEndpointsQuery, useToggleApiEndpointMutation } from '@/components/library/store/services/apiBuilderApi';
-import type { ApiModel, Endpoint } from '@/components/library/store/services/apiBuilderApi';
+import type { ApiModel, Endpoint, EndpointWho } from '@/components/library/store/services/apiBuilderApi';
 import { ApiTabs, MethodBadge, WhoBadge, apiBase, apiHref } from '../_components/shared';
 import GenerateDialog from '../_components/GenerateDialog';
 import NewEndpointDialog from '../_components/NewEndpointDialog';
+import CustomerSignIn from '../_components/CustomerSignIn';
 
 /**
  * API → Endpoints (backend docs/api-builder D11): every endpoint of the
  * project, grouped by model — method, address, who can call it, how many
  * rules, calls, an on/off switch; a row opens the endpoint's page. Generate
  * from a model makes a model's standard set; New endpoint walks through a
- * custom one.
+ * custom one. Customer sign-in (/auth/*) is built in, listed after the
+ * models with how a customer's token reaches their own data.
  */
 
 const ORDER = ['list', 'get', 'create', 'update', 'delete'];
@@ -102,6 +104,11 @@ function EndpointsView() {
 	const [model, setModel] = useState(params.get('model') || '');
 	const [search, setSearch] = useState('');
 	const [generating, setGenerating] = useState<string | null>(null);
+	const [generateWho, setGenerateWho] = useState<EndpointWho | undefined>();
+	const openGenerate = (route: string, who?: EndpointWho) => {
+		setGenerateWho(who);
+		setGenerating(route);
+	};
 	const [making, setMaking] = useState(false);
 	const models: ApiModel[] = data?.models || [];
 	const endpoints: Endpoint[] = data?.doc || [];
@@ -144,7 +151,7 @@ function EndpointsView() {
 									size='sm'
 									variant='outline'
 									disabled={!models.length}
-									onClick={() => setGenerating(model || '')}>
+									onClick={() => openGenerate(model || '')}>
 									<Sparkles size={14} />
 									Generate from a model
 								</Button>
@@ -221,7 +228,7 @@ function EndpointsView() {
 										<Button
 											size='xs'
 											variant='ghost'
-											onClick={() => setGenerating(m.route)}>
+											onClick={() => openGenerate(m.route)}>
 											<Sparkles size={13} />
 											Generate
 										</Button>
@@ -256,13 +263,23 @@ function EndpointsView() {
 									!search && (
 										<Button
 											size='sm'
-											onClick={() => setGenerating('')}>
+											onClick={() => openGenerate('')}>
 											<Sparkles size={14} />
 											Generate from a model
 										</Button>
 									)
 								}
 							/>
+						)}
+
+						{!model && !search && (
+							<Box id='customer-sign-in'>
+								<CustomerSignIn
+									auth={data?.customerAuth}
+									endpoints={endpoints}
+									onGenerate={() => openGenerate('', 'customer')}
+								/>
+							</Box>
 						)}
 
 						{!model && !search && without.length > 0 && endpoints.length > 0 && (
@@ -273,7 +290,7 @@ function EndpointsView() {
 								<Box
 									as='button'
 									textDecoration='underline'
-									onClick={() => setGenerating(without[0].route)}>
+									onClick={() => openGenerate(without[0].route)}>
 									Generate
 								</Box>
 							</Text>
@@ -287,6 +304,7 @@ function EndpointsView() {
 				models={models}
 				endpoints={endpoints}
 				model={generating || undefined}
+				who={generateWho}
 			/>
 			<NewEndpointDialog
 				open={making}

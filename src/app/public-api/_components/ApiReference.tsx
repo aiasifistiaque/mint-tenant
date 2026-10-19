@@ -360,7 +360,14 @@ const details = (e: Endpoint, model: ApiModel | undefined, onTry: (e: Endpoint) 
 				: record;
 	} else if (e.path.startsWith('/auth/')) {
 		const customer = { _id: '66f0c1d2e3a4b5c6d7e8f902', name: 'Ada Lovelace', email: 'ada@example.com', phone: '', createdAt: '2026-10-02T09:30:00.000Z' };
-		response = e.path === '/auth/logout-everywhere' ? { message: 'Signed out everywhere' } : e.method === 'POST' ? { token: '<customer token>', customer } : customer;
+		response =
+			e.path === '/auth/logout-everywhere'
+				? { message: 'Signed out everywhere' }
+				: e.path === '/auth/forgot'
+				? { message: 'If there’s an account for that email, a link to choose a new password is on its way.' }
+				: e.method === 'POST'
+				? { token: '<customer token>', customer }
+				: customer;
 	}
 	if (response)
 		parts.push(

@@ -98,6 +98,8 @@ type Props = {
 	data: WidgetsView;
 	/** An added widget's name: edit it (no picker). */
 	editing?: string | null;
+	/** A widget not added yet to start on, past the picker (/widgets?add=login, from the API's Customer sign-in). */
+	start?: string;
 	shop?: ShopView;
 	auth?: AuthView;
 	/** The server can't say (one from before W-24): no customer model to choose yet. */
@@ -107,7 +109,7 @@ type Props = {
 	currency?: string;
 };
 
-const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, authMissing, projectKey, currency }) => {
+const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, start, shop, auth, authMissing, projectKey, currency }) => {
 	const [name, setName] = useState('');
 	const [step, setStep] = useState(0);
 	const [value, setValue] = useState<WidgetSettings | null>(null);
@@ -130,6 +132,10 @@ const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, aut
 		setName(first);
 		setStep(0);
 		setValue(first ? data.widgets[first] : null);
+		if (!first && start && data.widgets[start]) {
+			setName(start);
+			setValue({ ...data.widgets[start], enabled: true });
+		}
 		// MINT's Customers unless a model was chosen before (the step offers a likely one).
 		setMapping(auth?.auth || null);
 	}, [open]);
