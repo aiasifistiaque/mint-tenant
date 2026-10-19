@@ -7,6 +7,7 @@ import { Lock } from 'lucide-react';
 import { useGetApiOverviewQuery } from '../store/services/tenantApi';
 import { CopyValue, Panel, StatTile, StatusDot, when } from '../cl';
 import { BACKEND, projectHref } from '../config/lib/constants/panel';
+import { useProjectKey } from './useProjectKey';
 import GuideLink from './GuideLink';
 import { useWorkspace } from './useWorkspace';
 
@@ -41,7 +42,9 @@ const Method: FC<{ m: string }> = ({ m }) => (
 const ApiOverview: FC = () => {
 	const { project, can } = useWorkspace();
 	const { data, isLoading } = useGetApiOverviewQuery(undefined, { pollingInterval: 30000 });
-	const base = project ? `${BACKEND.replace(/\/tenant\/api\/?$/, '')}/public/api/${project.publicSlug}` : '';
+	// The project key names the project on the API (docs/api-builder D14).
+	const base = project ? `${BACKEND.replace(/\/tenant\/api\/?$/, '')}/public/api` : '';
+	const apiKey = useProjectKey();
 	if (isLoading || !data) return <Skeleton h='240px' />;
 	const builds = can('build');
 
@@ -64,6 +67,14 @@ const ApiOverview: FC = () => {
 							Base address
 						</Text>
 						<CopyValue value={base} />
+						<Text
+							fontSize='12px'
+							color='fg.muted'
+							mt={3}
+							mb={1}>
+							Project key — every call adds ?apiKey=
+						</Text>
+						<CopyValue value={apiKey} />
 					</Box>
 					<Grid
 						templateColumns={{ base: '1fr 1fr', md: 'repeat(4, 1fr)' }}

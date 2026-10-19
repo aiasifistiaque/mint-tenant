@@ -17,7 +17,10 @@ import type { EndpointAction, EndpointWho } from '@/components/library/store/ser
 
 /** The API's public address: the backend's root, without /tenant/api. */
 export const publicBase = () => BACKEND.replace(/\/tenant\/api\/?$/, '');
-export const apiBase = (publicSlug?: string) => (publicSlug ? `${publicBase()}/public/api/${publicSlug}` : '');
+/** The public API's address (backend docs/api-builder D14): the project key, not the project's name, says which project — ?apiKey=. */
+export const apiBase = () => `${publicBase()}/public/api`;
+
+export { useProjectKey } from '@/components/library/tenant/useProjectKey';
 
 /** An API page's address in this project: '' Overview, '/endpoints', '/endpoints/<id>', '/keys', '/logs', '/reference'. */
 export const apiHref = (sub = '') => projectHref(`/public-api${sub}`);

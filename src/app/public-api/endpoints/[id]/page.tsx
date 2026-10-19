@@ -220,7 +220,7 @@ export default function EndpointPage() {
 	}, [saved]);
 
 	const model: ApiModel | null = data?.modelInfo || null;
-	const base = apiBase(project?.publicSlug);
+	const base = apiBase();
 	const a = actionOf(data?.action || 'list');
 	const writes = data?.action === 'create' || data?.action === 'update';
 	const isList = data?.action === 'list';

@@ -1,5 +1,5 @@
 /**
- * The project's public API as the backend describes it (GET /public/api/<project>/,
+ * The project's public API as the backend describes it (GET /public/api/?apiKey=<project key>,
  * backend routes-public/public.router.ts), and what the reference and the
  * tester build from it: endpoints, example bodies, example responses.
  */
@@ -278,14 +278,18 @@ export const METHOD_TONE: Record<Method, string> = { GET: 'green', POST: 'blue',
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
+/** An address with the project key (docs/api-builder D14) — a placeholder until it's known. */
+export const withKey = (url: string, apiKey?: string) => `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey || '<project key>'}`;
+
 /**
  * An endpoint as a request you can paste: curl for a terminal, fetch for a
  * site or app. `:id` becomes an example id; a customer endpoint carries the
- * Authorization header to fill in. Shown on each endpoint of the reference,
- * in the studio's Public API tab and in user-docs/public-api#examples.
+ * Authorization header to fill in; every one carries the project key. Shown
+ * on each endpoint of the reference, in the studio's Public API tab and in
+ * user-docs/public-api#examples.
  */
-export const exampleRequests = (base: string, e: Endpoint): { curl: string; fetch: string } => {
-	const url = `${base}${e.path.replace(':id', '66f0c1d2e3a4b5c6d7e8f901')}`;
+export const exampleRequests = (base: string, e: Endpoint, apiKey?: string): { curl: string; fetch: string } => {
+	const url = withKey(`${base}${e.path.replace(':id', '66f0c1d2e3a4b5c6d7e8f901')}`, apiKey);
 	const headers: Record<string, string> = {
 		...(e.body && { 'Content-Type': 'application/json' }),
 		...(e.customer && { Authorization: 'Bearer <customer token>' }),

@@ -8,6 +8,7 @@ import { ExternalLink } from 'lucide-react';
 import { Layout, useGetSiteConfigQuery } from '@/components/library';
 import { ConsoleTabs } from '@/components/library/cl';
 import { API_ORIGIN, pagePath } from '@/components/library/config/lib/constants/panel';
+import { useProjectKey } from '@/components/library/tenant/useProjectKey';
 import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import { ContactTab, GeneralTab } from './_components/General';
@@ -44,8 +45,10 @@ function SiteSetup() {
 	const tab = TABS.some(t => t.value === params.get('tab')) ? String(params.get('tab')) : 'general';
 	const { project, can } = useWorkspace();
 	const { data: config, isLoading, isError } = useGetSiteConfigQuery();
-	const base = project ? `${API_ORIGIN}/public/api/${project.publicSlug}` : '';
-	const props = { canBuild: can('build'), canDomains: can('manage-projects'), base };
+	// The site API's address with the project key (docs/api-builder D14) — robots.txt and sitemap.xml are read from it.
+	const apiKey = useProjectKey();
+	const base = project ? `${API_ORIGIN}/public/api` : '';
+	const props = { canBuild: can('build'), canDomains: can('manage-projects'), base, apiKey };
 
 	const body = () => {
 		if (isError) return <Text color='red.fg'>Only website projects have a site setup.</Text>;

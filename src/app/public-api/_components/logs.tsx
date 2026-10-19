@@ -21,7 +21,8 @@ import {
 	useGetApiRequestLogsQuery,
 } from '@/components/library/store/services/apiBuilderApi';
 import { TONES, Tone } from '@/theme/tones';
-import { MethodBadge, apiBase, apiHref, whoOf } from './shared';
+import { MethodBadge, apiBase, apiHref, useProjectKey, whoOf } from './shared';
+import { withKey } from './api';
 
 /**
  * The API's request logs (backend docs/api-builder AB-06): every call to the
@@ -297,8 +298,8 @@ const Detail: FC<{ label: string; children: React.ReactNode; mono?: boolean }> =
 );
 
 /** The call as a curl command: where it went, with the header it needs — never a real secret. */
-const curlOf = (c: ApiLog, base: string) => {
-	const url = `${base}${c.path}${c.query ? `?${c.query}` : ''}`;
+const curlOf = (c: ApiLog, base: string, apiKey: string) => {
+	const url = withKey(`${base}${c.path}${c.query ? `?${c.query}` : ''}`, apiKey);
 	const lines = [`curl${c.method === 'GET' ? '' : ` -X ${c.method}`} '${url}'`];
 	if (c.key) lines.push(`  -H "Authorization: Bearer $MINT_SERVER_KEY"`);
 	else if (c.customer) lines.push(`  -H "Authorization: Bearer <the customer’s token>"`);
@@ -309,7 +310,8 @@ const curlOf = (c: ApiLog, base: string) => {
 const LogDialog: FC<{ call: ApiLog | null; onClose: () => void; base: string; fixedEndpoint?: boolean }> = ({ call, onClose, base, fixedEndpoint }) => {
 	const [copied, setCopied] = useState(false);
 	const c = call;
-	const curl = c ? curlOf(c, base) : '';
+	const apiKey = useProjectKey();
+	const curl = c ? curlOf(c, base, apiKey) : '';
 	return (
 		<Dialog.Root
 			placement='center'
@@ -817,7 +819,7 @@ export const ApiLogs: FC<ApiLogsProps> = ({ endpointId, initial, syncUrl }) => {
 			<LogDialog
 				call={open}
 				onClose={() => setOpen(null)}
-				base={apiBase(project?.publicSlug)}
+				base={apiBase()}
 				fixedEndpoint={!!endpointId}
 			/>
 		</Flex>

@@ -12,7 +12,9 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import { ago } from '@/components/library/modals/CreateModal/CreateModal';
 import { useGetApiBuilderOverviewQuery, useGetApiEndpointsQuery } from '@/components/library/store/services/apiBuilderApi';
 import { MONO_CAPS } from '@/theme/tones';
-import { ApiTabs, MethodBadge, WhoBadge, apiBase, apiHref, publicBase } from './_components/shared';
+import { ApiTabs, MethodBadge, WhoBadge, apiBase, apiHref, publicBase, useProjectKey } from './_components/shared';
+import { withKey } from './_components/api';
+import ProjectKey from './_components/ProjectKey';
 import GenerateDialog from './_components/GenerateDialog';
 import { LogsGlance } from './_components/logs';
 
@@ -108,8 +110,9 @@ export default function ApiOverviewPage() {
 	const { data, isLoading } = useGetApiBuilderOverviewQuery(undefined, { skip: !allowed || !project });
 	const { data: eps } = useGetApiEndpointsQuery(undefined, { skip: !allowed || !project });
 	const [generating, setGenerating] = useState<string | null>(null);
-	const base = apiBase(project?.publicSlug);
+	const base = apiBase();
 	const origin = publicBase();
+	const apiKey = useProjectKey();
 	const e = data?.endpoints;
 	const firstOpen = eps?.doc.find(x => x.enabled && x.action === 'list' && x.access.who === 'anyone');
 	const firstKey = eps?.doc.find(x => x.enabled && x.access.who === 'key');
@@ -145,6 +148,7 @@ export default function ApiOverviewPage() {
 							subtitle='Every endpoint is under it.'>
 							<CopyValue value={base} />
 						</Panel>
+						<ProjectKey canChange={allowed} />
 
 						<Grid
 							templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }}
@@ -336,7 +340,7 @@ export default function ApiOverviewPage() {
 									</Flex>
 									<Snippet
 										label='fetch example'
-										code={`const res = await fetch('${base}${firstOpen?.path || '/<path>'}?limit=20');\nconst { doc, total } = await res.json();`}
+										code={`const res = await fetch('${withKey(`${base}${firstOpen?.path || '/<path>'}?limit=20`, apiKey)}');\nconst { doc, total } = await res.json();`}
 									/>
 								</Box>
 								<Box>
@@ -353,7 +357,7 @@ export default function ApiOverviewPage() {
 									</Text>
 									<Snippet
 										label='sign-in widget snippet'
-										code={`<script src="${origin}/public/widget.js" data-project="${project?.publicSlug}" async></script>\n<div data-mint-login></div>`}
+										code={`<script src="${origin}/public/widget.js" data-key="${apiKey || '<project key>'}" async></script>\n<div data-mint-login></div>`}
 									/>
 								</Box>
 								<Box>
@@ -367,7 +371,7 @@ export default function ApiOverviewPage() {
 									<Text {...pCss}>Keep the key on the server — in an environment variable, never in a page.</Text>
 									<Snippet
 										label='server key example'
-										code={`curl ${base}${firstKey?.path || '/<path>'} \\\n  -H "Authorization: Bearer $MINT_SERVER_KEY"`}
+										code={`curl '${withKey(`${base}${firstKey?.path || '/<path>'}`, apiKey)}' \\\n  -H "Authorization: Bearer $MINT_SERVER_KEY"`}
 									/>
 								</Box>
 								{project?.type === 'website' && (
@@ -383,7 +387,7 @@ export default function ApiOverviewPage() {
 										</Text>
 										<Snippet
 											label='analytics snippet'
-											code={`<script src="${origin}/public/track.js" data-project="${project.publicSlug}" defer></script>`}
+											code={`<script src="${origin}/public/track.js" data-key="${apiKey || '<project key>'}" defer></script>`}
 										/>
 									</Box>
 								)}

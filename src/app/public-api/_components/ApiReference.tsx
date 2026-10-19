@@ -7,6 +7,7 @@ import { ArrowUpRight, ChevronDown, ChevronRight, KeyRound, Lock, Play } from 'l
 import { CopyValue, Panel } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import ExampleRequest from './ExampleRequest';
+import { useProjectKey } from './shared';
 import {
 	AUTH_ENDPOINTS,
 	ApiInfo,
@@ -628,6 +629,7 @@ const ApiReference: FC<{ base: string; info: ApiInfo | null; error?: string; onT
 	const all = groups.flatMap(g => g.items);
 	const customers = all.some(x => x.e.customer);
 	const keys = all.some(x => x.e.key);
+	const apiKey = useProjectKey();
 	return (
 		<Panel
 			title='API reference'
@@ -642,12 +644,17 @@ const ApiReference: FC<{ base: string; info: ApiInfo | null; error?: string; onT
 					<Label>Base address</Label>
 					<CopyValue value={base} />
 				</Box>
+				<Box>
+					<Label>Project key — on every call, ?apiKey=</Label>
+					<CopyValue value={apiKey} />
+				</Box>
 				<Text
 					fontSize='12.5px'
 					color='fg.muted'
 					lineHeight='1.6'>
-					Requests and responses are JSON. An error answers with a status and <code>{'{ "message": "…" }'}</code>: 400 a value
-					isn’t valid, 401 the endpoint needs a signed-in customer or a server key, 403 a rule refused it, 404 not found (or
+					Requests and responses are JSON. Every call carries the project key — <code>?apiKey=</code> or the{' '}
+					<code>X-Api-Key</code> header. An error answers with a status and <code>{'{ "message": "…" }'}</code>: 400 a value
+					isn’t valid, 401 the project key is missing or wrong, or the endpoint needs a signed-in customer or a server key, 403 a rule refused it, 404 not found (or
 					outside its rules), 429 too many requests — wait a moment.
 					{customers && <> Endpoints marked <em>Customer</em> need <code>Authorization: Bearer &lt;token&gt;</code>, the token from sign-in.</>}
 					{keys && (

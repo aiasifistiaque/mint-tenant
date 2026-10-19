@@ -5,7 +5,7 @@ import { Badge, Box, Button, Flex, Grid, Input, Skeleton, Switch, Text } from '@
 import { Plus } from 'lucide-react';
 import { Layout, PromptDialog } from '@/components/library';
 import { Dropdown, EmptyState, Panel } from '@/components/library/cl';
-import { useWorkspace } from '@/components/library/tenant';
+import { useProjectKey, useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
 import { useGetWidgetsAuthQuery, useGetWidgetsQuery, useGetWidgetsShopQuery, useSaveWidgetsMutation } from '@/components/library/store/services/tenantApi';
@@ -213,6 +213,7 @@ const LookPanel: FC<{ theme: WidgetTheme; websiteProject: boolean }> = ({ theme:
 
 export default function WidgetsPage() {
 	const { project, can, isLoading: loadingSelf } = useWorkspace();
+	const apiKey = useProjectKey();
 	const allowed = can('build');
 	const { data, isLoading } = useGetWidgetsQuery(undefined, { skip: !allowed });
 	const { data: shop } = useGetWidgetsShopQuery(undefined, { skip: !allowed });
@@ -347,7 +348,7 @@ export default function WidgetsPage() {
 					shop={shop}
 					auth={auth}
 					authMissing={authMissing}
-					slug={project?.publicSlug || ''}
+					projectKey={apiKey}
 					currency={currency}
 				/>
 			)}

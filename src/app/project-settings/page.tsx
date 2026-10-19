@@ -9,6 +9,7 @@ import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import BusinessFields, { Business, EMPTY_BUSINESS } from '@/components/library/tenant/BusinessDetails';
 import { API_ORIGIN, IS_TENANT_PANEL, projectHref } from '@/components/library/config/lib/constants/panel';
+import { useProjectKey } from '@/components/library/tenant/useProjectKey';
 import type { TenantProject } from '@/components/library/store/services/tenantApi';
 
 /**
@@ -74,7 +75,9 @@ const Fact: FC<{ label: string; children: ReactNode }> = ({ label, children }) =
 /** What the project is, read-only (WO-48): kind, addresses, who made it and when, members, models, media, template. */
 const About: FC<{ project: TenantProject }> = ({ project: p }) => {
 	const origin = typeof window === 'undefined' ? '' : window.location.origin;
-	const api = `${API_ORIGIN}/public/api/${p.publicSlug}`;
+	const api = `${API_ORIGIN}/public/api`;
+	// The project key names the project on it (docs/api-builder D14).
+	const apiKey = useProjectKey();
 	const link = (href: string, text: ReactNode) => (
 		<Link
 			asChild
@@ -100,6 +103,9 @@ const About: FC<{ project: TenantProject }> = ({ project: p }) => {
 				</Fact>
 				<Fact label='Public API'>
 					<CopyValue value={api} />
+				</Fact>
+				<Fact label='Project key'>
+					<CopyValue value={apiKey} />
 				</Fact>
 				{p.type === 'website' && (
 					<Fact label='Domains'>{p.domains?.length ? p.domains.join(', ') : <Text color='fg.muted'>None yet — add them in Site setup</Text>}</Fact>

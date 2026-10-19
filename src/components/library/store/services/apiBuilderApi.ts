@@ -10,6 +10,7 @@ import mainApi from './mainApi';
  */
 
 const TAG = 'api-builder';
+const KEY_TAG = 'project-key';
 
 export type EndpointAction = 'list' | 'get' | 'create' | 'update' | 'delete';
 export type EndpointWho = 'anyone' | 'customer' | 'key';
@@ -128,7 +129,7 @@ export type ApiLogSummary = {
 const logQuery = (f: Partial<ApiLogFilters> & { limit?: number }) =>
 	new URLSearchParams(Object.entries(f).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString();
 
-export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).injectEndpoints({
+export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, KEY_TAG] }).injectEndpoints({
 	endpoints: builder => ({
 		getApiBuilderOverview: builder.query<ApiBuilderOverview, void>({
 			query: () => 'api-builder/overview',
@@ -177,6 +178,15 @@ export const apiBuilderApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).in
 			query: id => ({ url: `api-builder/keys/${id}`, method: 'DELETE' }),
 			invalidatesTags: [TAG],
 		}),
+		// The project key (docs/api-builder D14): it names the project on the public API — ?apiKey=.
+		getProjectKey: builder.query<{ apiKey: string }, void>({
+			query: () => 'project-key',
+			providesTags: [KEY_TAG],
+		}),
+		regenerateProjectKey: builder.mutation<{ apiKey: string }, void>({
+			query: () => ({ url: 'api-builder/project-key', method: 'POST' }),
+			invalidatesTags: [KEY_TAG, TAG],
+		}),
 		getApiRequestLogs: builder.query<{ doc: ApiLog[]; hasMore: boolean }, ApiLogFilters & { limit?: number }>({
 			query: f => `api-builder/logs?${logQuery(f)}`,
 			keepUnusedDataFor: 10,
@@ -203,6 +213,8 @@ export const {
 	useGetServerKeysQuery,
 	useCreateServerKeyMutation,
 	useRevokeServerKeyMutation,
+	useGetProjectKeyQuery,
+	useRegenerateProjectKeyMutation,
 	useGetApiRequestLogsQuery,
 	useGetApiRequestLogSummaryQuery,
 	useGetApiRequestLogQuery,

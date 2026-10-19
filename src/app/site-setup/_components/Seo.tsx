@@ -10,7 +10,7 @@ import { Field, SettingCard, TextField, Toggle, changed, imageValue, useDraft, u
 
 /** SEO: the defaults every page falls back to, indexing, and search engine verification. */
 
-type Props = { config: SiteConfig; canBuild: boolean; base: string };
+type Props = { config: SiteConfig; canBuild: boolean; base: string; apiKey?: string };
 
 const Defaults: FC<Props> = ({ config, canBuild }) => {
 	const s = config.seo;
@@ -74,7 +74,7 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 	);
 };
 
-const Indexing: FC<Props> = ({ config, canBuild, base }) => {
+const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 	const s = config.seo;
 	const saved = { indexing: s.indexing, sitemap: s.sitemap, canonicalDomain: s.canonicalDomain, robots: s.robots };
 	const { draft, set, reset, dirty } = useDraft(saved);
@@ -131,10 +131,10 @@ const Indexing: FC<Props> = ({ config, canBuild, base }) => {
 						templateColumns={{ base: '1fr', md: '1fr 1fr' }}
 						gap={4}>
 						<Field label='robots.txt'>
-							<CopyValue value={`${base}/site/robots.txt`} />
+							<CopyValue value={`${base}/site/robots.txt?apiKey=${apiKey}`} />
 						</Field>
 						<Field label='sitemap.xml'>
-							<CopyValue value={`${base}/site/sitemap.xml`} />
+							<CopyValue value={`${base}/site/sitemap.xml?apiKey=${apiKey}`} />
 						</Field>
 					</Grid>
 				)}

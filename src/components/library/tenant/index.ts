@@ -6,3 +6,4 @@ export { default as WorkspaceSwitcher } from './WorkspaceSwitcher';
 export { default as GuideLink } from './GuideLink';
 export { default as ProjectsBoard } from './ProjectsBoard';
 export { BUILDER_URL, openSiteBuilder } from './siteBuilder';
+export { useProjectKey } from './useProjectKey';

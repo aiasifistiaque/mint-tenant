@@ -4,6 +4,7 @@ import { FC, useState } from 'react';
 import { Box, Button, Flex } from '@chakra-ui/react';
 import { Copy } from 'lucide-react';
 import { Endpoint, exampleRequests } from './api';
+import { useProjectKey } from './shared';
 
 /**
  * An endpoint as a request to paste — curl or fetch (api.ts exampleRequests).
@@ -12,7 +13,8 @@ import { Endpoint, exampleRequests } from './api';
 const ExampleRequest: FC<{ base: string; e: Endpoint }> = ({ base, e }) => {
 	const [as, setAs] = useState<'curl' | 'fetch'>('curl');
 	const [copied, setCopied] = useState(false);
-	const code = exampleRequests(base, e)[as];
+	const apiKey = useProjectKey();
+	const code = exampleRequests(base, e, apiKey)[as];
 	return (
 		<Box
 			borderWidth='1px'

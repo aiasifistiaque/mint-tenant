@@ -11,18 +11,20 @@ import { useGetApiEndpointsQuery } from '@/components/library/store/services/api
 import ApiReference from '../_components/ApiReference';
 import ApiTester, { Trial } from '../_components/ApiTester';
 import type { ApiInfo, Endpoint } from '../_components/api';
-import { ApiTabs, apiBase, apiHref } from '../_components/shared';
+import { withKey } from '../_components/api';
+import { ApiTabs, apiBase, apiHref, useProjectKey } from '../_components/shared';
 
 /**
  * API → Reference (backend docs/api-builder D11): every endpoint as the live
- * API describes it (GET /public/api/<project>/) — what to send, what comes
+ * API describes it (GET /public/api/?apiKey=<project key>) — what to send, what comes
  * back, examples — and the tester below it. "Open" goes to the endpoint's own
  * page; "Try" loads it into the tester.
  */
 export default function ApiReferencePage() {
 	const { project, can, isLoading: loadingSelf } = useWorkspace();
 	const allowed = IS_TENANT_PANEL && can('build');
-	const base = apiBase(project?.publicSlug);
+	const base = apiBase();
+	const apiKey = useProjectKey();
 	const { data } = useGetApiEndpointsQuery(undefined, { skip: !allowed || !project });
 
 	// What the live API offers — fetched again whenever the endpoints change.
@@ -30,16 +32,16 @@ export default function ApiReferencePage() {
 	const [infoError, setInfoError] = useState('');
 	const stamp = useMemo(() => JSON.stringify((data?.doc || []).map(e => [e._id, e.updatedAt, e.enabled])), [data]);
 	useEffect(() => {
-		if (!base || !allowed) return;
+		if (!apiKey || !allowed) return;
 		let live = true;
-		fetch(`${base}/`)
+		fetch(withKey(`${base}/`, apiKey))
 			.then(r => (r.ok ? r.json() : Promise.reject(new Error(`The API answered ${r.status}`))))
 			.then(d => live && (setInfo(d), setInfoError('')))
 			.catch(e => live && setInfoError(e?.message || 'Couldn’t reach the API'));
 		return () => {
 			live = false;
 		};
-	}, [base, allowed, stamp]);
+	}, [base, apiKey, allowed, stamp]);
 
 	const links = useMemo(() => Object.fromEntries((data?.doc || []).map(e => [`${e.method} ${e.path}`, apiHref(`/endpoints/${e._id}`)])), [data]);
 	const [trial, setTrial] = useState<Trial | null>(null);

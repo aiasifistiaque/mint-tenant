@@ -5,13 +5,15 @@ import { Badge, Box, Button, Flex, Input, Text, Textarea } from '@chakra-ui/reac
 import { Copy, Send } from 'lucide-react';
 import { Dropdown, Panel } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
-import { Method } from './api';
+import { Method, withKey } from './api';
+import { useProjectKey } from './shared';
 
 /**
  * Sends a request to the project's live public API, from this browser, and
  * shows what comes back — status, time and the JSON. A sign-in's token is
  * kept for the customer-only endpoints (a server key goes in the same field); a
- * record's _id fills the next :id.
+ * record's _id fills the next :id. Every request carries the project key
+ * (?apiKey=, backend docs/api-builder D14).
  */
 
 export type Trial = { method: Method; path: string; body?: Record<string, any>; customer?: boolean; nonce: number };
@@ -55,7 +57,9 @@ const ApiTester: FC<{ base: string; trial: Trial | null }> = ({ base, trial }) =
 		panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}, [trial?.nonce]);
 
-	const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+	// Every call carries the project key (docs/api-builder D14).
+	const apiKey = useProjectKey();
+	const url = withKey(`${base}${path.startsWith('/') ? path : `/${path}`}`, apiKey);
 
 	const send = async (e?: FormEvent) => {
 		e?.preventDefault();
@@ -215,7 +219,8 @@ const ApiTester: FC<{ base: string; trial: Trial | null }> = ({ base, trial }) =
 					<Text
 						fontSize='12px'
 						color='fg.muted'>
-						Requests are real: creating, changing or deleting changes this project’s records.
+						Requests are real: creating, changing or deleting changes this project’s records. Each one carries the project key
+						(<Text as='span' fontFamily='mono' fontSize='inherit'>?apiKey=</Text>) — on Keys.
 					</Text>
 					{problem && (
 						<Text

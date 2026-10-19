@@ -18,16 +18,20 @@ import {
 	useRevokeServerKeyMutation,
 } from '@/components/library/store/services/apiBuilderApi';
 import type { ServerKey } from '@/components/library/store/services/apiBuilderApi';
-import { ApiTabs, MethodBadge, apiBase, apiHref, errorOf } from '../_components/shared';
+import { ApiTabs, MethodBadge, apiBase, apiHref, errorOf, useProjectKey } from '../_components/shared';
+import { withKey } from '../_components/api';
+import ProjectKey from '../_components/ProjectKey';
 
 /**
- * API → Keys (backend docs/api-builder D8): secret server keys for endpoints
+ * API → Keys (backend docs/api-builder D8, D14): first the project key every
+ * call carries (?apiKey=) and its Regenerate; then secret server keys for endpoints
  * whose "who" is a server key — the business's own server, scripts or
  * partners. A key's secret is shown once, when it's made; afterwards only its
  * last four characters. Revoking one stops it at once.
  */
 
 const NewKeyDialog: FC<{ open: boolean; onClose: () => void; base: string; keyPath?: string }> = ({ open, onClose, base, keyPath }) => {
+	const apiKey = useProjectKey();
 	const [name, setName] = useState('');
 	const [made, setMade] = useState<ServerKey | null>(null);
 	const [error, setError] = useState<{ message: string; on?: string } | null>(null);
@@ -102,7 +106,7 @@ const NewKeyDialog: FC<{ open: boolean; onClose: () => void; base: string; keyPa
 										borderWidth='1px'
 										borderColor='border'
 										borderRadius='md'>
-										{`curl ${base}${keyPath || '/<path>'} \\\n  -H "Authorization: Bearer $MINT_SERVER_KEY"`}
+										{`curl '${withKey(`${base}${keyPath || '/<path>'}`, apiKey)}' \\\n  -H "Authorization: Bearer $MINT_SERVER_KEY"`}
 									</Box>
 								</Flex>
 							) : (
@@ -254,7 +258,7 @@ export default function ApiKeysPage() {
 						{ href: '#', title: 'Keys' },
 					]}
 					title='Keys'
-					meta='Secret keys for your own server, scripts or partners — for the endpoints that need a server key.'
+					meta='The project key every call carries, and secret keys for your own server, scripts or partners.'
 					actions={
 						allowed && (
 							<>
@@ -279,6 +283,7 @@ export default function ApiKeysPage() {
 					<Skeleton h='160px' />
 				) : (
 					<>
+						<ProjectKey canChange={allowed} />
 						{active.length ? (
 							<Panel
 								title='Keys in use'
@@ -367,7 +372,7 @@ export default function ApiKeysPage() {
 			<NewKeyDialog
 				open={making}
 				onClose={() => setMaking(false)}
-				base={apiBase(project?.publicSlug)}
+				base={apiBase()}
 				keyPath={keyEndpoints[0]?.path}
 			/>
 			<PromptDialog

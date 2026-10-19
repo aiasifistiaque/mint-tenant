@@ -98,11 +98,12 @@ type Props = {
 	auth?: AuthView;
 	/** The server can't say (one from before W-24): no customer model to choose yet. */
 	authMissing?: boolean;
-	slug: string;
+	/** The project key mint.js names the project by (docs/api-builder D14). */
+	projectKey: string;
 	currency?: string;
 };
 
-const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, authMissing, slug, currency }) => {
+const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, authMissing, projectKey, currency }) => {
 	const [name, setName] = useState('');
 	const [step, setStep] = useState(0);
 	const [value, setValue] = useState<WidgetSettings | null>(null);
@@ -405,7 +406,7 @@ const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, aut
 										</Text>
 									</Flex>
 									<Preview
-										slug={slug}
+										projectKey={projectKey}
 										theme={data.theme}
 										name={name}
 										settings={value}

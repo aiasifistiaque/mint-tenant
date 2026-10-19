@@ -105,7 +105,7 @@ function EndpointsView() {
 	const [making, setMaking] = useState(false);
 	const models: ApiModel[] = data?.models || [];
 	const endpoints: Endpoint[] = data?.doc || [];
-	const base = apiBase(project?.publicSlug);
+	const base = apiBase();
 
 	const groups = useMemo(() => {
 		const q = search.trim().toLowerCase();

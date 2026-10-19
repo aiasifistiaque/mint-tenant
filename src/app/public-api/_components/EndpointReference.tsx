@@ -6,7 +6,8 @@ import { Copy } from 'lucide-react';
 import { Panel } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import type { ApiModel as BuilderModel, Endpoint } from '@/components/library/store/services/apiBuilderApi';
-import { ApiModel, exampleOf, exampleRecord } from './api';
+import { ApiModel, exampleOf, exampleRecord, withKey } from './api';
+import { useProjectKey } from './shared';
 
 /**
  * One endpoint's reference (its page's Reference tab): what a call sends —
@@ -139,7 +140,9 @@ const EndpointReference: FC<{ endpoint: Endpoint; draft: Draft; model: BuilderMo
 		...(who === 'customer' && { Authorization: 'Bearer <customer token>' }),
 		...(who === 'key' && { Authorization: 'Bearer <server key>' }),
 	};
-	const url = `${base}${path.replace(':id', ID)}${action === 'list' && !model.single ? `?page=1&limit=${draft.list.limit}` : ''}`;
+	// Every call carries the project key (backend docs/api-builder D14).
+	const apiKey = useProjectKey();
+	const url = withKey(`${base}${path.replace(':id', ID)}${action === 'list' && !model.single ? `?page=1&limit=${draft.list.limit}` : ''}`, apiKey);
 
 	const record = exampleRecord(asModel);
 	const list = action === 'list' && !model.single;
@@ -163,6 +166,8 @@ const EndpointReference: FC<{ endpoint: Endpoint; draft: Draft; model: BuilderMo
 					] as [string, any],
 			  ]
 			: []),
+		['401 No project key', { message: 'The apiKey is missing — add ?apiKey=<your project key>. It’s on API → Keys in your project.', code: 'api_key_missing' }],
+		['401 Wrong project key', { message: 'That apiKey isn’t valid — it may have been regenerated. Copy the project key from API → Keys.', code: 'api_key_invalid' }],
 		...(who === 'customer' ? [['401 Unauthorized', { message: 'Sign in first.', code: 'customer_required' }] as [string, any]] : []),
 		...(who === 'key' ? [['401 Unauthorized', { message: 'This endpoint needs a server key.', code: 'key_required' }] as [string, any]] : []),
 		...(action === 'create' && draft.access.when.length
