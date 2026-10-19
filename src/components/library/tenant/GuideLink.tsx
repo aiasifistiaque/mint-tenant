@@ -104,6 +104,8 @@ const GUIDE_OF: Record<string, string> = {
 	cart: 'widgets',
 	'mint-js': 'widgets',
 	'coming-next': 'widgets',
+	'add-widget': 'widgets',
+	'login-customers': 'widgets',
 	websites: 'websites',
 	'site-setup': 'websites',
 	'site-general': 'websites',

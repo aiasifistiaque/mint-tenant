@@ -304,7 +304,8 @@ export type WidgetType = {
 	texts: { key: string; label: string; default: string }[];
 	snippet: string;
 };
-export type WidgetSettings = { enabled: boolean; options: Record<string, any>; texts: Record<string, string> };
+/** added: on the project's Widgets screen (W-24, put there by the setup wizard); only an added widget can be on. */
+export type WidgetSettings = { added: boolean; enabled: boolean; addedAt?: string | null; options: Record<string, any>; texts: Record<string, string> };
 export type WidgetTheme = { primaryColor: string; fontFamily: string; radius: number; colorMode: 'auto' | 'light' | 'dark' };
 export type WidgetsView = {
 	catalog: WidgetType[];
@@ -343,6 +344,22 @@ export type ShopView = {
 	problem: string | null;
 	/** A suggestion from the models' names and fields. */
 	guess: ShopMapping | null;
+	models: ShopModel[];
+};
+
+/**
+ * Login & account's customer model (backend functions/authMapping.function.ts,
+ * docs/widgets W-24): which of the project's models gets a record per customer
+ * account, and which fields are its email, name and phone. Passwords never go there.
+ */
+export type AuthMapping = { model: string; fields: { email: string; name?: string; phone?: string } };
+export type AuthView = {
+	auth: AuthMapping | null;
+	/** What's saved, when it no longer fits the models (`problem` says why). */
+	saved: AuthMapping | null;
+	problem: string | null;
+	/** A model that looks like customers, to start from. */
+	guess: AuthMapping | null;
 	models: ShopModel[];
 };
 
@@ -972,6 +989,14 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: body => ({ url: 'widgets/shop', method: 'PUT', body }),
 			invalidatesTags: ['tenant-widgets'],
 		}),
+		getWidgetsAuth: builder.query<AuthView, void>({
+			query: () => 'widgets/auth',
+			providesTags: ['tenant-widgets'],
+		}),
+		saveWidgetsAuth: builder.mutation<AuthView, { auth: AuthMapping | null }>({
+			query: body => ({ url: 'widgets/auth', method: 'PUT', body }),
+			invalidatesTags: ['tenant-widgets'],
+		}),
 
 		/* ------------------------------------- site payments (docs/widgets W-06) */
 		getSitePaymentSettings: builder.query<SitePaymentSettings, void>({
@@ -1148,6 +1173,8 @@ export const {
 	useSendMailDesignTestMutation,
 	useRemoveMailDesignMutation,
 	useSaveWidgetsShopMutation,
+	useGetWidgetsAuthQuery,
+	useSaveWidgetsAuthMutation,
 	useGetProjectTemplatesQuery,
 	useGetNewProjectTemplatesQuery,
 	useApplyProjectTemplateMutation,
