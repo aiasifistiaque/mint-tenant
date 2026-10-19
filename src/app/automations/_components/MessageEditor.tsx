@@ -233,37 +233,24 @@ const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: P
 										}}
 									/>
 								)}
-								{found.map((f, i) => (
-									<Box key={f.key}>
-										{f.group && f.group !== found[i - 1]?.group && (
-											<Text
-												px={2}
-												pt={1.5}
-												pb={0.5}
-												fontSize='11px'
-												fontWeight='600'
-												color='fg.muted'
-												textTransform='uppercase'
-												letterSpacing='0.04em'>
-												{f.group}’s details
-											</Text>
-										)}
-										<chakra.button
-											type='button'
-											role='menuitem'
-											display='block'
-											w='full'
-											textAlign='left'
-											px={2}
-											py={1}
-											borderRadius='6px'
-											fontSize='13px'
-											onMouseDown={keep}
-											onClick={() => insert(f.key)}
-											_hover={{ bg: 'bg.muted' }}>
-											{f.group ? f.label.slice(f.group.length + 3) : f.label}
-										</chakra.button>
-									</Box>
+								{found.map(f => (
+									<chakra.button
+										key={f.key}
+										type='button'
+										role='menuitem'
+										display='block'
+										w='full'
+										textAlign='left'
+										px={2}
+										pl={f.group ? 4 : 2}
+										py={1}
+										borderRadius='6px'
+										fontSize='13px'
+										onMouseDown={keep}
+										onClick={() => insert(f.key)}
+										_hover={{ bg: 'bg.muted' }}>
+										{f.label}
+									</chakra.button>
 								))}
 								{!found.length && (
 									<Text
