@@ -25,6 +25,7 @@ import {
 	Webhook,
 	X,
 } from 'lucide-react';
+import { padding } from '../config';
 import { DOCS_URL, createPath, pagePath, projectHref } from '../config/lib/constants/panel';
 import { useGetBuiltModelsQuery } from '../store/services/builderApi';
 import { useGetDashboardQuery } from '../store/services/dashboardApi';
@@ -80,11 +81,14 @@ const ICON = { size: 22, strokeWidth: 1.75 };
 
 const guideHref = (path: string) => `${DOCS_URL}${path}`;
 
+// The card row reaches out over the page's right padding (MainBody).
+const BLEED = { base: -padding.BASE, md: -padding.MD, lg: -padding.LG };
+
 /** Which cards a kind of project gets, in the order they're best done. */
 const CARDS_FOR: Record<ProjectType, CardKey[]> = {
 	app: ['model', 'records', 'sidebar', 'dashboard', 'team', 'ai', 'api', 'guides'],
 	api: ['model', 'records', 'api', 'webhooks', 'team', 'ai', 'guides'],
-	website: ['site-setup', 'site-pages', 'dashboard', 'team', 'ai', 'guides'],
+	website: ['site-setup', 'site-pages', 'model', 'records', 'dashboard', 'team', 'ai', 'guides'],
 };
 
 const useTicks = (projectId?: string) => {
@@ -256,7 +260,11 @@ const SuggestionCard: FC<{
 	);
 };
 
-/** Cards in one row that scrolls sideways, with back / forward arrows. */
+/**
+ * Cards in one row that scrolls sideways, with back / forward arrows. The row
+ * runs past the page's right padding to the window's edge, so the last card in
+ * view is cut by the screen rather than stopping short of it.
+ */
 const CardRow: FC<{ children: ReactNode; head: ReactNode }> = ({ children, head }) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const [edges, setEdges] = useState({ start: true, end: false });
@@ -303,12 +311,19 @@ const CardRow: FC<{ children: ReactNode; head: ReactNode }> = ({ children, head 
 			<Flex
 				ref={ref}
 				onScroll={measure}
+				mr={BLEED}
 				gap={4}
 				overflowX='auto'
 				scrollSnapType='x mandatory'
 				pb={1}
 				css={{ scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
 				{children}
+				{/* Room after the last card (with the row's gap), so scrolled to the end
+				    it stops where the page's padding would. */}
+				<Box
+					flex='0 0 auto'
+					w={{ base: `calc(${padding.BASE * 4}px - 16px)`, md: `calc(${padding.MD * 4}px - 16px)` }}
+				/>
 			</Flex>
 		</Flex>
 	);
@@ -318,7 +333,7 @@ const ProjectSuggestions: FC<{ at?: 'top' | 'bottom' }> = ({ at = 'top' }) => {
 	const { project, can } = useWorkspace();
 	const type: ProjectType = project?.type || 'app';
 	const ticks = useTicks(project?._id);
-	const { data: models } = useGetBuiltModelsQuery(undefined, { skip: !project || type === 'website' });
+	const { data: models } = useGetBuiltModelsQuery(undefined, { skip: !project || !can('build') });
 	const { data: dashboard } = useGetDashboardQuery(undefined, { skip: !project });
 	const { data: members } = useGetMembersQuery(undefined, { skip: !project || !can('view-members') });
 	const { data: invitations } = useGetInvitationsQuery(undefined, { skip: !project || !can('invite-members') });
@@ -368,7 +383,7 @@ const ProjectSuggestions: FC<{ at?: 'top' | 'bottom' }> = ({ at = 'top' }) => {
 			text: 'Choose what this page shows: counts, totals, charts and the latest records from your models.',
 			icon: <LayoutDashboard {...ICON} />,
 			tone: 'teal',
-			action: { label: 'Open Dashboard builder', href: projectHref('/dashboard-builder') },
+			action: { label: 'Open builder', href: projectHref('/dashboard-builder') },
 			guide: { label: 'Dashboard guide', path: '/dashboard' },
 		},
 		team: {
@@ -443,7 +458,11 @@ const ProjectSuggestions: FC<{ at?: 'top' | 'bottom' }> = ({ at = 'top' }) => {
 		dashboard: !!dashboard?.saved && (dashboard?.widgets || []).length > 0,
 		team: (members?.total || members?.doc?.length || 0) > 1 || (invitations?.doc?.length || 0) > 0,
 	};
-	const cards = CARDS_FOR[type].map(k => CARDS[k]).filter(c => c.key !== 'team' || can('invite-members'));
+	// Building (models, the sidebar, the dashboard) needs the Build right; inviting needs its own.
+	const BUILD: CardKey[] = ['model', 'sidebar', 'dashboard'];
+	const cards = CARDS_FOR[type]
+		.map(k => CARDS[k])
+		.filter(c => (c.key !== 'team' || can('invite-members')) && (!BUILD.includes(c.key) || can('build')));
 	const isDone = (c: Card) => !c.noTick && (!!auto[c.key] || ticks.ticked.includes(c.key));
 	const tickable = cards.filter(c => !c.noTick);
 	const doneCount = tickable.filter(isDone).length;
