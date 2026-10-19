@@ -37,12 +37,13 @@ function Dashboard() {
 	// A website's home starts with how the site is doing and what's left to set up (WO-34);
 	// an API's with its address, endpoints and recent calls (docs/templates T-09).
 	const { project } = useWorkspace();
+	// Suggestions lead an empty dashboard and follow one that has widgets.
+	const hasWidgets = !!data?.saved && widgets.length > 0;
 	if (IS_TENANT_PANEL && (project?.type === 'website' || project?.type === 'api'))
 		return (
 			<Layout
 				title='Dashboard'
 				path='dashboard'>
-				<ProjectSuggestions />
 				{project.type === 'website' ? <WebsiteOverview /> : <ApiOverview />}
 				{data?.saved && widgets.length ? (
 					<Flex
@@ -51,6 +52,7 @@ function Dashboard() {
 						<DashboardGrid widgets={widgets} />
 					</Flex>
 				) : null}
+				<ProjectSuggestions at='bottom' />
 			</Layout>
 		);
 
@@ -58,7 +60,7 @@ function Dashboard() {
 		<Layout
 			title='Dashboard'
 			path='dashboard'>
-			{IS_TENANT_PANEL && <ProjectSuggestions />}
+			{IS_TENANT_PANEL && !isLoading && !hasWidgets && <ProjectSuggestions />}
 			{isLoading ? (
 				<Grid
 					pt={3}
@@ -71,13 +73,14 @@ function Dashboard() {
 						/>
 					))}
 				</Grid>
-			) : data?.saved && widgets.length ? (
+			) : hasWidgets ? (
 				<DashboardGrid widgets={widgets} />
 			) : IS_TENANT_PANEL ? (
 				<EmptyProjectDashboard />
 			) : (
 				<BuiltInDashboard />
 			)}
+			{IS_TENANT_PANEL && hasWidgets && <ProjectSuggestions at='bottom' />}
 		</Layout>
 	);
 }

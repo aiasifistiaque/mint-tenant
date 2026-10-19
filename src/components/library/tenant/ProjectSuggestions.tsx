@@ -1,14 +1,18 @@
 'use client';
 
-import { FC, ReactNode, useEffect, useState } from 'react';
+import { FC, ReactNode, useEffect, useRef, useState } from 'react';
 import NextLink from 'next/link';
-import { Badge, Box, Button, Center, Flex, Grid, Link, Text } from '@chakra-ui/react';
+import { Badge, Box, Button, Center, Flex, IconButton, Link, Text } from '@chakra-ui/react';
 import {
-	ArrowRight,
+	ArrowUpRight,
 	BookOpen,
 	Bot,
 	Boxes,
 	Check,
+	ChevronLeft,
+	ChevronRight,
+	Circle,
+	CircleCheck,
 	ExternalLink,
 	LayoutDashboard,
 	LayoutTemplate,
@@ -38,7 +42,9 @@ import { useWorkspace } from './useWorkspace';
  * the dashboard was saved, someone was invited); the rest are ticked by hand.
  * Done cards move to the end; once every card is done, or the cards are hidden,
  * only a "Show suggestions" link stays. Ticks are kept per project in this
- * browser.
+ * browser. The cards sit in one row that scrolls sideways; the dashboard puts
+ * them at the top while it has nothing else to show, and under its widgets
+ * once it has (`at`).
  *
  * The organization's own "Getting started" checklist (FirstSteps) stays on the
  * home page with the projects; these cards are the project's version of it.
@@ -70,7 +76,7 @@ type Card = {
 	noTick?: boolean;
 };
 
-const ICON = { size: 18, strokeWidth: 1.75 };
+const ICON = { size: 22, strokeWidth: 1.75 };
 
 const guideHref = (path: string) => `${DOCS_URL}${path}`;
 
@@ -119,132 +125,196 @@ const SuggestionCard: FC<{
 	return (
 		<Flex
 			direction='column'
-			gap={3}
-			p={4}
+			flex='0 0 auto'
+			w={{ base: '86%', sm: '372px' }}
+			minH='236px'
+			p={5}
 			borderWidth='1px'
-			borderTopWidth='3px'
 			borderColor={next ? `${card.tone}.muted` : 'border'}
-			borderTopColor={done ? 'border' : `${card.tone}.solid`}
-			borderRadius='lg'
-			bg={next ? `${card.tone}.subtle` : 'bg.panel'}
-			opacity={done ? 0.75 : 1}
-			transition='box-shadow .12s ease'
-			_hover={{ boxShadow: 'sm' }}>
+			borderRadius='2xl'
+			bg='bg.panel'
+			scrollSnapAlign='start'
+			opacity={done ? 0.7 : 1}
+			transition='border-color .12s ease, box-shadow .12s ease'
+			_hover={{ borderColor: `${card.tone}.muted`, boxShadow: 'sm' }}>
 			<Flex
 				align='flex-start'
+				justify='space-between'
 				gap={3}>
 				<Center
-					boxSize='38px'
+					boxSize='44px'
 					flexShrink={0}
-					borderRadius='lg'
-					bg={done ? 'bg.muted' : next ? 'bg.panel' : `${card.tone}.subtle`}
+					borderRadius='xl'
+					bg={done ? 'bg.muted' : `${card.tone}.subtle`}
 					color={done ? 'fg.muted' : `${card.tone}.fg`}>
-					{done ? <Check size={18} /> : card.icon}
+					{done ? <Check size={20} /> : card.icon}
 				</Center>
-				<Box
-					flex={1}
-					minW={0}>
-					<Flex
-						align='center'
-						gap={2}
-						wrap='wrap'>
-						<Text
-							fontSize='14px'
-							fontWeight='600'
-							color={done ? 'fg.muted' : 'fg'}>
-							{card.title}
-						</Text>
-						{next && (
-							<Badge
-								size='sm'
-								colorPalette={card.tone}
-								variant='solid'>
-								Start here
-							</Badge>
-						)}
-						{done && (
-							<Badge
-								size='sm'
-								colorPalette='green'
-								variant='subtle'>
-								Done
-							</Badge>
-						)}
-					</Flex>
-					<Text
-						fontSize='13px'
-						color='fg.muted'
-						lineHeight='1.55'
-						mt={1}>
-						{card.text}
-					</Text>
-				</Box>
+				<Flex
+					align='center'
+					gap={1}>
+					{next && (
+						<Badge
+							size='sm'
+							colorPalette={card.tone}
+							variant='subtle'>
+							Start here
+						</Badge>
+					)}
+					{done && auto && (
+						<Badge
+							size='sm'
+							colorPalette='green'
+							variant='subtle'>
+							Done
+						</Badge>
+					)}
+					{!card.noTick && !auto && (
+						<IconButton
+							aria-label={done ? 'Mark as not done' : 'Mark done'}
+							title={done ? 'Not done' : 'Mark done'}
+							size='xs'
+							variant='ghost'
+							borderRadius='full'
+							color={done ? 'green.fg' : 'fg.muted'}
+							onClick={onToggle}>
+							{done ? <CircleCheck size={18} /> : <Circle size={18} />}
+						</IconButton>
+					)}
+				</Flex>
 			</Flex>
+
+			<Text
+				mt={5}
+				fontSize='17px'
+				fontWeight='600'
+				color={done ? 'fg.muted' : 'fg'}
+				lineClamp={1}>
+				{card.title}
+			</Text>
+			<Text
+				mt={1}
+				fontSize='14px'
+				color='fg.muted'
+				lineHeight='1.55'
+				lineClamp={2}>
+				{card.text}
+			</Text>
 
 			<Flex
 				mt='auto'
+				pt={5}
 				align='center'
 				justify='space-between'
-				gap={2}
-				wrap='wrap'>
-				<Flex
-					align='center'
-					gap={3}
-					wrap='wrap'>
-					<Button
-						asChild
-						size='xs'
-						variant={next ? 'solid' : 'outline'}
-						colorPalette={next ? card.tone : undefined}
-						bg={next ? undefined : 'bg.panel'}>
-						{external ? (
-							<a
-								href={card.action.href}
-								target='_blank'
-								rel='noreferrer'>
-								{card.action.label}
-								<ExternalLink size={12} />
-							</a>
-						) : (
-							<NextLink href={card.action.href}>
-								{card.action.label}
-								<ArrowRight size={12} />
-							</NextLink>
-						)}
-					</Button>
-					{card.guide && (
-						<Link
-							href={guideHref(card.guide.path)}
-							target='_blank'
-							rel='noreferrer'
-							display='inline-flex'
-							alignItems='center'
-							gap={1}
-							fontSize='12px'
-							color='fg.muted'
-							_hover={{ color: 'fg' }}>
-							<BookOpen size={12} />
+				gap={3}>
+				{card.guide ? (
+					<Link
+						href={guideHref(card.guide.path)}
+						target='_blank'
+						rel='noreferrer'
+						display='inline-flex'
+						alignItems='center'
+						gap={2}
+						minW={0}
+						fontSize='13px'
+						fontWeight='500'
+						color='fg'
+						_hover={{ color: `${card.tone}.fg` }}>
+						<BookOpen size={15} />
+						<Text
+							as='span'
+							color='inherit'
+							fontSize='inherit'
+							truncate>
 							{card.guide.label}
-						</Link>
+						</Text>
+					</Link>
+				) : (
+					<Box />
+				)}
+				<Button
+					asChild
+					size='sm'
+					flexShrink={0}
+					variant={done ? 'outline' : 'solid'}>
+					{external ? (
+						<a
+							href={card.action.href}
+							target='_blank'
+							rel='noreferrer'>
+							{card.action.label}
+							<ExternalLink size={14} />
+						</a>
+					) : (
+						<NextLink href={card.action.href}>
+							{card.action.label}
+							<ArrowUpRight size={14} />
+						</NextLink>
 					)}
-				</Flex>
-				{!card.noTick &&
-					(auto ? null : (
-						<Button
-							size='2xs'
-							variant='ghost'
-							color='fg.muted'
-							onClick={onToggle}>
-							<Check size={12} />
-							{done ? 'Not done' : 'Mark done'}
-						</Button>
-					))}
+				</Button>
 			</Flex>
 		</Flex>
 	);
 };
 
-const ProjectSuggestions: FC = () => {
+/** Cards in one row that scrolls sideways, with back / forward arrows. */
+const CardRow: FC<{ children: ReactNode; head: ReactNode }> = ({ children, head }) => {
+	const ref = useRef<HTMLDivElement>(null);
+	const [edges, setEdges] = useState({ start: true, end: false });
+	const measure = () => {
+		const el = ref.current;
+		if (!el) return;
+		setEdges({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+	};
+	useEffect(() => {
+		measure();
+		window.addEventListener('resize', measure);
+		return () => window.removeEventListener('resize', measure);
+	}, [children]);
+	const go = (dir: 1 | -1) => ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.9, behavior: 'smooth' });
+	const arrow = { size: 'sm', variant: 'outline', borderRadius: 'xl', bg: 'bg.panel' } as const;
+	return (
+		<Flex
+			direction='column'
+			gap={4}>
+			<Flex
+				align={{ base: 'flex-start', md: 'center' }}
+				justify='space-between'
+				gap={3}>
+				{head}
+				<Flex
+					gap={2}
+					flexShrink={0}>
+					<IconButton
+						{...arrow}
+						aria-label='Back'
+						disabled={edges.start}
+						onClick={() => go(-1)}>
+						<ChevronLeft size={16} />
+					</IconButton>
+					<IconButton
+						{...arrow}
+						aria-label='Forward'
+						disabled={edges.end}
+						onClick={() => go(1)}>
+						<ChevronRight size={16} />
+					</IconButton>
+				</Flex>
+			</Flex>
+			<Flex
+				ref={ref}
+				onScroll={measure}
+				gap={4}
+				overflowX='auto'
+				scrollSnapType='x mandatory'
+				pb={1}
+				css={{ scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+				{children}
+			</Flex>
+		</Flex>
+	);
+};
+
+const ProjectSuggestions: FC<{ at?: 'top' | 'bottom' }> = ({ at = 'top' }) => {
 	const { project, can } = useWorkspace();
 	const type: ProjectType = project?.type || 'app';
 	const ticks = useTicks(project?._id);
@@ -386,7 +456,8 @@ const ProjectSuggestions: FC = () => {
 		return (
 			<Flex
 				justify='flex-end'
-				mb={2}>
+				mt={at === 'bottom' ? 6 : 0}
+				mb={at === 'top' ? 2 : 0}>
 				<Button
 					size='xs'
 					variant='ghost'
@@ -399,58 +470,56 @@ const ProjectSuggestions: FC = () => {
 		);
 
 	return (
-		<Flex
-			direction='column'
-			gap={3}
-			mb={5}>
-			<Flex
-				align={{ base: 'flex-start', md: 'center' }}
-				justify='space-between'
-				gap={3}
-				direction={{ base: 'column', md: 'row' }}>
-				<Box>
-					<Text
-						fontSize='16px'
-						fontWeight='600'>
-						{fresh ? `${project.name} is ready — here’s what to do next` : 'Suggested next steps'}
-					</Text>
-					<Text
-						fontSize='13px'
-						color='fg.muted'>
-						{doneCount} of {tickable.length} done · start with the highlighted card; each one has a short guide.
-					</Text>
-				</Box>
-				<Flex
-					align='center'
-					gap={3}
-					flexShrink={0}>
-					<Box
-						w='120px'
-						h='6px'
-						borderRadius='full'
-						bg='bg.muted'
-						overflow='hidden'>
-						<Box
-							h='full'
-							w={`${(doneCount / Math.max(tickable.length, 1)) * 100}%`}
-							bg='green.solid'
-							transition='width .3s ease'
-						/>
-					</Box>
-					<Button
-						size='xs'
-						variant='ghost'
-						color='fg.muted'
-						onClick={() => ticks.setHidden(true)}>
-						<X size={13} />
-						Hide
-					</Button>
-				</Flex>
-			</Flex>
-
-			<Grid
-				templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }}
-				gap={3}>
+		<Box
+			mt={at === 'bottom' ? 8 : 0}
+			mb={at === 'top' ? 6 : 0}>
+			<CardRow
+				head={
+					<Flex
+						align={{ base: 'flex-start', md: 'center' }}
+						gap={{ base: 2, md: 4 }}
+						direction={{ base: 'column', md: 'row' }}
+						minW={0}>
+						<Box minW={0}>
+							<Text
+								fontSize='18px'
+								fontWeight='600'>
+								{fresh ? `${project.name} is ready — here’s what to do next` : 'Suggested next steps'}
+							</Text>
+							<Text
+								fontSize='13px'
+								color='fg.muted'>
+								{doneCount} of {tickable.length} done · each one has a short guide.
+							</Text>
+						</Box>
+						<Flex
+							align='center'
+							gap={2}
+							flexShrink={0}>
+							<Box
+								w='96px'
+								h='6px'
+								borderRadius='full'
+								bg='bg.muted'
+								overflow='hidden'>
+								<Box
+									h='full'
+									w={`${(doneCount / Math.max(tickable.length, 1)) * 100}%`}
+									bg='green.fg'
+									transition='width .3s ease'
+								/>
+							</Box>
+							<Button
+								size='xs'
+								variant='ghost'
+								color='fg.muted'
+								onClick={() => ticks.setHidden(true)}>
+								<X size={13} />
+								Hide
+							</Button>
+						</Flex>
+					</Flex>
+				}>
 				{ordered.map(c => (
 					<SuggestionCard
 						key={c.key}
@@ -461,8 +530,8 @@ const ProjectSuggestions: FC = () => {
 						onToggle={() => ticks.toggle(c.key)}
 					/>
 				))}
-			</Grid>
-		</Flex>
+			</CardRow>
+		</Box>
 	);
 };
 
