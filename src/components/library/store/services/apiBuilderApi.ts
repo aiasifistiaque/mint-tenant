@@ -27,8 +27,8 @@ export type Endpoint = {
 	path: string;
 	standard: boolean;
 	enabled: boolean;
-	/** `roles`: signed-in customers only — just these roles of the sign-in model's Role field (docs/widgets W-26); empty = any. */
-	access: { who: EndpointWho; when: EndpointCondition[]; match: 'all' | 'any'; roles?: string[] };
+	/** `customerRoles`: signed-in customers only — just these of the sign-in model's Customer role field (docs/widgets W-26; not the team's roles); empty = any. */
+	access: { who: EndpointWho; when: EndpointCondition[]; match: 'all' | 'any'; customerRoles?: string[] };
 	fields: { out: string[] | null; write: string[] | null; readOnly: string[] };
 	list: { filters: EndpointCondition[]; callerFilters: boolean; sort: string; limit: number; maxLimit: number };
 	/** The links a read may fill with ?populate= (backend docs/cms CMS-09); null = every link one step away. */
@@ -38,7 +38,7 @@ export type Endpoint = {
 	updatedAt: string;
 };
 
-/** The sign-in model's Role field and its options — what an endpoint can admit (W-26); null without one. */
+/** The sign-in model's Customer role field and its options — what an endpoint can admit (W-26); null without one. */
 export type SignInRoles = {
 	model: string;
 	modelTitle: string;

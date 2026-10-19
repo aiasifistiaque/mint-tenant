@@ -28,9 +28,9 @@ const FIELDS: { key: keyof AuthMapping['fields']; label: string; kinds: string[]
 	{ key: 'phone', label: 'Phone', kinds: ['text'], help: 'Filled when the customer gives one.' },
 	{
 		key: 'role',
-		label: 'Role',
+		label: 'Customer role',
 		kinds: ['select'],
-		help: 'An options field (Customer, Staff…). Sign-ups get its default; only your team changes it. Endpoints can let in only some roles.',
+		help: 'An options field (Customer, Seller, Picker…) — the kinds of customers, not your team’s roles. Sign-ups get its default; only your team changes it. Endpoints can let in only some.',
 	},
 ];
 

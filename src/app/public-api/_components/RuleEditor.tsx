@@ -51,7 +51,7 @@ const customerRefsFor = (kind: string) =>
 				{ value: 'customer.email', label: 'their email' },
 				{ value: 'customer.name', label: 'their name' },
 				{ value: 'customer.phone', label: 'their phone' },
-				{ value: 'customer.role', label: 'their role' },
+				{ value: 'customer.role', label: 'their customer role' },
 		  ];
 
 const isRef = (v: any): v is { ref: string } => !!v && typeof v === 'object' && !Array.isArray(v) && typeof v.ref === 'string';

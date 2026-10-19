@@ -643,7 +643,7 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 							: working.signIn
 								? 'The Login widget can now keep its customers here: choose this model in Widgets → Login & account. Passwords are kept safely by MINT, never in these records.'
 								: 'Off: this model isn’t offered when you set up the Login widget.'}
-						{' A project has one sign-in model — to tell kinds of people apart (customers, staff, members), give it an Options field such as Role.'}
+						{' A project has one sign-in model — to tell kinds of customers apart (customer, seller, picker), give it an Options field such as Customer role.'}
 					</Text>
 					{working.signIn && !working.fields.some(f => f.kind === 'email' || f.kind === 'text') && (
 						<Text

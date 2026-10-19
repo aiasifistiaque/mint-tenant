@@ -38,14 +38,15 @@ import { ApiLogs } from '../../_components/logs';
  */
 
 type Draft = Pick<Endpoint, 'name' | 'note' | 'path' | 'access' | 'fields' | 'list' | 'populate'>;
-const draftOf = (e: Endpoint): Draft => ({ name: e.name, note: e.note, path: e.path, access: { ...e.access, roles: e.access.roles || [] }, fields: e.fields, list: e.list, populate: e.populate ?? null });
+const draftOf = (e: Endpoint): Draft => ({ name: e.name, note: e.note, path: e.path, access: { ...e.access, customerRoles: e.access.customerRoles || [] }, fields: e.fields, list: e.list, populate: e.populate ?? null });
 const OWNER: EndpointCondition = { field: '_customer', op: 'is', value: { ref: 'customer' } };
 const isOwner = (c: EndpointCondition) => c.field === '_customer' && c.op === 'is' && (c.value as any)?.ref === 'customer';
 const NO_FIELDS = new Set(['section', 'sectionlist']);
 
 /**
- * Which roles a customers' endpoint admits (docs/widgets W-26): the sign-in
- * model's Role field's options. None ticked: any signed-in customer.
+ * Which customer roles a customers' endpoint admits (docs/widgets W-26): the
+ * sign-in model's Customer role field's options — not the team's roles. None
+ * ticked: any signed-in customer.
  */
 const RolesPicker: FC<{ signIn: SignInRoles; value: string[]; onChange: (v: string[]) => void; error?: string }> = ({ signIn, value, onChange, error }) => (
 	<Box
@@ -56,7 +57,7 @@ const RolesPicker: FC<{ signIn: SignInRoles; value: string[]; onChange: (v: stri
 		<Text
 			fontSize='13.5px'
 			fontWeight='500'>
-			Which roles
+			Which customer roles
 		</Text>
 		{signIn && signIn.roles.length ? (
 			<>
@@ -86,9 +87,9 @@ const RolesPicker: FC<{ signIn: SignInRoles; value: string[]; onChange: (v: stri
 			<Text
 				fontSize='12px'
 				color='fg.muted'>
-				Any signed-in customer. To let in only some kinds of people (staff, members, VIPs), give your sign-in model a Role field and choose it in
+				Any signed-in customer. To let in only some kinds of customers (sellers, pickers, VIPs), give your sign-in model a Customer role field and choose it in
 				Widgets → Login & account.
-				{value.length > 0 && ` This endpoint still lists ${value.join(', ')} — nobody has a role now, so it refuses everyone.`}
+				{value.length > 0 && ` This endpoint still lists ${value.join(', ')} — nobody has a customer role now, so it refuses everyone.`}
 			</Text>
 		)}
 		{error && <Text {...errCss}>{error}</Text>}
@@ -456,7 +457,7 @@ export default function EndpointPage() {
 													who,
 													// Rules about the customer only make sense on a customers' endpoint.
 													when: who === 'customer' ? draft.access.when : draft.access.when.filter(c => c.field !== '_customer' && !(c.value as any)?.ref),
-													roles: who === 'customer' ? draft.access.roles : [],
+													customerRoles: who === 'customer' ? draft.access.customerRoles : [],
 												})
 											}
 										/>
@@ -464,9 +465,9 @@ export default function EndpointPage() {
 										{draft.access.who === 'customer' && (
 											<RolesPicker
 												signIn={data.signIn ?? null}
-												value={draft.access.roles || []}
-												onChange={roles => setAccess({ roles })}
-												error={error?.on === 'access.roles' ? error.message : undefined}
+												value={draft.access.customerRoles || []}
+												onChange={customerRoles => setAccess({ customerRoles })}
+												error={error?.on === 'access.customerRoles' ? error.message : undefined}
 											/>
 										)}
 									</Section>
