@@ -13,10 +13,12 @@ type Props = {
 	isNew: boolean;
 	onClose: () => void;
 	onSave: (section: Section) => void;
+	/** The save is on its way (when onSave creates it straight away). */
+	saving?: boolean;
 };
 
 /** A sidebar section: the heading, its icon, and whether it shows. */
-const SectionDialog: FC<Props> = ({ section, isNew, onClose, onSave }) => {
+const SectionDialog: FC<Props> = ({ section, isNew, onClose, onSave, saving }) => {
 	const [draft, setDraft] = useState<Section | null>(section);
 	const [touched, setTouched] = useState(false);
 
@@ -143,6 +145,7 @@ const SectionDialog: FC<Props> = ({ section, isNew, onClose, onSave }) => {
 								<Button
 									px={3}
 									size='sm'
+									loading={saving}
 									onClick={save}>
 									{isNew ? 'Add section' : 'Done'}
 								</Button>

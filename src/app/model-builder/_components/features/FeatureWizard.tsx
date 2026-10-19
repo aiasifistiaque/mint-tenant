@@ -29,6 +29,7 @@ import { toaster } from '@/components/ui/toaster';
 import { DocLink } from '@/app/builder/_components/ui';
 import ModelPanels, { requestedName } from '../ModelPanels';
 import FieldsEditor, { LinkTarget } from '../FieldsEditor';
+import SectionSelect from '../SectionSelect';
 import { FieldKind, kindLabel, newUid, toModelName, validateFields } from '../modelKinds';
 import {
 	CreateStep,
@@ -713,19 +714,13 @@ const Review: FC<{
 						mb={1.5}>
 						New pages go in
 					</Text>
-					<Dropdown
+					<SectionSelect
 						value={w.sidebarCategory}
-						onChange={v => onChange({ ...w, sidebarCategory: v })}>
-						<option value='new'>A new category: {w.title || 'the feature'}</option>
-						{categories.map(c => (
-							<option
-								key={c._id}
-								value={c._id}>
-								{c.name}
-							</option>
-						))}
-						<option value=''>Not in the sidebar</option>
-					</Dropdown>
+						categories={categories}
+						onChange={v => onChange({ ...w, sidebarCategory: v })}
+						before={<option value='new'>A new category: {w.title || 'the feature'}</option>}
+						after={<option value=''>Not in the sidebar</option>}
+					/>
 				</Box>
 				{w.summary && (
 					<Box gridColumn={{ md: 'span 2' }}>

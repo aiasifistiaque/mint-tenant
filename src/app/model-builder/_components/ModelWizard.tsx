@@ -31,8 +31,9 @@ import {
 	useGetModelBuilderOptionsQuery,
 	usePreviewBuiltModelMutation,
 } from '@/components/library';
-import { ConsoleTabs, Dropdown, PageHeader, Panel } from '@/components/library/cl';
+import { ConsoleTabs, PageHeader, Panel } from '@/components/library/cl';
 import { toaster } from '@/components/ui/toaster';
+import SectionSelect from './SectionSelect';
 import SettingsEditor, { SettingsField } from '@/app/builder/_components/SettingsEditor';
 import SectionsEditor from '@/app/builder/_components/SectionsEditor';
 import FormRulesPanel from '@/app/builder/_components/FormRulesPanel';
@@ -1210,18 +1211,12 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 								mb={1.5}>
 								In which group
 							</Text>
-							<Dropdown
+							<SectionSelect
 								value={sidebar.category}
 								placeholder='Pick a group'
-								onChange={v => setSidebar(s => ({ ...s, category: v }))}>
-								{(options?.categories || []).map((c: any) => (
-									<option
-										key={c._id}
-										value={c._id}>
-										{c.name}
-									</option>
-								))}
-							</Dropdown>
+								categories={options?.categories || []}
+								onChange={v => setSidebar(s => ({ ...s, category: v }))}
+							/>
 						</Box>
 					)}
 				</Flex>

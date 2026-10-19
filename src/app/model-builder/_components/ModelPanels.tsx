@@ -9,6 +9,7 @@ import { ToneTitle } from '@/app/builder/_components/areas';
 import { Hash, KeyRound, ListChecks, Lock, NotebookPen, Send, Tag } from 'lucide-react';
 import { IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
 import FieldsEditor, { LinkTarget } from './FieldsEditor';
+import SectionSelect from './SectionSelect';
 import {
 	EditableField,
 	FieldKind,
@@ -317,18 +318,12 @@ const ModelPanels: FC<Props> = ({ working, onChange, mode, doc, base, targets, c
 					{showSidebar && (
 						<Box>
 							<Label hint='The sidebar group it’s listed under, for roles allowed to view it.'>Sidebar</Label>
-							<Dropdown
+							<SectionSelect
 								value={working.sidebarCategory}
-								onChange={v => set({ sidebarCategory: v })}>
-								<option value=''>Not in the sidebar</option>
-								{categories.map(c => (
-									<option
-										key={c._id}
-										value={c._id}>
-										{c.name}
-									</option>
-								))}
-							</Dropdown>
+								categories={categories}
+								onChange={v => set({ sidebarCategory: v })}
+								before={<option value=''>Not in the sidebar</option>}
+							/>
 						</Box>
 					)}
 					<Box gridColumn={{ md: 'span 2' }}>
