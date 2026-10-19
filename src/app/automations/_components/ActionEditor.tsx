@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode } from 'react';
+import { FC, ReactNode, useRef } from 'react';
 import { Box, Checkbox, Flex, IconButton, Input, Text, Textarea } from '@chakra-ui/react';
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
@@ -8,12 +8,14 @@ import { useGetMailDesignsQuery } from '@/components/library/store/services/tena
 import { useGetPdfTemplatesQuery } from '@/components/library/store/services/pdfTemplatesApi';
 import type { AutomationAction, AutomationSet } from '@/components/library/store/services/tenantApi';
 import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, pageOfRef, placeholdersOf, writable } from './model';
+import { insertToken } from './textEdit';
+import MessageEditor from './MessageEditor';
 
 /**
  * One action of an automation, as a card: its kind, then the form for it —
  * who to notify or email, the webhook's address, which record to update or
  * which page to add to and the fields to set. Text inputs take placeholders
- * ({{Title}}); "Insert a field" adds one. A server error for an input of this
+ * ({{Title}}); "Insert a field" puts one where the cursor is. A server error for an input of this
  * action (`on` = "actions.<i>.…") shows under it.
  */
 
@@ -50,7 +52,7 @@ const Part: FC<{ label: string; hint?: string; error?: string; children: ReactNo
 	</Box>
 );
 
-/** A text that takes placeholders, with "Insert a field". */
+/** A text that takes placeholders, with "Insert a field" — in at the cursor, or over the selected words. */
 export const PlaceholderText: FC<{
 	value: string;
 	onChange: (v: string) => void;
@@ -58,39 +60,56 @@ export const PlaceholderText: FC<{
 	multiline?: boolean;
 	placeholder?: string;
 	mono?: boolean;
-}> = ({ value, onChange, page, multiline, placeholder }) => (
-	<Box>
-		{multiline ? (
-			<Textarea
-				size='sm'
-				rows={5}
-				value={value}
-				placeholder={placeholder}
-				onChange={e => onChange(e.target.value)}
-			/>
-		) : (
-			<Input
-				size='sm'
-				value={value}
-				placeholder={placeholder}
-				onChange={e => onChange(e.target.value)}
-			/>
-		)}
-		<Flex
-			mt={1}
-			justify='flex-end'>
-			<Dropdown
-				size='xs'
-				w='190px'
-				value=''
-				placeholder='Insert a field'
-				aria-label='Insert a field'
-				items={placeholdersOf(page).map(p => ({ value: p.key, label: p.label }))}
-				onChange={k => onChange(`${value}${value && !/\s$/.test(value) ? ' ' : ''}{{${k}}}`)}
-			/>
-		</Flex>
-	</Box>
-);
+}> = ({ value, onChange, page, multiline, placeholder }) => {
+	const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+	// Only once the box has had the cursor does its selection mean anything; before that, a field goes at the end.
+	const touched = useRef(false);
+	const insert = (key: string) => {
+		const el = ref.current;
+		const [s, e] = el && touched.current ? [el.selectionStart ?? value.length, el.selectionEnd ?? value.length] : [value.length, value.length];
+		const next = insertToken(value, s, e, `{{${key}}}`);
+		onChange(next.value);
+		touched.current = true;
+		// Back in the box, the cursor just after the field — once the Dropdown has let go of the focus.
+		setTimeout(() => {
+			ref.current?.focus();
+			ref.current?.setSelectionRange(next.start, next.end);
+		}, 0);
+	};
+	const common = {
+		ref,
+		size: 'sm' as const,
+		value,
+		placeholder,
+		onFocus: () => (touched.current = true),
+		onChange: (e: any) => onChange(e.target.value),
+	};
+	return (
+		<Box>
+			{multiline ? (
+				<Textarea
+					{...common}
+					rows={5}
+				/>
+			) : (
+				<Input {...common} />
+			)}
+			<Flex
+				mt={1}
+				justify='flex-end'>
+				<Dropdown
+					size='xs'
+					w='190px'
+					value=''
+					placeholder='Insert a field'
+					aria-label='Insert a field'
+					items={placeholdersOf(page).map(p => ({ value: p.key, label: p.label }))}
+					onChange={insert}
+				/>
+			</Flex>
+		</Box>
+	);
+};
 
 const Check: FC<{ checked: boolean; onChange: (v: boolean) => void; children: ReactNode }> = ({ checked, onChange, children }) => (
 	<Checkbox.Root
@@ -415,10 +434,9 @@ const ActionEditor: FC<{
 				</Part>
 				<Part
 					label='Message'
-					hint='Plain text; a blank line starts a new paragraph.'
+					hint='A blank line starts a new paragraph.'
 					error={err('body')}>
-					<PlaceholderText
-						multiline
+					<MessageEditor
 						value={a.body}
 						onChange={v => onChange({ ...a, body: v })}
 						page={page}

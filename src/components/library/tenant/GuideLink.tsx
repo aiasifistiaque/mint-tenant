@@ -28,6 +28,7 @@ const GUIDE_OF: Record<string, string> = {
 	'automation-actions': 'automations',
 	'automation-try': 'automations',
 	'automation-runs': 'automations',
+	'automation-emails': 'automations',
 	'project-people': 'organization',
 	'project-roles': 'organization',
 	templates: 'templates',

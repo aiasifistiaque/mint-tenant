@@ -2,8 +2,8 @@
 
 import { FC, useState } from 'react';
 import NextLink from 'next/link';
-import { Box, Flex, Link, Skeleton, Text } from '@chakra-ui/react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Badge, Box, Flex, Link, Skeleton, Text } from '@chakra-ui/react';
+import { ChevronDown, ChevronRight, Mail } from 'lucide-react';
 import { Dropdown, EmptyState, Panel, StatusDot, when } from '@/components/library/cl';
 import { ago } from '@/components/library/modals/CreateModal/CreateModal';
 import { projectHref } from '@/components/library/config/lib/constants/panel';
@@ -11,17 +11,59 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import { useGetAutomationRunsQuery } from '@/components/library/store/services/tenantApi';
 import type { AutomationRun } from '@/components/library/store/services/tenantApi';
 import { ACTION_LABEL, EVENT_WORD, Page } from './model';
+import { EmailRowActions } from './SentEmailDialog';
 
 /**
  * Recent runs (docs/automations): which automation ran on which record, and
- * each action's result — or why it failed or was skipped. Kept 30 days.
+ * each action's result — or why it failed or was skipped. Kept 30 days. The
+ * emails a run sent are listed under it: the eye shows one as sent, a failed
+ * one has Resend (AU-03c).
  */
 
 const TONE: Record<AutomationRun['status'], 'running' | 'failed' | 'pending'> = { success: 'running', failed: 'failed', skipped: 'pending' };
 const STATUS_WORD: Record<AutomationRun['status'], string> = { success: 'Done', failed: 'Failed', skipped: 'Skipped' };
 
+/** One email a run sent: to, how it went (and its resend), the eye, Resend. */
+const EmailLine: FC<{ m: NonNullable<AutomationRun['emails']>[number] }> = ({ m }) => (
+	<Flex
+		align='center'
+		gap={2}
+		fontSize='12.5px'
+		py={0.5}>
+		<Mail
+			size={13}
+			color='var(--chakra-colors-fg-muted)'
+		/>
+		<Text
+			truncate
+			minW={0}>
+			{m.to}
+		</Text>
+		<Badge
+			size='xs'
+			flexShrink={0}
+			colorPalette={m.status === 'sent' ? 'green' : 'red'}>
+			{m.status === 'sent' ? 'Sent' : 'Failed'}
+		</Badge>
+		{m.resent && (
+			<Badge
+				size='xs'
+				flexShrink={0}
+				variant='outline'
+				colorPalette={m.resent.status === 'sent' ? 'green' : 'red'}>
+				{m.resent.status === 'sent' ? 'Resent' : 'Resend failed'}
+			</Badge>
+		)}
+		<Box flex={1} />
+		<EmailRowActions
+			base='automations/emails'
+			email={m}
+		/>
+	</Flex>
+);
+
 const RunRow: FC<{ r: AutomationRun; pages: Page[] }> = ({ r, pages }) => {
-	const [open, setOpen] = useState(r.status === 'failed');
+	const [open, setOpen] = useState(r.status === 'failed' || !!r.emails?.some(m => m.canResend));
 	const page = pages.find(p => p.route === r.route);
 	const recordText = r.recordName || page?.noun || 'a record';
 	return (
@@ -92,6 +134,23 @@ const RunRow: FC<{ r: AutomationRun; pages: Page[] }> = ({ r, pages }) => {
 							{i + 1}. {ACTION_LABEL[s.type as keyof typeof ACTION_LABEL] || s.type} — {s.detail}
 						</Text>
 					))}
+					{!!r.emails?.length && (
+						<Box
+							mt={1}
+							borderWidth='1px'
+							borderColor='border.muted'
+							borderRadius='md'
+							px={3}
+							py={1.5}
+							maxW='640px'>
+							{r.emails.map(m => (
+								<EmailLine
+									key={m._id}
+									m={m}
+								/>
+							))}
+						</Box>
+					)}
 					{r.error && !r.steps.some(s => !s.ok) && (
 						<Text
 							fontSize='12.5px'
@@ -114,7 +173,7 @@ const RunsList: FC<{ pages: Page[]; automation?: string; automations: { _id: str
 		<Panel
 			flush
 			title='Runs'
-			subtitle='The last 30 days, newest first. Open one to see each action’s result.'
+			subtitle='The last 30 days, newest first. Open one to see each action’s result and the emails it sent.'
 			actions={
 				<Flex
 					align='center'

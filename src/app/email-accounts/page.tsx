@@ -17,13 +17,15 @@ import {
 import type { MailAccount, MailLogEntry } from '@/components/library/store/services/tenantApi';
 import ConnectDialog from './_components/ConnectDialog';
 import Designs from './_components/Designs';
+import { EmailRowActions } from '@/app/automations/_components/SentEmailDialog';
 
 /**
  * A project's email accounts (tenant panel, Project → Email; docs/messaging
  * M-14): the SMTP accounts its emails go out through, with nodemailer. Connect
  * one in a dialog (tested green or red before saving), pick which is the
  * default — every email the project sends uses it — edit, send a real test,
- * remove; how its emails look (designs, M-03a); and the project's recent sends. Backend:
+ * remove; how its emails look (designs, M-03a); and the project's recent sends —
+ * an automation email opens as sent (the eye) and a failed one has Resend (AU-03c). Backend:
  * routes-tenant/mailAccounts.router.ts. Needs `manage-projects`.
  */
 
@@ -367,7 +369,7 @@ const Log: FC<{ messages: MailLogEntry[]; accounts: MailAccount[] }> = ({ messag
 		<Panel
 			id='email-log'
 			title='Sent from this project'
-			subtitle='The last 50 — subject only, kept 180 days'
+			subtitle='The last 50, kept 180 days — automation emails with their message (the eye), the rest subject only'
 			actions={<GuideLink section='email-log' />}>
 			{messages.length === 0 ? (
 				<Text
@@ -386,6 +388,7 @@ const Log: FC<{ messages: MailLogEntry[]; accounts: MailAccount[] }> = ({ messag
 								<Table.ColumnHeader>To</Table.ColumnHeader>
 								<Table.ColumnHeader>Subject</Table.ColumnHeader>
 								<Table.ColumnHeader>Result</Table.ColumnHeader>
+								<Table.ColumnHeader />
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
@@ -402,6 +405,15 @@ const Log: FC<{ messages: MailLogEntry[]; accounts: MailAccount[] }> = ({ messag
 											colorPalette={m.status === 'sent' ? 'green' : 'red'}>
 											{m.status === 'sent' ? 'Sent' : 'Failed'}
 										</Badge>
+										{m.resent && (
+											<Badge
+												size='sm'
+												ml={1}
+												variant='outline'
+												colorPalette={m.resent.status === 'sent' ? 'green' : 'red'}>
+												{m.resent.status === 'sent' ? 'Resent' : 'Resend failed'}
+											</Badge>
+										)}
 										{m.error && (
 											<Text
 												fontSize='12px'
@@ -411,6 +423,20 @@ const Log: FC<{ messages: MailLogEntry[]; accounts: MailAccount[] }> = ({ messag
 												{m.error}
 											</Text>
 										)}
+										{m.resendOf && (
+											<Text
+												fontSize='12px'
+												color='fg.muted'
+												mt={1}>
+												A resend
+											</Text>
+										)}
+									</Table.Cell>
+									<Table.Cell>
+										<EmailRowActions
+											base='mail-accounts/messages'
+											email={m}
+										/>
 									</Table.Cell>
 								</Table.Row>
 							))}

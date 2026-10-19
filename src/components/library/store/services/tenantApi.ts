@@ -131,6 +131,8 @@ export type Automation = {
 export type AutomationInput = Omit<Automation, '_id' | 'stats' | 'secret' | 'createdAt' | 'updatedAt'>;
 export type AutomationStep = { type: string; ok: boolean; detail: string };
 export type AutomationRun = {
+	/** The emails its email actions sent (first attempts; a resend shows on its failed one). */
+	emails?: MailLogEntry[];
 	_id: string;
 	automation: string | null;
 	name: string;
@@ -362,7 +364,32 @@ export type MailSettings = {
 	updatedAt?: string;
 };
 export type MailSettingsInput = Omit<MailSettings, 'passwordSet' | 'verifiedAt' | 'lastError' | 'lastErrorAt' | 'updatedAt'> & { password: string };
-export type MailLogEntry = { _id: string; kind: string; to: string; subject: string; status: 'sent' | 'failed'; error: string; project: string | null; account?: string | null; createdAt: string };
+export type MailLogEntry = {
+	_id: string;
+	kind: string;
+	to: string;
+	subject: string;
+	status: 'sent' | 'failed';
+	error: string;
+	project: string | null;
+	account?: string | null;
+	createdAt: string;
+	/** Its body was kept (automation emails, backend docs/automations AU-03c): it can be shown, and resent when it failed. */
+	kept?: boolean;
+	files?: { filename: string; size: number }[];
+	run?: string | null;
+	route?: string | null;
+	record?: string | null;
+	/** A resend: the failed email it sent again. */
+	resendOf?: string | null;
+	/** On a failed email: its last resend and how that went. */
+	resent?: { at: string; status: 'sent' | 'failed'; error: string; message: string | null } | null;
+	canResend?: boolean;
+};
+/** One logged email with what was kept of its body. */
+export type SentEmail = MailLogEntry & { text?: string; html?: string };
+/** Where a logged email is read and resent: an automation's runs (Build) or Project → Email (manage projects). */
+export type SentEmailBase = 'automations/emails' | 'mail-accounts/messages';
 export type MailView = { settings: MailSettings | null; messages: MailLogEntry[]; ports: number[] };
 /* A project's email accounts (backend routes-tenant/mailAccounts.router.ts, docs/messaging M-14). */
 export type MailAccount = {
@@ -803,6 +830,16 @@ export const tenantApi = mainApi.injectEndpoints({
 		>({
 			query: ({ id, ...body }) => ({ url: `automations/${id}/test`, method: 'POST', body }),
 		}),
+		/** A logged email as sent — to, subject, body, files, error (AU-03c). */
+		getSentEmail: builder.query<SentEmail, { base: SentEmailBase; id: string }>({
+			query: ({ base, id }) => `${base}/${id}`,
+			providesTags: ['automations', 'tenant-mail-accounts'],
+		}),
+		/** Sends a failed email again; answers the new attempt (an error with the reason when it fails too). */
+		resendEmail: builder.mutation<SentEmail, { base: SentEmailBase; id: string }>({
+			query: ({ base, id }) => ({ url: `${base}/${id}/resend`, method: 'POST' }),
+			invalidatesTags: ['automations', 'tenant-mail-accounts'],
+		}),
 		deleteAutomation: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `automations/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['automations'],
@@ -1144,6 +1181,8 @@ export const {
 	useUpdateAutomationMutation,
 	useToggleAutomationMutation,
 	useTestAutomationMutation,
+	useGetSentEmailQuery,
+	useResendEmailMutation,
 	useDeleteAutomationMutation,
 	useGetMentionableQuery,
 	useAddRecordCommentMutation,
