@@ -11,6 +11,10 @@ import type { AuthMapping, AuthView, ShopView, WidgetSettings, WidgetType, Widge
 import ShopPanel from './ShopPanel';
 import CustomersStep from './CustomersStep';
 import { Code, OptionInput, Preview, SHOP_WIDGETS, SnippetHelp, help, isAdded, label } from './parts';
+import { Dropdown } from '@/components/library/cl';
+
+/** The Login widget's "Customer role (this login)": everyone, or one role of the Customer role field (W-27). */
+const EVERYONE = '__everyone';
 
 /**
  * Widgets → Add a widget (docs/widgets W-24): a few short steps — which
@@ -108,6 +112,8 @@ const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, aut
 	const [step, setStep] = useState(0);
 	const [value, setValue] = useState<WidgetSettings | null>(null);
 	const [mapping, setMapping] = useState<AuthMapping | null>(null);
+	// The Customer role field's options, for a role login (W-27).
+	const customerRoles = (mapping?.fields.role && auth?.models.find(m => m.name === mapping.model)?.fields.find(f => f.key === mapping.fields.role)?.options) || [];
 	const [save, saving] = useSaveWidgetsMutation();
 	const [saveAuth, savingAuth] = useSaveWidgetsAuthMutation();
 
@@ -317,11 +323,20 @@ const WidgetWizard: FC<Props> = ({ open, onClose, data, editing, shop, auth, aut
 										{type.options.map(o => (
 											<Box key={o.key}>
 												{o.kind !== 'boolean' && <Text {...label}>{o.label}</Text>}
-												<OptionInput
-													o={o}
-													value={value.options[o.key]}
-													onChange={v => setValue({ ...value, options: { ...value.options, [o.key]: v } })}
-												/>
+												{o.key === 'customerRole' ? (
+													<Dropdown
+														size='sm'
+														value={value.options[o.key] || EVERYONE}
+														onChange={(v: string) => setValue({ ...value, options: { ...value.options, [o.key]: v === EVERYONE ? '' : v } })}
+														items={[{ value: EVERYONE, label: 'Everyone — one login for all' }, ...customerRoles.map(r => ({ value: r.value, label: r.label }))]}
+													/>
+												) : (
+													<OptionInput
+														o={o}
+														value={value.options[o.key]}
+														onChange={v => setValue({ ...value, options: { ...value.options, [o.key]: v } })}
+													/>
+												)}
 												<Text {...help}>{o.help}</Text>
 											</Box>
 										))}

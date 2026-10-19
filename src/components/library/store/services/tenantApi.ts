@@ -335,7 +335,7 @@ export type ShopOrderMapping = {
 	item: { name: string; quantity: string; unitPrice: string; variant?: string; sku?: string; product?: string };
 	statuses: { pending: string; paid: string; cancelled?: string };
 };
-export type ShopModelField = { key: string; label: string; kind: string; ref?: string; options?: { value: string; label: string }[]; fields?: { key: string; label: string; kind: string }[] };
+export type ShopModelField = { key: string; label: string; kind: string; ref?: string; options?: { value: string; label: string }[]; default?: string; fields?: { key: string; label: string; kind: string }[] };
 export type ShopModel = { name: string; title: string; route: string; publicApi: { enabled: boolean; ownerOnly: boolean; auth: string }; fields: ShopModelField[] };
 export type ShopView = {
 	shop: ShopMapping | null;
@@ -354,7 +354,13 @@ export type ShopView = {
  * MINT's Customers, each with a linked copy in the model; 'model' — the model
  * holds the accounts (a record is an account). Passwords never go there.
  */
-export type AuthMapping = { model: string; accounts: 'mint' | 'model'; fields: { email: string; name?: string; phone?: string; role?: string } };
+export type AuthMapping = {
+	model: string;
+	accounts: 'mint' | 'model';
+	fields: { email: string; name?: string; phone?: string; role?: string };
+	/** Customer roles people may sign up as themselves on a role login (docs/widgets W-27); the default always may. */
+	signUpRoles?: string[];
+};
 export type AuthView = {
 	auth: AuthMapping | null;
 	/** What's saved, when it no longer fits the models (`problem` says why). */

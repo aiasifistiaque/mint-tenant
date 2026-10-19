@@ -152,6 +152,12 @@ export const SnippetHelp: FC<{ name: string }> = ({ name }) => (
 	<Text {...help}>
 		Anywhere in your HTML, as many times as you like. Add <code>data-</code> attributes to change an option there, e.g.{' '}
 		<code>data-layout=&quot;button&quot;</code>.
+		{name === 'login' && (
+			<>
+				{' '}
+				For a login just for one customer role, e.g. a sellers’ page: <code>data-customer-role=&quot;seller&quot;</code>.
+			</>
+		)}
 		{name === 'cart' && (
 			<>
 				{' '}

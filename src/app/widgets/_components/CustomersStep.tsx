@@ -1,7 +1,7 @@
 'use client';
 
 import { FC } from 'react';
-import { Box, Button, Flex, Grid, Skeleton, Text } from '@chakra-ui/react';
+import { Box, Button, Flex, Grid, Skeleton, Switch, Text } from '@chakra-ui/react';
 import { Check } from 'lucide-react';
 import { Dropdown } from '@/components/library/cl';
 import type { AuthMapping, AuthView } from '@/components/library/store/services/tenantApi';
@@ -65,6 +65,7 @@ const CustomersStep: FC<{ auth?: AuthView; missing?: boolean; value: AuthMapping
 		);
 	if (!auth) return <Skeleton h='160px' />;
 	const model = auth.models.find(m => m.name === value?.model);
+	const roleField = value?.fields.role ? model?.fields.find(f => f.key === value.fields.role) : undefined;
 	const suggested = !value && auth.guess ? auth.models.find(m => m.name === auth.guess!.model) : null;
 	const choose = (name: string) => {
 		if (name === BUILT_IN) return onChange(null);
@@ -197,6 +198,43 @@ const CustomersStep: FC<{ auth?: AuthView; missing?: boolean; value: AuthMapping
 							</Box>
 						);
 					})}
+					{roleField?.options?.length ? (
+						<Box>
+							<Text {...label}>Who can sign up as each customer role</Text>
+							<Text
+								{...help}
+								mt={0}
+								mb={2}>
+								A login set to one customer role (a seller login, say) gives that role to people who sign up there — only for the roles switched on
+								here. Your team gives the others.
+							</Text>
+							<Flex
+								direction='column'
+								gap={2}>
+								{roleField.options.map(o => {
+									const isDefault = String(roleField.default ?? '') === o.value;
+									const open = value.signUpRoles || [];
+									return (
+										<Switch.Root
+											key={o.value}
+											size='sm'
+											checked={isDefault || open.includes(o.value)}
+											disabled={isDefault}
+											onCheckedChange={e =>
+												onChange({ ...value, signUpRoles: e.checked ? [...open.filter(r => r !== o.value), o.value] : open.filter(r => r !== o.value) })
+											}>
+											<Switch.HiddenInput />
+											<Switch.Control />
+											<Switch.Label fontSize='13px'>
+												{o.label}
+												{isDefault ? ' — the default: every other sign-up gets it' : ''}
+											</Switch.Label>
+										</Switch.Root>
+									);
+								})}
+							</Flex>
+						</Box>
+					) : null}
 				</>
 			)}
 		</Flex>
