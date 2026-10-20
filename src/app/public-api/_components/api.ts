@@ -272,6 +272,7 @@ export const AUTH_ENDPOINTS: Endpoint[] = [
 export const SITE_ENDPOINTS: Endpoint[] = [
 	{ method: 'GET', path: '/site', summary: 'Site settings and menu' },
 	{ method: 'GET', path: '/pages/by-path?path=/about', summary: 'A published page with its SEO and contents' },
+	{ method: 'GET', path: '/web-contents/by-slug/home-intro', summary: 'One published content by its slug, with the blocks under it' },
 ];
 
 export const METHOD_TONE: Record<Method, string> = { GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red' };

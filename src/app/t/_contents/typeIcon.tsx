@@ -2,6 +2,7 @@ import {
 	ChartNoAxesColumn,
 	CircleHelp,
 	FileText,
+	GalleryHorizontal,
 	Gem,
 	Image,
 	Images,
@@ -26,6 +27,7 @@ import {
  */
 const ICONS: Record<string, LucideIcon> = {
 	'panel-top': PanelTop,
+	'gallery-horizontal': GalleryHorizontal,
 	type: Type,
 	'file-text': FileText,
 	'layout-grid': LayoutGrid,

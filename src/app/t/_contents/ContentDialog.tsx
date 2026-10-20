@@ -13,12 +13,13 @@ import {
 	useCreateSiteContentMutation,
 	useUpdateSiteContentMutation,
 } from '@/components/library';
-import type { ContentListModel, ContentType, SiteContent, SiteContentsPage } from '@/components/library';
+import type { ContentBlock, ContentListModel, ContentType, SiteContent, SiteContentsPage } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { styles } from '@/components/library/config';
-import { BlockFields } from '@/components/library/utils/inputs/section/VBlocks';
+import VBlocks, { BlockFields } from '@/components/library/utils/inputs/section/VBlocks';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
+import ContentAddress from './ContentAddress';
 import ListEditor from './ListEditor';
 import { typeIcon } from './typeIcon';
 
@@ -26,14 +27,42 @@ import { typeIcon } from './typeIcon';
  * Adding or changing one piece of a page (backend docs/cms D1): first what it
  * is — a Hero, Cards, Questions, a List… — then only that type's fields. A
  * List gets its own settings (ListEditor); every other type its fields as the
- * type (a component) defines them. Changing one can also move it to another
- * page.
+ * type (a component) defines them. Under it, more blocks of any type but a
+ * List can be added — a Text, then a Gallery — kept with it, in order.
+ * Changing one can also move it to another page or give it another slug.
  */
 
 const LIST = 'content.list';
 /** A List's words around the records; the rest is ListEditor's. */
 const LIST_WORDS = ['eyebrow', 'heading', 'buttonLabel', 'buttonUrl'];
 const SITE = 'site';
+/** The most blocks one content holds, its own included (backend BLOCKS_MAX). */
+const MAX_BLOCKS = 20;
+
+/**
+ * Words written while a type's Text had the editor are HTML; that field is a
+ * plain text box now (only Rich text keeps the editor), so they show — and
+ * save — as plain words, a paragraph a line.
+ */
+const plainOf = (html: string) =>
+	html
+		.replace(/<br\s*\/?>/gi, '\n')
+		.replace(/<\/(p|div|h[1-6]|li)>/gi, '\n')
+		.replace(/<[^>]+>/g, '')
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&amp;/g, '&')
+		.replace(/\n{3,}/g, '\n\n')
+		.trim();
+const looksLikeHtml = (v: any) => typeof v === 'string' && /<\/?[a-z][^>]*>/i.test(v);
+const asPlain = (data: Record<string, any>, type?: ContentType) => {
+	const out = { ...data };
+	for (const f of type?.dataModel || []) if (f.type === 'textarea' && looksLikeHtml(out[f.name])) out[f.name] = plainOf(out[f.name]);
+	return out;
+};
 
 const TypeCard: FC<{ t: ContentType; onPick: () => void }> = ({ t, onPick }) => {
 	const Icon = typeIcon(t.icon);
@@ -93,6 +122,8 @@ const ContentDialog: FC<{
 }> = ({ open, onClose, types, models, pages, page, content, drafts }) => {
 	const [uid, setUid] = useState<string>('');
 	const [name, setName] = useState('');
+	const [slug, setSlug] = useState('');
+	const [more, setMore] = useState<ContentBlock[]>([]);
 	const [where, setWhere] = useState(page);
 	const [data, setData] = useState<Record<string, any>>({});
 	const [error, setError] = useState('');
@@ -103,22 +134,25 @@ const ContentDialog: FC<{
 		if (!open) return;
 		setUid(content?.type || '');
 		setName(content?.name || '');
+		setSlug(content?.slug || '');
+		setMore(Array.isArray(content?.more) ? content.more.map(b => ({ ...asPlain(b, types.find(t => t.uid === b.__component)), __component: b.__component })) : []);
 		setWhere(content ? content.page || SITE : page);
-		setData(content?.data ? { ...content.data } : {});
+		setData(content?.data ? asPlain(content.data, types.find(t => t.uid === content.type)) : {});
 		setError('');
 	}, [open, content?._id]);
 
 	const type = types.find(t => t.uid === uid);
 	const pageName = where === SITE ? 'Whole site' : pages.find(p => p._id === where)?.name || 'this page';
 	const Icon = typeIcon(type?.icon);
+	const blockTypes = types.filter(t => t.uid !== LIST).map(t => ({ uid: t.uid, title: t.title, description: t.description, dataModel: t.dataModel }));
 
 	const save = async () => {
 		setError('');
 		if (!type) return;
 		const page = where === SITE ? null : where;
 		const res: any = content
-			? await update({ id: content._id, name: name.trim() || undefined, page, data })
-			: await create({ page, type: type.uid, name: name.trim() || undefined, data });
+			? await update({ id: content._id, name: name.trim() || undefined, slug: slug.trim() || undefined, page, data, more })
+			: await create({ page, type: type.uid, name: name.trim() || undefined, slug: slug.trim() || undefined, data, more });
 		if ('error' in res) return setError(res.error?.data?.message || 'Couldn’t save — try again.');
 		toaster.create({
 			type: 'success',
@@ -152,6 +186,7 @@ const ContentDialog: FC<{
 								t={t}
 								onPick={() => {
 									setUid(t.uid);
+									setMore([]);
 									setData(t.uid === LIST ? { limit: 6, sort: '-createdAt', match: 'all' } : {});
 								}}
 							/>
@@ -204,6 +239,34 @@ const ContentDialog: FC<{
 									items={[{ value: SITE, label: 'Whole site — header, footer, every page' }, ...pages.map(p => ({ value: p._id, label: `${p.name} (${p.path})` }))]}
 								/>
 							</Box>
+							<Box gridColumn={{ md: 'span 2' }}>
+								<Text
+									fontSize='13px'
+									fontWeight='500'
+									mb={1}>
+									Slug
+								</Text>
+								<Input
+									size='sm'
+									value={slug}
+									maxLength={120}
+									fontFamily='mono'
+									placeholder='Made from the page and the type, e.g. home-gallery-3f9a2c'
+									onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
+								/>
+								<Text
+									fontSize='12px'
+									color='fg.muted'
+									mt={1}>
+									How your site and the API find this content{content ? ' — places that use the old slug stop showing it until they’re changed' : ' — the addresses to read it show here once it’s added'}.
+								</Text>
+								{content?.slug && (
+									<ContentAddress
+										slug={content.slug}
+										pagePath={content.page ? pages.find(p => p._id === content.page)?.path : null}
+									/>
+								)}
+							</Box>
 						</Grid>
 						<BlockFields
 							item={{ __component: type.uid, ...data }}
@@ -222,6 +285,20 @@ const ContentDialog: FC<{
 								/>
 							</Box>
 						)}
+						<Box
+							borderTopWidth='1px'
+							borderColor='border.muted'
+							pt={4}>
+							<VBlocks
+								name='more'
+								label='More in this block'
+								value={more}
+								onChange={(e: any) => setMore(Array.isArray(e?.target?.value) ? e.target.value : [])}
+								blocks={blockTypes}
+								limit={MAX_BLOCKS - 1}
+								helper={`Add a Text, a Gallery or any other type under the ${type.title.toLowerCase()} — they stay together, in this order.`}
+							/>
+						</Box>
 						{error && (
 							<Text
 								role='alert'

@@ -21,6 +21,7 @@ import { PublishBadge } from '@/components/library/components/view/record/Publis
 import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
+import { CopyText } from './ContentAddress';
 import ContentDialog from './ContentDialog';
 import { typeIcon } from './typeIcon';
 
@@ -88,6 +89,13 @@ const Row: FC<{
 						variant='subtle'>
 						{c.typeTitle}
 					</Badge>
+					{!!c.more?.length && (
+						<Badge
+							size='sm'
+							variant='outline'>
+							+{c.more.length} {c.more.length === 1 ? 'block' : 'blocks'}
+						</Badge>
+					)}
 					{c.status && (
 						<PublishBadge
 							status={c.status}
@@ -102,6 +110,29 @@ const Row: FC<{
 					{c.preview || 'Nothing written yet'}
 				</Text>
 			</Box>
+			{c.slug && (
+				<Flex
+					display={{ base: 'none', md: 'flex' }}
+					align='center'
+					flexShrink={0}
+					maxW='220px'
+					color='fg.muted'>
+					<Box
+						as='code'
+						fontSize='11.5px'
+						fontFamily='mono'
+						whiteSpace='nowrap'
+						overflow='hidden'
+						textOverflow='ellipsis'
+						title={`Slug — how your site and the API find it: ${c.slug}`}>
+						{c.slug}
+					</Box>
+					<CopyText
+						text={c.slug}
+						label='Copy the slug'
+					/>
+				</Flex>
+			)}
 			<Flex
 				gap={0.5}
 				flexShrink={0}

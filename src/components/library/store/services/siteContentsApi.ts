@@ -4,7 +4,8 @@ import mainApi from './mainApi';
  * A website's contents, typed and by page (backend docs/cms D1, CMS-06):
  * routes-tenant/siteContents.router.ts at /p/:project/site-contents. One
  * record per piece of a page — a Hero, Cards, Questions, a List — its type
- * chosen first, its words the type's fields.
+ * chosen first, its words the type's fields, and any more blocks added
+ * under it (`more`: a Text, then a Gallery…).
  */
 
 const TAG = 'site-contents';
@@ -12,6 +13,7 @@ const TAG = 'site-contents';
 export type ContentTypeField = { key: string; label: string; kind: string; required?: boolean; helper?: string; options?: { value: string; label: string }[]; fields?: ContentTypeField[] };
 export type ContentType = { uid: string; name: string; title: string; icon: string; description: string; fields: ContentTypeField[]; dataModel: any[] };
 export type ContentListModel = { model: string; title: string; list: boolean; problem: string | null; fields: { key: string; label: string; kind: string; ref?: string; options?: string[] }[] };
+export type ContentBlock = Record<string, any> & { __component: string; _key?: string };
 export type ContentStatus = 'draft' | 'published' | 'modified';
 
 export type SiteContent = {
@@ -24,6 +26,8 @@ export type SiteContent = {
 	typeTitle: string | null;
 	icon: string;
 	data: Record<string, any> | null;
+	/** The blocks added under its own, in order: `{ __component, _key, …fields }`. */
+	more: ContentBlock[];
 	preview: string;
 	/** One word per record, from before typed contents: changed in the table. */
 	legacy: boolean;
@@ -69,11 +73,11 @@ export const siteContentsApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).
 			query: page => ({ url: 'site-contents', params: { page } }),
 			providesTags: [TAG],
 		}),
-		createSiteContent: builder.mutation<SiteContent, { page: string | null; type: string; name?: string; data: Record<string, any> }>({
+		createSiteContent: builder.mutation<SiteContent, { page: string | null; type: string; name?: string; slug?: string; data: Record<string, any>; more?: ContentBlock[] }>({
 			query: body => ({ url: 'site-contents', method: 'POST', body }),
 			invalidatesTags: [TAG],
 		}),
-		updateSiteContent: builder.mutation<SiteContent, { id: string; name?: string; page?: string | null; data?: Record<string, any> }>({
+		updateSiteContent: builder.mutation<SiteContent, { id: string; name?: string; slug?: string; page?: string | null; data?: Record<string, any>; more?: ContentBlock[] }>({
 			query: ({ id, ...body }) => ({ url: `site-contents/${id}`, method: 'PUT', body }),
 			invalidatesTags: [TAG],
 		}),
