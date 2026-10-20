@@ -11,9 +11,11 @@ import type { SiteConfig, SiteTag } from '@/components/library/store/services/te
 import { Field, SettingCard, errorText, useSave } from './parts';
 
 /**
- * Code: named pieces of HTML added to every page (the AGS head tags) — a chat
- * widget, another provider's tag, a verification snippet. Each is added,
- * edited, switched off or removed on its own, and saved straight away.
+ * Add script (docs/site-builder SB-30): named scripts pasted in and put on
+ * every page of the site (the AGS custom head tags) — a chat widget, another
+ * provider's tag, a verification snippet. Each is added, edited, switched off
+ * or removed on its own, and saved straight away. A builder site prints them
+ * into each page's HTML; a code-built site gets them from track.js.
  */
 
 type Props = { config: SiteConfig; canBuild: boolean };
@@ -25,6 +27,7 @@ const PLACES = [
 ] as const;
 const placeLabel = (v: string) => PLACES.find(p => p.value === v)?.label || v;
 const BLANK: SiteTag = { name: '', location: 'head', content: '', enabled: true };
+const EXAMPLES = 'Google Tag Manager, Microsoft Clarity, Hotjar, a chat widget (Tawk.to, Crisp, Intercom), a Facebook domain-verification tag';
 
 const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; error: any; onClose: () => void; onSave: (t: SiteTag) => void }> = ({
 	tag,
@@ -43,7 +46,7 @@ const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; erro
 		}
 	}, [tag]);
 	const set = (patch: Partial<SiteTag>) => setDraft(d => ({ ...d, ...patch }));
-	const missing = !draft.name.trim() ? 'Give it a name.' : !draft.content.trim() ? 'Paste the code.' : '';
+	const missing = !draft.name.trim() ? 'Give it a name.' : !draft.content.trim() ? 'Paste the script.' : '';
 	const save = () => {
 		setTouched(true);
 		if (!missing) onSave({ ...draft, name: draft.name.trim() });
@@ -73,7 +76,7 @@ const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; erro
 								gap={3}
 								w='full'
 								pr={6}>
-								<Dialog.Title fontSize='16px'>{isNew ? 'Add code' : 'Edit code'}</Dialog.Title>
+								<Dialog.Title fontSize='16px'>{isNew ? 'Add script' : 'Edit script'}</Dialog.Title>
 								<GuideLink section='site-code' />
 							</Flex>
 							<Dialog.CloseTrigger asChild>
@@ -98,7 +101,7 @@ const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; erro
 												size='sm'
 												autoFocus
 												maxLength={80}
-												placeholder='e.g. Chat widget'
+												placeholder='e.g. Google Tag Manager'
 												value={draft.name}
 												onChange={e => set({ name: e.target.value })}
 											/>
@@ -118,15 +121,15 @@ const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; erro
 									</Box>
 								</Flex>
 								<Field
-									label='Code'
-									help='HTML — <script>, <meta>, <link>, <noscript>… Scripts run.'>
+									label='Script'
+									help='Paste it exactly as the provider gives it, with its own <script>, <noscript> or <meta> tags.'>
 									<Textarea
 										size='sm'
 										rows={10}
 										fontFamily='mono'
 										fontSize='12px'
 										spellCheck={false}
-										placeholder={'<script src="https://…"></script>'}
+										placeholder={'<!-- e.g. -->\n<script async src="https://…"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n</script>'}
 										value={draft.content}
 										onChange={e => set({ content: e.target.value })}
 									/>
@@ -153,7 +156,7 @@ const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; erro
 								<Text
 									fontSize='12px'
 									color='fg.muted'>
-									Only add code you trust: it runs on your site with full access to the page and its visitors.
+									Only add scripts you trust: they run on your site with full access to the page and its visitors.
 								</Text>
 							</Flex>
 						</Dialog.Body>
@@ -180,11 +183,11 @@ const TagDialog: FC<{ tag: SiteTag | null; isNew: boolean; saving: boolean; erro
 	);
 };
 
-export const CodeTab: FC<Props> = ({ config, canBuild }) => {
+export const ScriptsTab: FC<Props> = ({ config, canBuild }) => {
 	const tags = config.headTags;
 	const [editing, setEditing] = useState<{ index: number; tag: SiteTag } | null>(null);
 	const [removing, setRemoving] = useState<number | null>(null);
-	const { save, saving, error, reset } = useSave('Code');
+	const { save, saving, error, reset } = useSave('Scripts');
 
 	const write = async (next: SiteTag[]) => save({ headTags: next.map(({ _id, name, location, content, enabled }) => ({ ...(_id && { _id }), name, location, content, enabled })) });
 	const open = (index: number, tag: SiteTag) => {
@@ -195,9 +198,9 @@ export const CodeTab: FC<Props> = ({ config, canBuild }) => {
 	return (
 		<>
 			<SettingCard
-				id='code'
-				title='Code on every page'
-				description='Pieces of HTML your site’s analytics script adds to every page — a chat widget, a tag from another provider, a verification snippet. Each is saved as soon as you add, change or switch it.'
+				id='scripts'
+				title='Add script'
+				description={`Paste any script a provider gives you and it goes on every page of your website — ${EXAMPLES}, or anything else. It’s live on the site within a minute of saving. Switch one off to pause it without deleting it.`}
 				aside={<GuideLink section='site-code' />}>
 				<Flex
 					direction='column'
@@ -208,9 +211,20 @@ export const CodeTab: FC<Props> = ({ config, canBuild }) => {
 							align='center'
 							gap={2}
 							py={8}
-							color='fg.muted'>
+							color='fg.muted'
+							borderWidth='1px'
+							borderStyle='dashed'
+							borderColor='border'
+							borderRadius='md'>
 							<CodeIcon size={18} />
-							<Text fontSize='13px'>No code yet.</Text>
+							<Text fontSize='13px'>No scripts yet.</Text>
+							<Text
+								fontSize='12px'
+								color='fg.subtle'
+								textAlign='center'
+								maxW='420px'>
+								Paste a tracking, chat or verification script and choose where on the page it goes.
+							</Text>
 						</Flex>
 					)}
 					{tags.map((tag, i) => (
@@ -240,13 +254,12 @@ export const CodeTab: FC<Props> = ({ config, canBuild }) => {
 										variant='outline'>
 										{placeLabel(tag.location)}
 									</Badge>
-									{!tag.enabled && (
-										<Badge
-											size='sm'
-											variant='subtle'>
-											Off
-										</Badge>
-									)}
+									<Badge
+										size='sm'
+										variant='subtle'
+										colorPalette={tag.enabled ? 'green' : 'gray'}>
+										{tag.enabled ? 'On' : 'Off'}
+									</Badge>
 								</Flex>
 								<Text
 									fontSize='12px'
@@ -292,11 +305,10 @@ export const CodeTab: FC<Props> = ({ config, canBuild }) => {
 					<Box mt={1}>
 						<Button
 							size='xs'
-							variant='outline'
 							disabled={!canBuild || tags.length >= 50}
 							onClick={() => open(-1, { ...BLANK })}>
 							<Plus size={13} />
-							Add code
+							Add script
 						</Button>
 					</Box>
 				</Flex>
@@ -316,7 +328,7 @@ export const CodeTab: FC<Props> = ({ config, canBuild }) => {
 			<PromptDialog
 				open={removing !== null}
 				onClose={() => setRemoving(null)}
-				title='Remove this code?'
+				title='Remove this script?'
 				description='It comes off every page of your site within a minute. To stop it for a while instead, switch it off.'
 				subject={removing !== null ? tags[removing]?.name : undefined}
 				confirmLabel='Remove'

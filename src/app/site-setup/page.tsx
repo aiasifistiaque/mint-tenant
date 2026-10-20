@@ -14,14 +14,14 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import { ContactTab, GeneralTab } from './_components/General';
 import { SeoTab } from './_components/Seo';
 import { ServerSideTab, TrackingTab } from './_components/Tracking';
-import { CodeTab } from './_components/Code';
+import { ScriptsTab } from './_components/Code';
 import { DomainsTab, RedirectsTab } from './_components/Lists';
 import { CheckTab } from './_components/Check';
 
 /**
  * A website project's settings (WO-34, WO-38) — one page, a tab per concern,
  * never a table: branding and theme, contact and socials, SEO and indexing,
- * tracking tags, server-side tracking, code on every page, redirects and
+ * tracking tags, server-side tracking, scripts on every page (Add script), redirects and
  * headers, domains, and a check of the live site. All of it is the project's
  * WebsiteSettings (backend siteConfig.function.ts); every card saves on its
  * own, the site reads it from the site API, and track.js adds the tags.
@@ -33,7 +33,7 @@ const TABS = [
 	{ value: 'seo', label: 'SEO' },
 	{ value: 'tracking', label: 'Tracking' },
 	{ value: 'server-side', label: 'Server-side' },
-	{ value: 'code', label: 'Code' },
+	{ value: 'scripts', label: 'Add script' },
 	{ value: 'redirects', label: 'Redirects & headers' },
 	{ value: 'domains', label: 'Domains' },
 	{ value: 'check', label: 'Check the site' },
@@ -42,7 +42,9 @@ const TABS = [
 function SiteSetup() {
 	const router = useRouter();
 	const params = useSearchParams();
-	const tab = TABS.some(t => t.value === params.get('tab')) ? String(params.get('tab')) : 'general';
+	// ?tab=code is what the Add script tab was called before SB-30.
+	const asked = params.get('tab') === 'code' ? 'scripts' : params.get('tab');
+	const tab = TABS.some(t => t.value === asked) ? String(asked) : 'general';
 	const { project, can } = useWorkspace();
 	const { data: config, isLoading, isError } = useGetSiteConfigQuery();
 	// The site API's address with the project key (docs/api-builder D14) — robots.txt and sitemap.xml are read from it.
@@ -65,8 +67,8 @@ function SiteSetup() {
 				return <TrackingTab {...p} />;
 			case 'server-side':
 				return <ServerSideTab {...p} />;
-			case 'code':
-				return <CodeTab {...p} />;
+			case 'scripts':
+				return <ScriptsTab {...p} />;
 			case 'redirects':
 				return <RedirectsTab {...p} />;
 			case 'domains':

@@ -7,6 +7,7 @@ import { CopyValue } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import type { SiteConfig } from '@/components/library/store/services/tenantApi';
 import { Field, SettingCard, TextField, Toggle, changed, imageValue, useDraft, useSave } from './parts';
+import { CharCount, DESCRIPTION, SerpPreview, TITLE } from './SeoPreview';
 
 /** SEO: the defaults every page falls back to, indexing, and search engine verification. */
 
@@ -18,11 +19,12 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 	const { draft, set, reset, dirty } = useDraft(saved);
 	const { save, saving, error } = useSave('Default SEO');
 	const sample = draft.titleTemplate.includes('%s') ? draft.titleTemplate.replace('%s', 'About us') : '';
+	const host = (config.seo.canonicalDomain || config.domains.find(d => !d.startsWith('localhost')) || '').replace(/^https?:\/\//, '');
 	return (
 		<SettingCard
 			id='seo-defaults'
 			title='Default SEO'
-			description='Used on any page without its own title, description or share image. Each page’s own are in SEO.'
+			description='The home page’s title and description, and what any page without its own falls back to. Each page’s full SEO — social cards, indexing, structured data, sitemap — is in the site builder: a page’s ⋯ → Name, address & SEO.'
 			aside={<GuideLink section='site-seo' />}
 			dirty={dirty}
 			saving={saving}
@@ -30,12 +32,24 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 			disabled={!canBuild}
 			onReset={reset}
 			onSave={() => save({ seo: changed(draft, saved) })}>
+			<Box mb={4}>
+				<SerpPreview
+					host={host}
+					title={draft.metaTitle}
+					description={draft.metaDescription}
+				/>
+			</Box>
 			<Grid
 				templateColumns={{ base: '1fr', md: '1fr 1fr' }}
 				gap={4}>
 				<TextField
 					label='Default title'
-					help={`${draft.metaTitle.length}/60 characters — the home page’s title in search results`}
+					help={
+						<CharCount
+							value={draft.metaTitle}
+							{...TITLE}
+						/>
+					}
 					value={draft.metaTitle}
 					onChange={metaTitle => set({ metaTitle })}
 				/>
@@ -50,7 +64,12 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 					<TextField
 						label='Default description'
 						long
-						help={`${draft.metaDescription.length}/160 characters`}
+						help={
+							<CharCount
+								value={draft.metaDescription}
+								{...DESCRIPTION}
+							/>
+						}
 						value={draft.metaDescription}
 						onChange={metaDescription => set({ metaDescription })}
 					/>
