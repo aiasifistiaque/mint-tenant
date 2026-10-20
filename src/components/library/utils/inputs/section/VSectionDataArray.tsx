@@ -31,6 +31,8 @@ const VSectionDataArray: FC<FormDataType> = ({
 	section,
 	...props
 }) => {
+	// A new record has no rows yet, and a form may hand an empty string for them.
+	const rows: any[] = Array.isArray(value) ? value : [];
 	return (
 		<Stack>
 			<Stack
@@ -86,7 +88,7 @@ const VSectionDataArray: FC<FormDataType> = ({
 					gap={4}
 					my={section?.table ? 0 : 4}
 					display={section?.table ? 'none' : undefined}>
-					{value?.map((item: any, i: number) => (
+					{rows.map((item: any, i: number) => (
 						<Flex
 							key={i}
 							w='full'

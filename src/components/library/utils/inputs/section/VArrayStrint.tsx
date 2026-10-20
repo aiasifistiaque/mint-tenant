@@ -25,6 +25,8 @@ const VArrayString: FC<FormDataType> = ({
 	name,
 	...props
 }) => {
+	// A new record has no rows yet, and a form may hand an empty string for them.
+	const rows: any[] = Array.isArray(value) ? value : [];
 	return (
 		<Stack>
 			<Stack w='full'>
@@ -41,7 +43,7 @@ const VArrayString: FC<FormDataType> = ({
 				<Column
 					gap={4}
 					my={4}>
-					{value?.map((item: any, i: number) => (
+					{rows.map((item: any, i: number) => (
 						<Column
 							key={i}
 							gap={4}>
