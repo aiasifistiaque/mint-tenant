@@ -1,6 +1,6 @@
 import { FC, ReactNode, useId } from 'react';
 import { Box, Flex, FlexProps, Grid, SystemStyleObject, Text } from '@chakra-ui/react';
-import { JetBrains_Mono, Outfit } from 'next/font/google';
+import { mono, outfit } from '@/fonts';
 
 /**
  * The signed-out pages' frame — sign in, two-step verification, sign up and
@@ -18,9 +18,6 @@ import { JetBrains_Mono, Outfit } from 'next/font/google';
  */
 
 // Headings and text: Outfit, slim and geometric. Labels: JetBrains Mono.
-const outfit = Outfit({ subsets: ['latin'], weight: ['200', '300', '400', '500'], display: 'swap' });
-const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400'], display: 'swap' });
-
 export const AUTH_FONT = outfit.style.fontFamily;
 export const AUTH_MONO = mono.style.fontFamily;
 

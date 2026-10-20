@@ -3,15 +3,12 @@ import './globals.css';
 import { Providers } from '@/components/provider/AppProvider';
 
 import 'swiper/css';
-import { JetBrains_Mono, Outfit } from 'next/font/google';
+// The marketing website's type (mint-webpage): Outfit for everything, light
+// weights; JetBrains Mono for labels. theme/index.ts reads the variables.
+import { mono, outfit } from '@/fonts';
 import Script from 'next/script';
 import { THEME_BOOT_SCRIPT } from '@/theme/themeBoot';
 import { pwaBootScript } from '@/components/library/tenant/pwaBoot';
-
-// The marketing website's type (mint-webpage): Outfit for everything, light
-// weights; JetBrains Mono for labels. theme/index.ts reads the variables.
-const outfit = Outfit({ subsets: ['latin'], weight: ['200', '300', '400', '500'], variable: '--font-outfit', display: 'swap' });
-const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400'], variable: '--font-jetbrains', display: 'swap' });
 
 export const metadata: Metadata = {
 	// Pages set their own part ('Sign in' → 'Sign in · MINT'); panel pages set the
