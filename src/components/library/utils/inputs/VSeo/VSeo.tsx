@@ -58,6 +58,8 @@ import {
 	tone,
 } from './constants';
 import SerpPreview from './SerpPreview';
+import SocialPreview from './SocialPreview';
+import { useGetSiteConfigQuery } from '@/components/library/store/services/tenantApi';
 import CharCount from './CharCount';
 
 type Props = {
@@ -113,10 +115,17 @@ const VSeo: FC<Props> = ({ value, onChange, name, label, helper, formData }) => 
 	// What the frontend will fall back to when a field is left blank. Showing
 	// it as placeholder text is the difference between "empty means broken" and
 	// "empty means inherit".
-	const fallbackTitle = formData?.name || formData?.title || formData?.page || '';
+	// A website's SEO record links its page: its name and path stand in (an id alone says nothing).
+	const page = formData?.page && typeof formData.page === 'object' ? formData.page : null;
+	const fallbackTitle = formData?.name || formData?.title || page?.name || '';
 	const fallbackDescription = formData?.shortDescription || formData?.description || '';
 
-	const previewPath = formData?.path || (formData?.slug ? `/${formData.slug}` : '/');
+	const previewPath = formData?.path || page?.path || (formData?.slug ? `/${formData.slug}` : '/');
+
+	// A website project's own domain for the previews; other projects have none and keep this panel's host.
+	const { data: site } = useGetSiteConfigQuery();
+	const siteHost = (site?.seo?.canonicalDomain || site?.domains?.find((d: string) => !d.startsWith('localhost')) || '').replace(/^https?:\/\//, '');
+	const shareHost = siteHost || (typeof window !== 'undefined' ? window.location.host : '');
 
 	return (
 		<Box w='full'>
@@ -130,6 +139,7 @@ const VSeo: FC<Props> = ({ value, onChange, name, label, helper, formData }) => 
 					title={seo.metaTitle || fallbackTitle}
 					description={seo.metaDescription || stripHtml(fallbackDescription)}
 					path={previewPath}
+					host={siteHost}
 				/>
 			</Box>
 
@@ -265,6 +275,13 @@ const VSeo: FC<Props> = ({ value, onChange, name, label, helper, formData }) => 
 							Leave these empty to reuse the meta title, meta description and the page&apos;s
 							main image. Fill them in when the social copy should differ.
 						</Note>
+
+						<SocialPreview
+							host={shareHost}
+							title={seo.ogTitle || seo.metaTitle || fallbackTitle}
+							description={seo.ogDescription || seo.metaDescription || stripHtml(fallbackDescription)}
+							image={seo.ogImage}
+						/>
 
 						<SimpleGrid
 							columns={{ base: 1, md: 2 }}

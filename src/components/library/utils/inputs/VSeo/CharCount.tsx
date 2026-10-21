@@ -40,8 +40,10 @@ const CharCount: FC<Props> = ({ value, min, max, hardMax }) => {
 
 	return (
 		<Flex
+			w='full'
 			justify='space-between'
 			align='center'
+			gap={2}
 			mt={1}>
 			<Text
 				fontSize='11px'

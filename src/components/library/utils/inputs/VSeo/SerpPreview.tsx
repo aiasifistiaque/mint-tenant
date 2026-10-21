@@ -9,6 +9,8 @@ type Props = {
 	title?: string;
 	description?: string;
 	path?: string;
+	/** The site's own domain, when known (a website project's) — else this panel's host. */
+	host?: string;
 };
 
 /**
@@ -16,12 +18,12 @@ type Props = {
  * writing in the shape a searcher will read it. Deliberately not pixel-exact:
  * its job is to catch truncation and empty fields, not to be a mock.
  */
-const SerpPreview: FC<Props> = ({ title, description, path }) => {
+const SerpPreview: FC<Props> = ({ title, description, path, host: siteHost }) => {
 	// The server can't know the browser's host: render the fallback first and
 	// swap in the real one after mount, or hydration fails on this text.
 	const [site, setSite] = useState(process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://example.com');
 	useEffect(() => setSite(SITE_URL), []);
-	const host = site.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+	const host = (siteHost || site).replace(/^https?:\/\//, '').replace(/\/+$/, '');
 	const crumb = (path || '/').split('/').filter(Boolean).join(' › ');
 
 	const shownTitle = title?.trim() || 'Your meta title will appear here';

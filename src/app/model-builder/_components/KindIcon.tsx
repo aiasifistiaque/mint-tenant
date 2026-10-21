@@ -23,6 +23,7 @@ import {
 	LayoutList,
 	Puzzle,
 	Rows3,
+	Search,
 	Slash,
 	SquareStack,
 	Tags,
@@ -66,6 +67,7 @@ export const KIND_ICONS: Record<FieldKind, LucideIcon> = {
 	sectionlist: Rows3,
 	component: Puzzle,
 	blocks: LayoutList,
+	seo: Search,
 };
 
 /** Chakra palettes, so the tint follows light and dark mode and every theme. */

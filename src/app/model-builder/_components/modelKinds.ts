@@ -34,7 +34,8 @@ export type FieldKind =
 	| 'sectionlist'
 	| 'component'
 	| 'blocks'
-	| 'password';
+	| 'password'
+	| 'seo';
 
 export const KINDS: { value: FieldKind; label: string; hint: string; group: string; hidden?: boolean }[] = [
 	{ value: 'text', label: 'Text', hint: 'A short line: a name, a title, a phone number', group: 'Text' },
@@ -112,6 +113,12 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 		hint: 'Components in any order — a page’s hero, text, gallery, questions. You pick which components it takes; whoever fills it in picks which and in what order',
 		group: 'Sections',
 	},
+	{
+		value: 'seo',
+		label: 'SEO',
+		hint: 'A record’s search and social details in one editor — Google preview, meta title and description, share cards, indexing, structured data, sitemap. For pages, posts, products',
+		group: 'Sections',
+	},
 ];
 
 export const KIND_GROUPS = ['Text', 'Values', 'Choices', 'Media', 'Links', 'Sections'];
@@ -165,12 +172,12 @@ export const ENUM_KINDS: FieldKind[] = ['text', 'number', 'select', 'multiselect
 export const NEEDS_OPTIONS: FieldKind[] = ['select', 'multiselect'];
 /** Kinds stored as a list — their default is a list too. */
 export const ARRAY_KINDS: FieldKind[] = ['multiselect', 'tags', 'images', 'files', 'references'];
-export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'dateformula', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks'];
+export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'dateformula', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks', 'seo'];
 /** What an address (uid) can be made from — the same list as the backend's UID_SOURCES. */
 export const UID_SOURCES: FieldKind[] = ['text', 'email', 'url', 'select', 'textarea'];
 /** Shown as dots — its key may say what it holds (password, pin, token). Same as the backend's SECRET_KINDS. */
 export const SECRET_KINDS: FieldKind[] = ['password'];
-const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'dateformula', 'password', 'component', 'blocks', ...ARRAY_KINDS, ...SECTION_KINDS];
+const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'dateformula', 'password', 'component', 'blocks', 'seo', ...ARRAY_KINDS, ...SECTION_KINDS];
 export const canBeUnique = (kind: FieldKind) => !CANT_BE_UNIQUE.includes(kind);
 /** Kinds worked out by a formula, never typed: a number and a date (docs/date-formulas). */
 export const FORMULA_KINDS: FieldKind[] = ['formula', 'dateformula'];
