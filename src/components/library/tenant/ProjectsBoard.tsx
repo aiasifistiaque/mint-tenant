@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Box, Button, Center, Field, Flex, Grid, Input, SegmentGroup, Skeleton, Text, Textarea } from '@chakra-ui/react';
-import { Archive, ArchiveRestore, Boxes, Globe, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, PlugZap, Plus, Trash2, Wrench } from 'lucide-react';
+import { Archive, ArchiveRestore, Boxes, Globe, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -574,8 +574,13 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 	const { data, isLoading } = useGetProjectsQuery({ archived: showArchived });
 	const [creating, setCreating] = useState(false);
 	const [createType, setCreateType] = useState<ProjectType>('app');
+	const [q, setQ] = useState('');
 	const all = data?.doc || [];
-	const projects = kind === 'all' ? all : all.filter(p => p.type === kind);
+	const needle = q.trim().toLowerCase();
+	// By kind, then by the search: its name, address, description or domains.
+	const projects = (kind === 'all' ? all : all.filter(p => p.type === kind)).filter(
+		p => !needle || [p.name, p.publicSlug, p.description, ...(p.domains || [])].some(v => String(v || '').toLowerCase().includes(needle))
+	);
 	const canCreate = can('create-projects');
 	// Home, before the organization's first project: the first steps take the page (FirstSteps).
 	const firstRun = welcome && !isLoading && !showArchived && !all.length && canCreate;
@@ -635,21 +640,68 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 							)}
 						</Flex>
 					}>
-					{all.length > 1 && (
-						<SegmentGroup.Root
-							size='sm'
-							mb={3}
-							value={kind}
-							onValueChange={d => setKind((d.value as any) || 'all')}
-							w='fit-content'>
-							<SegmentGroup.Indicator />
-							<SegmentGroup.Items
-								items={[
-									{ value: 'all', label: `All (${all.length})` },
-									...TYPES.map(t => ({ value: t.value, label: `${t.title} (${all.filter(p => p.type === t.value).length})` })),
-								]}
-							/>
-						</SegmentGroup.Root>
+					{all.length > 0 && (
+						<Flex
+							align='center'
+							gap={3}
+							wrap='wrap'
+							mb={3}>
+							{all.length > 1 && (
+								<SegmentGroup.Root
+									size='sm'
+									value={kind}
+									onValueChange={d => setKind((d.value as any) || 'all')}
+									w='fit-content'>
+									<SegmentGroup.Indicator />
+									<SegmentGroup.Items
+										items={[
+											{ value: 'all', label: `All (${all.length})` },
+											...TYPES.map(t => ({ value: t.value, label: `${t.title} (${all.filter(p => p.type === t.value).length})` })),
+										]}
+									/>
+								</SegmentGroup.Root>
+							)}
+							<Flex
+								align='center'
+								gap={2}
+								px={3}
+								h='32px'
+								w={{ base: 'full', md: '260px' }}
+								ml={{ md: 'auto' }}
+								borderWidth='1px'
+								borderColor='border'
+								borderRadius='full'
+								color='fg.muted'>
+								<Search size={14} />
+								<Input
+									size='sm'
+									variant='flushed'
+									border='none'
+									h='full'
+									px={0}
+									color='fg'
+									css={{ '--focus-color': 'transparent' }}
+									aria-label='Search projects'
+									placeholder='Search projects'
+									value={q}
+									onChange={e => setQ(e.target.value)}
+									onKeyDown={e => {
+										if (e.key === 'Escape') setQ('');
+										// Enter opens the only match.
+										if (e.key === 'Enter' && projects.length === 1 && projects[0].isActive !== false) openProject(projects[0].publicSlug);
+									}}
+								/>
+								{q && (
+									<Box
+										as='button'
+										aria-label='Clear the search'
+										display='flex'
+										onClick={() => setQ('')}>
+										<X size={14} />
+									</Box>
+								)}
+							</Flex>
+						</Flex>
 					)}
 					{isLoading ? (
 						<Grid
@@ -677,6 +729,14 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 								/>
 							))}
 						</Grid>
+					) : needle && all.length ? (
+						<Text
+							fontSize='13.5px'
+							color='fg.muted'
+							py={6}
+							textAlign='center'>
+							No project matches “{q.trim()}”{kind !== 'all' ? ' in this kind' : ''}.
+						</Text>
 					) : (
 						<Flex
 							direction='column'
