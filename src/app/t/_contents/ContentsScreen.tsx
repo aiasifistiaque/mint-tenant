@@ -448,6 +448,8 @@ const ContentsScreen: FC = () => {
 				page={page}
 				content={editing}
 				drafts={!!data?.drafts}
+				onPage={typed.map(c => c.type || '')}
+				start={typesData?.start}
 			/>
 			<PromptDialog
 				open={!!removingOne}

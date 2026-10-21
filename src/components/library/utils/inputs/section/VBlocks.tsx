@@ -1,8 +1,8 @@
 'use client';
 
 import { FC, useRef, useState } from 'react';
-import { Box, Button, Flex, Grid, IconButton, Menu, Portal, Text } from '@chakra-ui/react';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Copy, Plus, Puzzle, Trash2 } from 'lucide-react';
+import { Box, Button, Flex, Grid, IconButton, Input, Popover, Portal, Text } from '@chakra-ui/react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Copy, Plus, Puzzle, Search, Trash2 } from 'lucide-react';
 import FormInput from '../../../create-page/inputs/form-input/FormInput';
 import getOnChangeHandler from '../../../functions/getOnChangeHandler';
 import { HelperText } from '../../..';
@@ -14,6 +14,9 @@ import { HelperText } from '../../..';
  * backend generated them) and can move up or down, be copied or removed.
  * Stored as `[{ _key, __component, …its fields }]`; the `_key` stays with an
  * item however it moves (the site and the builder bind to it).
+ *
+ * The picker has a search box; `suggested` types (what goes well here) come
+ * first, and while the list is empty they're offered as one-click buttons.
  */
 
 type BlockType = { uid: string; title: string; description?: string; dataModel: any[] };
@@ -30,6 +33,8 @@ type Props = {
 	/** The most items it takes. */
 	limit?: number;
 	isDisabled?: boolean;
+	/** Uids offered first, most likely first (only those in `blocks`). */
+	suggested?: string[];
 };
 
 const newKey = () => Math.random().toString(36).slice(2, 10);
@@ -90,7 +95,158 @@ export const BlockFields: FC<{ item: Item; type?: BlockType; onChange: (next: It
 	);
 };
 
-const VBlocks: FC<Props> = ({ name, label, value, onChange, isRequired, helper, blocks = [], limit, isDisabled }) => {
+/** Types matching the search: in the title first, then in the description. */
+export const searchTypes = <T extends { title: string; description?: string }>(list: T[], q: string) => {
+	const s = q.trim().toLowerCase();
+	if (!s) return list;
+	const inTitle = list.filter(t => t.title.toLowerCase().includes(s));
+	return [...inTitle, ...list.filter(t => !inTitle.includes(t) && (t.description || '').toLowerCase().includes(s))];
+};
+
+const PickRow: FC<{ b: BlockType; onPick: () => void }> = ({ b, onPick }) => (
+	<Box
+		as='button'
+		w='full'
+		textAlign='left'
+		px={2.5}
+		py={1.5}
+		borderRadius='md'
+		_hover={{ bg: 'bg.muted' }}
+		_focusVisible={{ bg: 'bg.muted', outline: 'none' }}
+		onClick={onPick}>
+		<Text
+			fontSize='13px'
+			fontWeight='600'>
+			{b.title}
+		</Text>
+		{b.description && (
+			<Text
+				fontSize='12px'
+				color='fg.muted'
+				lineClamp={2}>
+				{b.description}
+			</Text>
+		)}
+	</Box>
+);
+
+const GroupLabel: FC<{ children: string }> = ({ children }) => (
+	<Text
+		px={2.5}
+		pt={2}
+		pb={1}
+		fontSize='11px'
+		fontWeight='600'
+		color='fg.muted'
+		textTransform='uppercase'
+		letterSpacing='0.04em'>
+		{children}
+	</Text>
+);
+
+/** "Add": a search box over the types, the suggested ones first. */
+const BlockPicker: FC<{ blocks: BlockType[]; suggested: BlockType[]; disabled: boolean; onPick: (uid: string) => void }> = ({ blocks, suggested, disabled, onPick }) => {
+	const [open, setOpen] = useState(false);
+	const [q, setQ] = useState('');
+	const pick = (uid: string) => {
+		setOpen(false);
+		onPick(uid);
+	};
+	const found = searchTypes(blocks, q);
+	const rest = blocks.filter(b => !suggested.includes(b));
+	return (
+		<Popover.Root
+			open={open}
+			onOpenChange={e => setOpen(e.open)}
+			onExitComplete={() => setQ('')}
+			positioning={{ placement: 'bottom-start' }}>
+			<Popover.Trigger asChild>
+				<Button
+					alignSelf='flex-start'
+					size='xs'
+					variant='outline'
+					disabled={disabled}>
+					<Plus size={13} />
+					Add
+				</Button>
+			</Popover.Trigger>
+			<Portal>
+				<Popover.Positioner>
+					<Popover.Content
+						w='340px'
+						maxH='420px'
+						display='flex'
+						flexDirection='column'>
+						<Flex
+							align='center'
+							gap={2}
+							px={2.5}
+							py={2}
+							borderBottomWidth='1px'
+							borderColor='border.muted'>
+							<Search size={14} />
+							<Input
+								size='xs'
+								variant='flushed'
+								autoFocus
+								placeholder='Search types'
+								value={q}
+								onChange={e => setQ(e.target.value)}
+								onKeyDown={e => {
+									if (e.key === 'Enter' && found[0]) pick(found[0].uid);
+								}}
+							/>
+						</Flex>
+						<Box
+							overflowY='auto'
+							p={1}>
+							{q.trim() ? (
+								found.length ? (
+									found.map(b => (
+										<PickRow
+											key={b.uid}
+											b={b}
+											onPick={() => pick(b.uid)}
+										/>
+									))
+								) : (
+									<Text
+										px={2.5}
+										py={3}
+										fontSize='13px'
+										color='fg.muted'>
+										No type matches “{q.trim()}”.
+									</Text>
+								)
+							) : (
+								<>
+									{suggested.length > 0 && <GroupLabel>Suggested</GroupLabel>}
+									{suggested.map(b => (
+										<PickRow
+											key={b.uid}
+											b={b}
+											onPick={() => pick(b.uid)}
+										/>
+									))}
+									{suggested.length > 0 && rest.length > 0 && <GroupLabel>Every type</GroupLabel>}
+									{rest.map(b => (
+										<PickRow
+											key={b.uid}
+											b={b}
+											onPick={() => pick(b.uid)}
+										/>
+									))}
+								</>
+							)}
+						</Box>
+					</Popover.Content>
+				</Popover.Positioner>
+			</Portal>
+		</Popover.Root>
+	);
+};
+
+const VBlocks: FC<Props> = ({ name, label, value, onChange, isRequired, helper, blocks = [], limit, isDisabled, suggested: suggestedUids = [] }) => {
 	const items: Item[] = Array.isArray(value) ? value : [];
 	const [open, setOpen] = useState<Set<string>>(() => new Set(items.length === 1 && items[0]?._key ? [items[0]._key] : []));
 	const typeOf = (uid: string) => blocks.find(b => b.uid === uid);
@@ -115,6 +271,7 @@ const VBlocks: FC<Props> = ({ name, label, value, onChange, isRequired, helper, 
 		set(next);
 	};
 	const full = typeof limit === 'number' && items.length >= limit;
+	const suggested = suggestedUids.map(typeOf).filter((b): b is BlockType => !!b);
 
 	return (
 		<Flex
@@ -248,7 +405,7 @@ const VBlocks: FC<Props> = ({ name, label, value, onChange, isRequired, helper, 
 					</Box>
 				);
 			})}
-			{!items.length && (
+			{!items.length && !suggested.length && (
 				<Text
 					fontSize='13px'
 					color='fg.muted'
@@ -256,47 +413,37 @@ const VBlocks: FC<Props> = ({ name, label, value, onChange, isRequired, helper, 
 					Nothing here yet — add the first one.
 				</Text>
 			)}
-			{!isDisabled && (
-				<Menu.Root positioning={{ placement: 'bottom-start' }}>
-					<Menu.Trigger asChild>
+			{!isDisabled && !items.length && suggested.length > 0 && (
+				<Flex
+					align='center'
+					gap={1.5}
+					wrap='wrap'>
+					<Text
+						fontSize='12.5px'
+						color='fg.muted'
+						mr={0.5}>
+						Suggested:
+					</Text>
+					{suggested.map(b => (
 						<Button
-							alignSelf='flex-start'
-							size='xs'
-							variant='outline'
-							disabled={full || !blocks.length}>
-							<Plus size={13} />
-							Add
+							key={b.uid}
+							size='2xs'
+							variant='subtle'
+							title={b.description}
+							onClick={() => add(b.uid)}>
+							<Plus size={11} />
+							{b.title}
 						</Button>
-					</Menu.Trigger>
-					<Portal>
-						<Menu.Positioner>
-							<Menu.Content maxW='320px'>
-								{blocks.map(b => (
-									<Menu.Item
-										key={b.uid}
-										value={b.uid}
-										onClick={() => add(b.uid)}>
-										<Box minW={0}>
-											<Text
-												fontSize='13px'
-												fontWeight='600'>
-												{b.title}
-											</Text>
-											{b.description && (
-												<Text
-													fontSize='12px'
-													color='fg.muted'
-													lineClamp={2}>
-													{b.description}
-												</Text>
-											)}
-										</Box>
-									</Menu.Item>
-								))}
-							</Menu.Content>
-						</Menu.Positioner>
-					</Portal>
-				</Menu.Root>
+					))}
+				</Flex>
+			)}
+			{!isDisabled && (
+				<BlockPicker
+					blocks={blocks}
+					suggested={suggested}
+					disabled={full || !blocks.length}
+					onPick={add}
+				/>
 			)}
 			{full && (
 				<Text

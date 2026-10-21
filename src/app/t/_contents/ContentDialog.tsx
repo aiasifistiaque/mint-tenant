@@ -2,7 +2,7 @@
 
 import { FC, useEffect, useState } from 'react';
 import { Box, Button, Flex, Grid, Input, Text } from '@chakra-ui/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -16,7 +16,7 @@ import {
 import type { ContentBlock, ContentListModel, ContentType, SiteContent, SiteContentsPage } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { styles } from '@/components/library/config';
-import VBlocks, { BlockFields } from '@/components/library/utils/inputs/section/VBlocks';
+import VBlocks, { BlockFields, searchTypes } from '@/components/library/utils/inputs/section/VBlocks';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
 import ContentAddress from './ContentAddress';
@@ -58,11 +58,18 @@ const plainOf = (html: string) =>
 		.replace(/\n{3,}/g, '\n\n')
 		.trim();
 const looksLikeHtml = (v: any) => typeof v === 'string' && /<\/?[a-z][^>]*>/i.test(v);
-const asPlain = (data: Record<string, any>, type?: ContentType) => {
+const plainIn = (data: Record<string, any>, model: any[] = []): Record<string, any> => {
 	const out = { ...data };
-	for (const f of type?.dataModel || []) if (f.type === 'textarea' && looksLikeHtml(out[f.name])) out[f.name] = plainOf(out[f.name]);
+	for (const f of model) {
+		const v = out[f.name];
+		if (f.type === 'textarea' && looksLikeHtml(v)) out[f.name] = plainOf(v);
+		// Rows and groups too (a question's answer, a slide's subheading).
+		else if (f.type === 'section-data-array' && Array.isArray(v)) out[f.name] = v.map(r => (r && typeof r === 'object' ? plainIn(r, f.section?.dataModel) : r));
+		else if (f.type === 'section-object' && v && typeof v === 'object') out[f.name] = plainIn(v, f.dataModel);
+	}
 	return out;
 };
+const asPlain = (data: Record<string, any>, type?: ContentType) => plainIn(data, type?.dataModel);
 
 const TypeCard: FC<{ t: ContentType; onPick: () => void }> = ({ t, onPick }) => {
 	const Icon = typeIcon(t.icon);
@@ -119,7 +126,11 @@ const ContentDialog: FC<{
 	content?: SiteContent | null;
 	/** Contents keep drafts until published (docs/cms D5). */
 	drafts?: boolean;
-}> = ({ open, onClose, types, models, pages, page, content, drafts }) => {
+	/** The types already on the page, top first — the next piece is suggested from the last. */
+	onPage?: string[];
+	/** The types suggested first on an empty page and on the whole site. */
+	start?: { page: string[]; site: string[] };
+}> = ({ open, onClose, types, models, pages, page, content, drafts, onPage = [], start }) => {
 	const [uid, setUid] = useState<string>('');
 	const [name, setName] = useState('');
 	const [slug, setSlug] = useState('');
@@ -127,6 +138,7 @@ const ContentDialog: FC<{
 	const [where, setWhere] = useState(page);
 	const [data, setData] = useState<Record<string, any>>({});
 	const [error, setError] = useState('');
+	const [q, setQ] = useState('');
 	const [create, creating] = useCreateSiteContentMutation();
 	const [update, updating] = useUpdateSiteContentMutation();
 
@@ -139,12 +151,47 @@ const ContentDialog: FC<{
 		setWhere(content ? content.page || SITE : page);
 		setData(content?.data ? asPlain(content.data, types.find(t => t.uid === content.type)) : {});
 		setError('');
+		setQ('');
 	}, [open, content?._id]);
 
 	const type = types.find(t => t.uid === uid);
 	const pageName = where === SITE ? 'Whole site' : pages.find(p => p._id === where)?.name || 'this page';
 	const Icon = typeIcon(type?.icon);
 	const blockTypes = types.filter(t => t.uid !== LIST).map(t => ({ uid: t.uid, title: t.title, description: t.description, dataModel: t.dataModel }));
+	// What to offer first: for the whole site its header and footer, for an empty page an opening, else what goes after the last piece.
+	const last = types.find(t => t.uid === onPage[onPage.length - 1]);
+	const startWith = (where === SITE ? start?.site : onPage.length ? last?.suggest : start?.page) || [];
+	const suggestedTypes = startWith.map(u => types.find(t => t.uid === u)).filter((t): t is ContentType => !!t);
+	const otherTypes = types.filter(t => !suggestedTypes.includes(t));
+	const found = searchTypes(types, q);
+	const pick = (t: ContentType) => {
+		setUid(t.uid);
+		setMore([]);
+		setData(t.uid === LIST ? { limit: 6, sort: '-createdAt', match: 'all' } : {});
+	};
+	const grid = (list: ContentType[]) => (
+		<Grid
+			templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
+			gap={2.5}>
+			{list.map(t => (
+				<TypeCard
+					key={t.uid}
+					t={t}
+					onPick={() => pick(t)}
+				/>
+			))}
+		</Grid>
+	);
+	const groupTitle = (text: string) => (
+		<Text
+			fontSize='11.5px'
+			fontWeight='600'
+			color='fg.muted'
+			textTransform='uppercase'
+			letterSpacing='0.04em'>
+			{text}
+		</Text>
+	);
 
 	const save = async () => {
 		setError('');
@@ -177,21 +224,51 @@ const ContentDialog: FC<{
 			<DialogCloseButton />
 			<DialogBody>
 				{!type ? (
-					<Grid
-						templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
-						gap={2.5}>
-						{types.map(t => (
-							<TypeCard
-								key={t.uid}
-								t={t}
-								onPick={() => {
-									setUid(t.uid);
-									setMore([]);
-									setData(t.uid === LIST ? { limit: 6, sort: '-createdAt', match: 'all' } : {});
+					<Flex
+						direction='column'
+						gap={3}>
+						<Flex
+							align='center'
+							gap={2}
+							px={3}
+							borderWidth='1px'
+							borderColor='border'
+							borderRadius='md'>
+							<Search size={14} />
+							<Input
+								size='sm'
+								variant='flushed'
+								borderBottomWidth='0'
+								autoFocus
+								placeholder='Search types — hero, gallery, questions…'
+								value={q}
+								onChange={e => setQ(e.target.value)}
+								onKeyDown={e => {
+									if (e.key === 'Enter' && q.trim() && found[0]) pick(found[0]);
 								}}
 							/>
-						))}
-					</Grid>
+						</Flex>
+						{q.trim() ? (
+							found.length ? (
+								grid(found)
+							) : (
+								<Text
+									fontSize='13px'
+									color='fg.muted'>
+									No type matches “{q.trim()}”.
+								</Text>
+							)
+						) : suggestedTypes.length ? (
+							<>
+								{groupTitle(where === SITE ? 'Suggested for the whole site' : onPage.length ? `Suggested after the ${last?.title.toLowerCase() || 'last piece'}` : 'Suggested to open the page')}
+								{grid(suggestedTypes)}
+								{groupTitle('Every type')}
+								{grid(otherTypes)}
+							</>
+						) : (
+							grid(types)
+						)}
+					</Flex>
 				) : (
 					<Flex
 						direction='column'
@@ -295,6 +372,7 @@ const ContentDialog: FC<{
 								value={more}
 								onChange={(e: any) => setMore(Array.isArray(e?.target?.value) ? e.target.value : [])}
 								blocks={blockTypes}
+								suggested={type.suggest}
 								limit={MAX_BLOCKS - 1}
 								helper={`Add a Text, a Gallery or any other type under the ${type.title.toLowerCase()} — they stay together, in this order.`}
 							/>

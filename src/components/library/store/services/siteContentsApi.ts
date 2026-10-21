@@ -11,7 +11,7 @@ import mainApi from './mainApi';
 const TAG = 'site-contents';
 
 export type ContentTypeField = { key: string; label: string; kind: string; required?: boolean; helper?: string; options?: { value: string; label: string }[]; fields?: ContentTypeField[] };
-export type ContentType = { uid: string; name: string; title: string; icon: string; description: string; fields: ContentTypeField[]; dataModel: any[] };
+export type ContentType = { uid: string; name: string; title: string; icon: string; description: string; fields: ContentTypeField[]; dataModel: any[]; /** The types that go well with it, most likely first. */ suggest?: string[] };
 export type ContentListModel = { model: string; title: string; list: boolean; problem: string | null; fields: { key: string; label: string; kind: string; ref?: string; options?: string[] }[] };
 export type ContentBlock = Record<string, any> & { __component: string; _key?: string };
 export type ContentStatus = 'draft' | 'published' | 'modified';
@@ -65,7 +65,7 @@ export const siteContentsApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).
 			query: () => 'content',
 			providesTags: [TAG],
 		}),
-		getSiteContentTypes: builder.query<{ types: ContentType[]; models: ContentListModel[] }, void>({
+		getSiteContentTypes: builder.query<{ types: ContentType[]; start?: { page: string[]; site: string[] }; models: ContentListModel[] }, void>({
 			query: () => 'site-contents/types',
 			providesTags: [TAG],
 		}),
