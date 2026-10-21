@@ -163,6 +163,12 @@ export const createPath = (route = ''): string => {
 	return IS_TENANT_PANEL ? projectHref(`/t/${r}/create`) : `/${r}/create`;
 };
 
+/** A model's "add multiple records" page (MultipleEntryPage): /<route>/multiple, in a project /<project>/<route>/multiple. */
+export const multiplePath = (route = ''): string => {
+	const r = String(route).replace(/^\/+/, '');
+	return IS_TENANT_PANEL ? projectHref(`/t/${r}/multiple`) : `/${r}/multiple`;
+};
+
 /**
  * A record's rich-text field in the full-page editor (RichTextEditorPage):
  * /write/<route>/<id>/<field>, in a project /<project>/write/<route>/<id>/<field>.

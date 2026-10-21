@@ -255,13 +255,13 @@ const TablePreview: FC<Props> = ({ page = {}, columns, fields, filters, records 
 					{page.subTitle && <Muted>{page.subTitle}</Muted>}
 				</Box>
 				<Flex gap={2}>
-					{page.export && !page.bulkUpload && (
+					{page.export && !page.bulkUpload && !page.multipleEntry && (
 						<Fake>
 							<Download {...ICON} />
 							<Text>Export</Text>
 						</Fake>
 					)}
-					{page.bulkUpload && (
+					{(page.bulkUpload || page.multipleEntry) && (
 						<Fake>
 							<MoreHorizontal {...ICON} />
 						</Fake>

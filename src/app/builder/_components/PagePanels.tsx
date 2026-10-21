@@ -176,6 +176,13 @@ export const PageOptionsPanel: FC<Props> = ({ value: page, onChange, route, code
 					onChange={v => set({ bulkUpload: v || undefined })}
 				/>
 				<Toggle
+					label='Add multiple records'
+					hint='A page where people fill in one entry, press “Add another entry”, and save them all at once. Appears in the ⋯ menu beside the add button.'
+					code={code ? !!code.multipleEntry : undefined}
+					checked={!!page.multipleEntry}
+					onChange={v => set({ multipleEntry: v || undefined })}
+				/>
+				<Toggle
 					label='Search'
 					hint='The search box above the table.'
 					checked={page.search !== false}

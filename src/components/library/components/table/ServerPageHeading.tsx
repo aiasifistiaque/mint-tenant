@@ -2,7 +2,8 @@ import { Box, Flex, FlexProps, Heading, Button, Text, Skeleton, IconButton, Menu
 import Crumbs from '../../cl/Crumbs';
 import Link from 'next/link';
 import React, { useState } from 'react';
-import { BookOpen, Download, EllipsisVertical, Upload } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BookOpen, Download, EllipsisVertical, ListPlus, Upload } from 'lucide-react';
 import { GuidelinesDialog, guidelinesOf, viewLabel } from '../guidelines/Guidelines';
 // import { BackendCreateModal, Icon } from '../..';
 
@@ -15,7 +16,7 @@ import { singularOf } from '../../modals/CreateModal/CreateModal';
 import { Icon } from '../../icon';
 import { useIsMobile } from '../../hooks';
 import { radius, sizes } from '../../config';
-import { HOME, addButtonHref, pagePath } from '../../config/lib/constants/panel';
+import { HOME, addButtonHref, multiplePath, pagePath } from '../../config/lib/constants/panel';
 
 type PageHeadingProps = FlexProps & {
 	title: string;
@@ -56,11 +57,13 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 
 	// With bulk upload on, or user guidelines written, the header's other
 	// actions move into one ⋯ menu beside the add button: the guidelines, Bulk
-	// upload, and Export when that's on too. The dialogs are siblings of the
+	// upload, Add multiple, and Export when that's on too. The dialogs are siblings of the
 	// menu, which unmounts its content on close.
 	const bulkUpload = !!table?.bulkUpload;
 	const guidelines = guidelinesOf(table?.guidelines);
-	const useMenu = bulkUpload || !!guidelines;
+	const multipleEntry = !!table?.multipleEntry;
+	const router = useRouter();
+	const useMenu = bulkUpload || multipleEntry || !!guidelines;
 	const [dialog, setDialog] = useState<'import' | 'export' | 'guidelines' | null>(null);
 	const moreMenu = (
 		<>
@@ -90,6 +93,13 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 							compact
 							icon={<Upload size={16} strokeWidth={1.75} />}>
 							<MenuItem onClick={() => setDialog('import')}>{table?.bulkUpload?.title || 'Bulk upload'}</MenuItem>
+						</MenuItemStyle>
+					)}
+					{multipleEntry && (
+						<MenuItemStyle
+							compact
+							icon={<ListPlus size={16} strokeWidth={1.75} />}>
+							<MenuItem onClick={() => router.push(multiplePath(path))}>Add multiple</MenuItem>
 						</MenuItemStyle>
 					)}
 					{Boolean(exportData) && (

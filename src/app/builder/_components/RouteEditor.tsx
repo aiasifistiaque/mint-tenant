@@ -486,6 +486,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 									hasAddButton && 'add button',
 									pageConfig.export && 'export',
 									pageConfig.bulkUpload && 'bulk upload',
+									pageConfig.multipleEntry && 'add multiple',
 									pageConfig.select?.show && 'bulk actions',
 									pageConfig.clickable && 'clickable rows',
 								]
