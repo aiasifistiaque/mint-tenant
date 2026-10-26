@@ -2,12 +2,11 @@
 
 import { FC } from 'react';
 import { Box, Flex, Grid, Text } from '@chakra-ui/react';
-import { VImage, VTags } from '@/components/library';
+import { VSeo } from '@/components/library/utils/inputs/VSeo';
 import { CopyValue } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import type { SiteConfig } from '@/components/library/store/services/tenantApi';
 import { Field, SettingCard, TextField, Toggle, changed, imageValue, useDraft, useSave } from './parts';
-import { CharCount, DESCRIPTION, SerpPreview, TITLE } from './SeoPreview';
 
 /** SEO: the defaults every page falls back to, indexing, and search engine verification. */
 
@@ -15,16 +14,29 @@ type Props = { config: SiteConfig; canBuild: boolean; base: string; apiKey?: str
 
 const Defaults: FC<Props> = ({ config, canBuild }) => {
 	const s = config.seo;
-	const saved = { metaTitle: s.metaTitle, titleTemplate: s.titleTemplate, metaDescription: s.metaDescription, ogImage: s.ogImage, keywords: s.keywords || [] };
+	// The SEO editor's object (SB-33): its meta title, description, share image and keywords are
+	// Default SEO's own fields as before; the rest (social, indexing, structured data, sitemap) is `defaults`.
+	const saved = {
+		metaTitle: s.metaTitle,
+		titleTemplate: s.titleTemplate,
+		metaDescription: s.metaDescription,
+		ogImage: s.ogImage,
+		keywords: s.keywords || [],
+		defaults: ((s as any).defaults || {}) as Record<string, any>,
+	};
 	const { draft, set, reset, dirty } = useDraft(saved);
 	const { save, saving, error } = useSave('Default SEO');
 	const sample = draft.titleTemplate.includes('%s') ? draft.titleTemplate.replace('%s', 'About us') : '';
-	const host = (config.seo.canonicalDomain || config.domains.find(d => !d.startsWith('localhost')) || '').replace(/^https?:\/\//, '');
+	const editor = { ...draft.defaults, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, ogImage: draft.ogImage, keywords: draft.keywords };
+	const onEditor = (e: any) => {
+		const { metaTitle = '', metaDescription = '', ogImage = '', keywords = [], ...defaults } = e?.target?.value || {};
+		set({ metaTitle, metaDescription, ogImage: imageValue(ogImage), keywords, defaults });
+	};
 	return (
 		<SettingCard
 			id='seo-defaults'
 			title='Default SEO'
-			description='The home page’s title and description, and what any page without its own falls back to. Each page’s full SEO — social cards, indexing, structured data, sitemap — is in the site builder: a page’s ⋯ → Name, address & SEO.'
+			description='The home page’s SEO, and what any page without its own falls back to: share cards, robots and sitemap settings apply to every page that doesn’t set them; titles, descriptions and structured data only to the home page. Each page’s own SEO is under Website → SEO, or a page’s ⋯ → Name, address & SEO in the site builder.'
 			aside={<GuideLink section='site-seo' />}
 			dirty={dirty}
 			saving={saving}
@@ -32,27 +44,7 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 			disabled={!canBuild}
 			onReset={reset}
 			onSave={() => save({ seo: changed(draft, saved) })}>
-			<Box mb={4}>
-				<SerpPreview
-					host={host}
-					title={draft.metaTitle}
-					description={draft.metaDescription}
-				/>
-			</Box>
-			<Grid
-				templateColumns={{ base: '1fr', md: '1fr 1fr' }}
-				gap={4}>
-				<TextField
-					label='Default title'
-					help={
-						<CharCount
-							value={draft.metaTitle}
-							{...TITLE}
-						/>
-					}
-					value={draft.metaTitle}
-					onChange={metaTitle => set({ metaTitle })}
-				/>
+			<Box mb={5}>
 				<TextField
 					label='Title template'
 					placeholder='%s · Acme'
@@ -60,35 +52,13 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 					value={draft.titleTemplate}
 					onChange={titleTemplate => set({ titleTemplate })}
 				/>
-				<Box gridColumn={{ md: 'span 2' }}>
-					<TextField
-						label='Default description'
-						long
-						help={
-							<CharCount
-								value={draft.metaDescription}
-								{...DESCRIPTION}
-							/>
-						}
-						value={draft.metaDescription}
-						onChange={metaDescription => set({ metaDescription })}
-					/>
-				</Box>
-				<VImage
-					label='Default share image'
-					helper='1200×630 — shown when a link to your site is shared'
-					value={draft.ogImage}
-					onChange={(v: any) => set({ ogImage: imageValue(v) })}
-					folder='website'
-				/>
-				<VTags
-					label='Keywords'
-					helper='Press Enter after each'
-					section
-					value={draft.keywords}
-					onChange={(e: any) => set({ keywords: e.target.value })}
-				/>
-			</Grid>
+			</Box>
+			<VSeo
+				name='seo'
+				value={editor}
+				onChange={onEditor}
+				formData={{ name: config.identity?.siteName, path: '/' }}
+			/>
 		</SettingCard>
 	);
 };
