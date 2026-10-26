@@ -1,94 +1,47 @@
 'use client';
 
-import { FC, useMemo, useState } from 'react';
-import NextLink from 'next/link';
-import { Box, Button, Center, Flex, Grid, Skeleton, Text } from '@chakra-ui/react';
-import { ChartLine } from 'lucide-react';
-import {
-	Layout,
-	useGetAnalyticsSeriesQuery,
-	useGetAnalyticsSummaryQuery,
-	useGetAnalyticsTopQuery,
-} from '@/components/library';
-import { Dropdown, Panel, StatTile } from '@/components/library/cl';
-import { BarList, LineChart } from '@/components/library/dashboard/charts';
+import { Suspense, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Box, Flex, Tabs, Text } from '@chakra-ui/react';
+import { Layout } from '@/components/library';
+import { ConsoleTabs, Dropdown } from '@/components/library/cl';
 import { useWorkspace } from '@/components/library/tenant';
-import GuideLink from '@/components/library/tenant/GuideLink';
-import { projectHref } from '@/components/library/config/lib/constants/panel';
-import type { AnalyticsDim, AnalyticsRange, AnalyticsTotals } from '@/components/library/store/services/tenantApi';
+import type { AnalyticsRange } from '@/components/library/store/services/tenantApi';
+import Overview from './_components/Overview';
+import Visitors from './_components/Visitors';
+import Live from './_components/Live';
 
 /**
  * A website project's analytics (tenant panel; backend routes-tenant/
- * analytics.router.ts), from the events /public/track.js sends: totals against
- * the previous period, page views per day, and where visits come from.
+ * analytics.router.ts), from the events /public/track.js sends: Overview
+ * (totals, page views per day, where visits come from and who they are),
+ * Visitors (each one, and their journey on its own page) and Live — the tab
+ * in ?tab= (docs/multi-tenancy WO-19, WO-56).
  */
 
 const DAY = 24 * 60 * 60 * 1000;
 const RANGES = [
+	{ value: '1', label: 'Today' },
 	{ value: '7', label: 'Last 7 days' },
 	{ value: '30', label: 'Last 30 days' },
 	{ value: '90', label: 'Last 90 days' },
 	{ value: '365', label: 'Last 12 months' },
 ];
+const TABS = [
+	{ value: 'overview', label: 'Overview' },
+	{ value: 'visitors', label: 'Visitors' },
+	{ value: 'live', label: 'Live' },
+];
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
-const number = (v: number) => v.toLocaleString();
 
-/** "+12% vs previous period" — or nothing to compare against. */
-const change = (now: number, before: number, unit = '%') => {
-	if (!before) return now ? 'New this period' : 'No visits yet';
-	const pct = Math.round(((now - before) / before) * 100);
-	return `${pct > 0 ? '+' : ''}${pct}${unit} vs previous period`;
-};
-
-const TILES: { key: keyof AnalyticsTotals; label: string; format: (v: number) => string }[] = [
-	{ key: 'pageviews', label: 'Page views', format: number },
-	{ key: 'visitors', label: 'Visitors', format: number },
-	{ key: 'sessions', label: 'Visits', format: number },
-	{ key: 'pagesPerSession', label: 'Pages per visit', format: v => v.toFixed(1) },
-	{ key: 'bounceRate', label: 'Bounce rate', format: v => `${v}%` },
-];
-
-const BREAKDOWNS: { dim: AnalyticsDim; title: string; empty: string; blank?: string }[] = [
-	{ dim: 'paths', title: 'Top pages', empty: 'No page views' },
-	{ dim: 'referrers', title: 'Referrers', empty: 'No visits', blank: 'Direct / none' },
-	{ dim: 'devices', title: 'Devices', empty: 'No visits' },
-	{ dim: 'countries', title: 'Countries', empty: 'No visits', blank: 'Unknown' },
-	{ dim: 'clicks', title: 'Clicks', empty: 'No tracked clicks — outbound links and [data-track] elements count' },
-	{ dim: 'events', title: 'Events', empty: 'No custom events — MintAnalytics.track(name, props)' },
-];
-
-const Breakdown: FC<{ dim: AnalyticsDim; title: string; empty: string; blank?: string; range: AnalyticsRange }> = ({ dim, title, empty, blank, range }) => {
-	const { data, isLoading } = useGetAnalyticsTopQuery({ dim, ...range });
-	const rows = data?.rows || [];
-	return (
-		<Panel title={title}>
-			{isLoading ? (
-				<Skeleton h='140px' />
-			) : rows.length ? (
-				<BarList
-					title={title}
-					format={number}
-					slices={rows.map(r => ({ key: r.value, label: r.value || blank || '—', value: r.count }))}
-				/>
-			) : (
-				<Text
-					fontSize='12.5px'
-					color='fg.muted'>
-					{empty}
-				</Text>
-			)}
-		</Panel>
-	);
-};
-
-export default function AnalyticsPage() {
+function Analytics() {
+	const router = useRouter();
+	const params = useSearchParams();
+	const tab = TABS.some(t => t.value === params.get('tab')) ? String(params.get('tab')) : 'overview';
 	const { project } = useWorkspace();
 	const [days, setDays] = useState('30');
 	const range = useMemo<AnalyticsRange>(() => ({ from: iso(new Date(Date.now() - (Number(days) - 1) * DAY)), to: iso(new Date()) }), [days]);
-	const { data: summary, isLoading: loadingSummary } = useGetAnalyticsSummaryQuery(range);
-	const { data: series, isLoading: loadingSeries } = useGetAnalyticsSeriesQuery(range);
-	const nothingYet = summary && !summary.current.pageviews && !summary.previous.pageviews;
 
 	return (
 		<Layout
@@ -115,95 +68,40 @@ export default function AnalyticsPage() {
 							{project?.domains?.length ? project.domains.join(' · ') : 'Counting visits from any site — add your domains to the project'}
 						</Text>
 					</Box>
-					<Box w='180px'>
-						<Dropdown
-							size='sm'
-							value={days}
-							onChange={setDays}
-							items={RANGES}
-						/>
-					</Box>
-				</Flex>
-
-				{nothingYet && (
-					<Panel>
-						<Flex
-							direction={{ base: 'column', sm: 'row' }}
-							align={{ base: 'flex-start', sm: 'center' }}
-							gap={3}>
-							<Center
-								boxSize='40px'
-								flexShrink={0}
-								borderRadius='full'
-								bg='bg.muted'
-								color='fg.muted'>
-								<ChartLine size={18} />
-							</Center>
-							<Box flex={1}>
-								<Text
-									fontSize='13.5px'
-									fontWeight='600'>
-									No visits recorded yet
-								</Text>
-								<Text
-									fontSize='12.5px'
-									color='fg.muted'>
-									Add the tracking snippet to your site’s pages — it’s on the Public API page.
-								</Text>
-							</Box>
-							<Button
+					{tab !== 'live' && (
+						<Box w='180px'>
+							<Dropdown
 								size='sm'
-								variant='outline'
-								asChild>
-								<NextLink href={projectHref('/public-api')}>Get the snippet</NextLink>
-							</Button>
-						</Flex>
-					</Panel>
-				)}
-
-				<Grid
-					templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }}
-					gap={3}>
-					{TILES.map(t => (
-						<StatTile
-							key={t.key}
-							label={t.label}
-							isLoading={loadingSummary}
-							value={summary ? t.format(summary.current[t.key]) : '—'}
-							hint={summary ? change(summary.current[t.key], summary.previous[t.key]) : undefined}
-						/>
-					))}
-				</Grid>
-
-				<Panel
-					title='Page views'
-					subtitle='Per day'
-					actions={<GuideLink section='analytics' />}>
-					{loadingSeries ? (
-						<Skeleton h='220px' />
-					) : (
-						<LineChart
-							title='Page views'
-							interval='day'
-							format={number}
-							height={220}
-							points={(series?.days || []).map(d => ({ key: d.date, value: d.pageviews }))}
-						/>
+								value={days}
+								onChange={setDays}
+								items={RANGES}
+							/>
+						</Box>
 					)}
-				</Panel>
-
-				<Grid
-					templateColumns={{ base: '1fr', lg: '1fr 1fr' }}
-					gap={4}>
-					{BREAKDOWNS.map(b => (
-						<Breakdown
-							key={b.dim}
-							{...b}
-							range={range}
-						/>
+				</Flex>
+				<ConsoleTabs
+					tabs={TABS}
+					value={tab}
+					onChange={v => router.replace(`?tab=${v}`, { scroll: false })}>
+					{TABS.map(t => (
+						<Tabs.Content
+							key={t.value}
+							value={t.value}
+							pt={0}>
+							{t.value !== tab ? null : tab === 'visitors' ? <Visitors range={range} /> : tab === 'live' ? <Live /> : <Overview range={range} />}
+						</Tabs.Content>
 					))}
-				</Grid>
+				</ConsoleTabs>
 			</Flex>
 		</Layout>
+	);
+}
+
+// useSearchParams (the ?tab=) needs a Suspense boundary to prerender.
+export default function AnalyticsPage() {
+	return (
+		<Suspense>
+			<Analytics />
+		</Suspense>
 	);
 }

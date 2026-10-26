@@ -4,6 +4,7 @@ import { FC, useState } from 'react';
 import { Box, Button, Flex, Input, Text } from '@chakra-ui/react';
 import { KeyRound } from 'lucide-react';
 import GuideLink from '@/components/library/tenant/GuideLink';
+import { Dropdown } from '@/components/library/cl';
 import type { SiteCheck, SiteConfig, SiteTracking } from '@/components/library/store/services/tenantApi';
 import { CheckBadge, Field, SettingCard, TextField, Toggle, useDraft, useSave } from './parts';
 
@@ -14,7 +15,7 @@ import { CheckBadge, Field, SettingCard, TextField, Toggle, useDraft, useSave } 
  */
 
 type Props = { config: SiteConfig; canBuild: boolean };
-type TagKey = Exclude<keyof SiteTracking, 'mintAnalytics'>;
+type TagKey = Exclude<keyof SiteTracking, 'mintAnalytics' | 'visitorIp'>;
 
 const TAGS: { group: string; items: { key: TagKey; label: string; placeholder: string; description: string; source: string }[] }[] = [
 	{
@@ -176,6 +177,41 @@ const MintAnalytics: FC<Props> = ({ config, canBuild }) => {
 	);
 };
 
+const IP_CHOICES: { value: SiteTracking['visitorIp']; label: string }[] = [
+	{ value: 'full', label: 'Keep the whole address' },
+	{ value: 'masked', label: 'Hide the last part (203.0.113.0)' },
+	{ value: 'off', label: 'Don’t keep it' },
+];
+
+/** WO-56: what Analytics → Visitors keeps of each visitor's IP address. Their place and ISP are found either way. */
+const VisitorIp: FC<Props> = ({ config, canBuild }) => {
+	const saved = { mode: config.tracking.visitorIp || 'full' };
+	const { draft, set, reset, dirty } = useDraft(saved);
+	const { save, saving, error } = useSave('Visitor IP addresses');
+	return (
+		<SettingCard
+			id='visitor-ip'
+			title='Visitor IP addresses'
+			description='Analytics → Visitors shows each visitor’s address beside their city and internet provider. An IP address is personal data in many countries (the EU’s GDPR among them): hide its last part or don’t keep it if your privacy policy doesn’t cover it. The place and provider are still found either way.'
+			aside={<GuideLink section='visitors' />}
+			dirty={dirty}
+			saving={saving}
+			error={error}
+			disabled={!canBuild}
+			onReset={reset}
+			onSave={() => save({ tracking: { visitorIp: draft.mode } })}>
+			<Box maxW='320px'>
+				<Dropdown
+					size='sm'
+					value={draft.mode}
+					onChange={mode => set({ mode: mode as SiteTracking['visitorIp'] })}
+					items={IP_CHOICES}
+				/>
+			</Box>
+		</SettingCard>
+	);
+};
+
 const GroupTitle: FC<{ children: string }> = ({ children }) => (
 	<Text
 		fontSize='11.5px'
@@ -200,6 +236,7 @@ export const TrackingTab: FC<Props> = props => {
 				Paste an ID and save — your site’s analytics script adds the tag to every page, no code change. Check the site (last tab) to see them live.
 			</Text>
 			<MintAnalytics {...props} />
+			<VisitorIp {...props} />
 			{TAGS.map(g => (
 				<Flex
 					key={g.group}

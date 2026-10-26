@@ -127,6 +127,10 @@ const GUIDE_OF: Record<string, string> = {
 	'website-setup': 'websites',
 	'website-setup-keys': 'websites',
 	analytics: 'analytics',
+	visitors: 'analytics',
+	journey: 'analytics',
+	'live-visitors': 'analytics',
+	'traffic-sources': 'analytics',
 	'connect-ai': 'connect-ai',
 	start: 'site-builder',
 };

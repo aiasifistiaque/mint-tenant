@@ -277,9 +277,110 @@ export type RegisterBody = {
 	onboarding?: Onboarding;
 };
 
-export type AnalyticsTotals = { pageviews: number; visitors: number; sessions: number; pagesPerSession: number; bounceRate: number };
-export type AnalyticsDim = 'paths' | 'referrers' | 'devices' | 'browsers' | 'os' | 'countries' | 'clicks' | 'events';
+/** avgDuration: seconds per visit (visits the tracker timed — WO-56). */
+export type AnalyticsTotals = { pageviews: number; visitors: number; sessions: number; pagesPerSession: number; bounceRate: number; avgDuration: number };
+export type AnalyticsDim =
+	| 'paths'
+	| 'referrers'
+	| 'devices'
+	| 'browsers'
+	| 'os'
+	| 'countries'
+	| 'clicks'
+	| 'events'
+	// WO-56 — the first four count visits.
+	| 'channels'
+	| 'sources'
+	| 'campaigns'
+	| 'entries'
+	| 'cities'
+	| 'regions'
+	| 'isps'
+	| 'languages'
+	| 'screens'
+	| 'models';
 export type AnalyticsRange = { from?: string; to?: string };
+/** A breakdown row; `code` is a country code (countries, cities), `avgDuration` seconds on the page (paths). */
+export type AnalyticsTopRow = { value: string; count: number; visitors: number; code?: string | null; avgDuration?: number | null };
+/** Where a visitor is (backend WebsiteVisitor.place) — ip as Site setup → Tracking keeps it. */
+export type VisitorPlace = { ip?: string; country?: string; countryCode?: string; region?: string; city?: string; timezone?: string; lat?: number; lng?: number; isp?: string; org?: string; asn?: number };
+/** One visitor's summary (backend websiteVisitor.model.ts, docs/multi-tenancy WO-56). */
+export type AnalyticsVisitor = {
+	_id?: string;
+	visitorId: string;
+	firstSeen: string;
+	lastSeen: string;
+	visits: number;
+	pageviews: number;
+	events?: number;
+	lastPath?: string;
+	first?: { channel?: string; source?: string; referrer?: string; landing?: string; utmSource?: string; utmMedium?: string; utmCampaign?: string; clickId?: string };
+	lastChannel?: string;
+	lastSource?: string;
+	place?: VisitorPlace;
+	device?: string;
+	os?: string;
+	browser?: string;
+	deviceModel?: string;
+	language?: string;
+	screen?: string;
+	customer?: string;
+	name?: string;
+	email?: string;
+	userId?: string;
+};
+export type AnalyticsStep = {
+	type: 'pageview' | 'click' | 'event';
+	at: string;
+	path?: string;
+	title?: string;
+	name?: string;
+	/** Seconds on the page. */
+	duration?: number;
+	scroll?: number;
+	element?: { tag?: string; text?: string; href?: string; id?: string };
+	props?: Record<string, string | number | boolean>;
+};
+/** One visit (session) of a visitor, page by page. */
+export type AnalyticsVisit = {
+	sessionId: string;
+	start: string;
+	/** Seconds. */
+	duration: number;
+	pageviews: number;
+	channel?: string;
+	source?: string;
+	referrer?: string;
+	utmCampaign?: string;
+	landing?: string;
+	exit?: string;
+	city?: string;
+	country?: string;
+	countryCode?: string;
+	ip?: string;
+	isp?: string;
+	device?: string;
+	browser?: string;
+	os?: string;
+	steps: AnalyticsStep[];
+};
+export type AnalyticsVisitorsQuery = AnalyticsRange & { q?: string; channel?: string; country?: string; known?: boolean; sort?: 'lastSeen' | 'firstSeen' | 'visits' | 'pageviews'; page?: number; limit?: number };
+export type AnalyticsLiveVisitor = {
+	visitorId: string;
+	lastSeen: string;
+	path?: string;
+	title?: string;
+	city?: string;
+	country?: string;
+	countryCode?: string;
+	device?: string;
+	browser?: string;
+	events: number;
+	name?: string;
+	email?: string;
+	source?: string;
+	channel?: string;
+};
 /** An outgoing webhook (backend routes-tenant/webhooks.router.ts, docs/templates T-09). Its secret is never read back. */
 /** publish / unpublish: a drafts model's record went live or was taken off (backend docs/cms CMS-09). */
 export type WebhookEvent = 'create' | 'update' | 'delete' | 'publish' | 'unpublish';
@@ -581,6 +682,8 @@ export type PublicApi = {
 /** A website project's settings (WO-34, WO-38; backend siteConfig.function.ts → WebsiteSettings). */
 export type SiteTracking = {
 	mintAnalytics: boolean;
+	/** Visitors' IP addresses in Analytics (WO-56): whole, last part zeroed, or not kept. */
+	visitorIp: 'full' | 'masked' | 'off';
 	ga4: string;
 	gtm: string;
 	googleAds: string;
@@ -949,8 +1052,30 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: r => `analytics/timeseries?${rangeQuery(r)}`,
 			providesTags: ['tenant-analytics'],
 		}),
-		getAnalyticsTop: builder.query<{ rows: { value: string; count: number; visitors: number }[] }, AnalyticsRange & { dim: AnalyticsDim; limit?: number }>({
+		getAnalyticsTop: builder.query<{ rows: AnalyticsTopRow[] }, AnalyticsRange & { dim: AnalyticsDim; limit?: number }>({
 			query: ({ dim, limit, ...r }) => `analytics/top?dim=${dim}&limit=${limit || 8}&${rangeQuery(r)}`,
+			providesTags: ['tenant-analytics'],
+		}),
+		getAnalyticsVisitors: builder.query<{ rows: AnalyticsVisitor[]; total: number; page: number; pages: number }, AnalyticsVisitorsQuery>({
+			query: ({ q, channel, country, known, sort, page, limit, ...r }) => {
+				const p = new URLSearchParams(rangeQuery(r));
+				if (q) p.set('q', q);
+				if (channel) p.set('channel', channel);
+				if (country) p.set('country', country);
+				if (known) p.set('known', 'true');
+				if (sort) p.set('sort', sort);
+				p.set('page', String(page || 1));
+				p.set('limit', String(limit || 25));
+				return `analytics/visitors?${p}`;
+			},
+			providesTags: ['tenant-analytics'],
+		}),
+		getAnalyticsVisitor: builder.query<{ visitor: AnalyticsVisitor; visits: AnalyticsVisit[]; truncated: boolean }, string>({
+			query: id => `analytics/visitors/${encodeURIComponent(id)}`,
+			providesTags: ['tenant-analytics'],
+		}),
+		getAnalyticsLive: builder.query<{ now: number; visitors: AnalyticsLiveVisitor[] }, void>({
+			query: () => 'analytics/live',
 			providesTags: ['tenant-analytics'],
 		}),
 		getSiteConfig: builder.query<SiteConfig, void>({
@@ -1244,6 +1369,9 @@ export const {
 	useGetAnalyticsSummaryQuery,
 	useGetAnalyticsSeriesQuery,
 	useGetAnalyticsTopQuery,
+	useGetAnalyticsVisitorsQuery,
+	useGetAnalyticsVisitorQuery,
+	useGetAnalyticsLiveQuery,
 	useUpdatePublicApiMutation,
 	useGetSiteConfigQuery,
 	useUpdateSiteConfigMutation,
