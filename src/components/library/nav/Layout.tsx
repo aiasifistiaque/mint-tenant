@@ -18,6 +18,7 @@ import { HOME, IS_TENANT_PANEL, getProjectSlug, tabTitle } from '../config/lib/c
 import { useWorkspace } from '../tenant/useWorkspace';
 import WorkspaceSwitcher from '../tenant/WorkspaceSwitcher';
 import { CAPS } from '@/theme/tones';
+import { withWebsiteSetup } from './sidebar/useSidebarNav';
 
 const PX = { base: padding.BASE, md: padding.MD, lg: padding.LG };
 const ICON_SIZE = 17;
@@ -171,7 +172,7 @@ const Layout: FC<LayoutProps> = ({
 							</Heading>
 						</Flex>
 					</SpaceBetween>
-					<NavActions sidebarData={data} />
+					<NavActions sidebarData={Array.isArray(data) ? withWebsiteSetup(data) : data} />
 				</Navbar>
 				<Body>
 					{type == 'default' && <MemoSidebar />}

@@ -43,6 +43,18 @@ const toSections = (items: NavItem[]): { lead: NavItem[]; sections: NavSection[]
 };
 
 /**
+ * Website setup (WO-55) straight after Site setup, for a backend that doesn't
+ * send it yet (its tenantNav has it from a623cced) — the same Build-only rule,
+ * since Site setup is Build-only too. Once the backend sends it, nothing is added.
+ */
+export const withWebsiteSetup = (items: NavItem[]): NavItem[] => {
+	if (!Array.isArray(items) || items.some(item => item?.href === '/website-setup')) return items;
+	const at = items.findIndex(item => item?.href === '/site-setup');
+	if (at === -1) return items;
+	return [...items.slice(0, at + 1), { title: 'Website setup', href: '/website-setup', path: 'website-setup', icon: 'code-xml' }, ...items.slice(at + 1)];
+};
+
+/**
  * Everything the desktop sidebar and the mobile drawer share: the links,
  * grouped into sections, narrowed by the search, and which sections are
  * folded away (remembered in this browser, the same list for both).
@@ -60,7 +72,7 @@ const useSidebarNav = () => {
 	const isLoading = isFetching || !Array.isArray(sidebarData);
 	const source: NavItem[] = useMemo(
 		// The sidebar's Home links to '/'; in the tenant panel that's the landing page (HOME).
-		() => ((isLoading ? fallback : sidebarData) as NavItem[]).map(item => ({ ...item, href: homeHref(item?.href) })),
+		() => withWebsiteSetup((isLoading ? fallback : sidebarData) as NavItem[]).map(item => ({ ...item, href: homeHref(item?.href) })),
 		[isLoading, sidebarData]
 	);
 
