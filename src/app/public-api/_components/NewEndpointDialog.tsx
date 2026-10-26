@@ -32,6 +32,7 @@ const suggestions = (route: string, action: EndpointAction) =>
 		create: [`/${route}/submit`, `/my/${route}`],
 		update: [`/${route}/edit/:id`, `/my/${route}/:id`],
 		delete: [`/${route}/remove/:id`, `/my/${route}/:id`],
+		upload: [`/${route}/files`, `/${route}/attachments`],
 	})[action];
 
 const Stepper: FC<{ step: number }> = ({ step }) => (

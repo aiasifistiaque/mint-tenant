@@ -58,6 +58,7 @@ export const ACTIONS: { value: EndpointAction; label: string; method: string; on
 	{ value: 'create', label: 'Create', method: 'POST', one: false, does: 'Adds a record from what the site or app sends.' },
 	{ value: 'update', label: 'Update', method: 'PUT', one: true, does: 'Changes a record by its id.' },
 	{ value: 'delete', label: 'Delete', method: 'DELETE', one: true, does: 'Removes a record by its id.' },
+	{ value: 'upload', label: 'Upload files', method: 'POST', one: false, does: 'Takes files for the model’s file or image fields and answers their links.' },
 ];
 export const actionOf = (a: string) => ACTIONS.find(x => x.value === a) || ACTIONS[0];
 

@@ -277,6 +277,7 @@ export default function EndpointPage() {
 	const a = actionOf(data?.action || 'list');
 	const writes = data?.action === 'create' || data?.action === 'update';
 	const isList = data?.action === 'list';
+	const isUpload = data?.action === 'upload';
 
 	// Try it: this endpoint, with an example body when it writes.
 	const exampleBody = useMemo(() => {
@@ -435,10 +436,10 @@ export default function EndpointPage() {
 							onChange={setTab}
 							tabs={[
 								{ value: 'access', label: 'Access' },
-								{ value: 'fields', label: 'Fields' },
+								...(isUpload ? [] : [{ value: 'fields', label: 'Fields' }]),
 								...(isList ? [{ value: 'filters', label: 'Filters' }] : []),
 								{ value: 'reference', label: 'Reference' },
-								{ value: 'try', label: 'Try it' },
+								...(isUpload ? [] : [{ value: 'try', label: 'Try it' }]),
 								{ value: 'code', label: 'Code' },
 								{ value: 'logs', label: 'Logs' },
 								{ value: 'details', label: 'Details' },
@@ -471,6 +472,15 @@ export default function EndpointPage() {
 											/>
 										)}
 									</Section>
+									{isUpload ? (
+										<Section title='What it takes'>
+											<UploadInfo
+												base={base}
+												path={data.path}
+												who={draft.access.who}
+											/>
+										</Section>
+									) : (
 									<Section
 										title='Which records it reaches'
 										hint={
@@ -533,6 +543,7 @@ export default function EndpointPage() {
 											addLabel={draft.access.when.length ? 'Add a rule' : 'Add a rule — e.g. status is published'}
 										/>
 									</Section>
+									)}
 								</Flex>
 							</Tabs.Content>
 
@@ -756,13 +767,23 @@ export default function EndpointPage() {
 							)}
 
 							<Tabs.Content value='reference'>
-								<EndpointReference
-									endpoint={data}
-									draft={draft}
-									model={model}
-									base={base}
-									dirty={dirty}
-								/>
+								{isUpload ? (
+									<Section title='Request and answer'>
+										<UploadInfo
+											base={base}
+											path={data.path}
+											who={draft.access.who}
+										/>
+									</Section>
+								) : (
+									<EndpointReference
+										endpoint={data}
+										draft={draft}
+										model={model}
+										base={base}
+										dirty={dirty}
+									/>
+								)}
 							</Tabs.Content>
 
 							<Tabs.Content value='try'>
@@ -793,6 +814,15 @@ export default function EndpointPage() {
 							</Tabs.Content>
 
 							<Tabs.Content value='code'>
+								{isUpload ? (
+									<Section title='Call it'>
+										<UploadInfo
+											base={base}
+											path={data.path}
+											who={draft.access.who}
+										/>
+									</Section>
+								) : (
 								<Section
 									title='Call it'
 									hint={
@@ -833,6 +863,7 @@ export default function EndpointPage() {
 										</Box>
 									)}
 								</Section>
+								)}
 							</Tabs.Content>
 
 							<Tabs.Content value='logs'>
@@ -972,6 +1003,41 @@ export default function EndpointPage() {
 		</Layout>
 	);
 }
+
+/** What an upload endpoint takes and answers (backend AB-14) — in place of the record rules, fields and tester. */
+const UploadInfo: FC<{ base: string; path: string; who: string }> = ({ base, path, who }) => (
+	<Flex
+		direction='column'
+		gap={3}>
+		<Text
+			fontSize='13.5px'
+			color='fg.muted'>
+			Up to 5 files of 10 MB each, sent as multipart form data in the field <code>files</code>: photos, PDF, Word, Excel, PowerPoint, text, CSV or
+			zip. It answers their links — send them in the record’s file field through its Create or Update endpoint. A valid server key may always
+			upload{who === 'anyone' ? '; anyone else is limited to 20 calls per 15 minutes from one address' : ''}. Files land in the media library, folder
+			“website-uploads”.
+		</Text>
+		<Box
+			as='pre'
+			m={0}
+			p={3}
+			fontSize='12px'
+			fontFamily='mono'
+			whiteSpace='pre-wrap'
+			bg='bg.subtle'
+			borderWidth='1px'
+			borderColor='border'
+			borderRadius='md'>
+			{`const form = new FormData();
+for (const file of input.files) form.append('files', file);
+const res = await fetch('${base}${path}?apiKey=<project key>', {
+  method: 'POST',${who === 'key' ? "\n  headers: { 'X-Api-Key': process.env.MINT_SERVER_KEY }," : who === 'customer' ? "\n  headers: { Authorization: 'Bearer ' + customerToken }," : ''}
+  body: form,
+});
+const { files } = await res.json(); // [{ url, name, type, size }]`}
+		</Box>
+	</Flex>
+);
 
 const labelCss: any = { fontSize: '12.5px', fontWeight: '500', mb: 1.5 };
 const errCss: any = { fontSize: '12.5px', color: 'red.fg', mt: 1.5 };

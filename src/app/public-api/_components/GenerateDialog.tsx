@@ -14,7 +14,7 @@ import WhoCards from './WhoCards';
 /**
  * Endpoints → Generate from a model: a model's standard endpoints in one go —
  * List and Read one ticked to start with — at its own address (/<route>,
- * /<route>/:id), for the "who" picked here. What a model has already is left
+ * /<route>/:id; uploads at /<route>/files), for the "who" picked here. What a model has already is left
  * alone (turned back on if it was off). Rules come after, on each endpoint.
  * For signed-in customers, "Only their own records" adds the owner condition
  * (a create makes the customer its owner) — how a customer's token reaches
@@ -44,7 +44,8 @@ const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[
 		setError(null);
 	}, [open]);
 
-	const has = (a: string) => endpoints.find(e => e.model === model && e.standard && e.action === a);
+	// An upload endpoint is never standard (backend AB-14) — the model's one counts
+	const has = (a: string) => endpoints.find(e => e.model === model && (e.standard || a === 'upload') && e.action === a);
 	const toggle = (a: EndpointAction) => setActions(list => (list.includes(a) ? list.filter(x => x !== a) : [...list, a]));
 	const fresh = actions.filter(a => !has(a)?.enabled);
 
@@ -130,7 +131,7 @@ const GenerateDialog: FC<{ open: boolean; onClose: () => void; models: ApiModel[
 														fontFamily='mono'
 														truncate>
 														/{model}
-														{a.one ? '/:id' : ''}
+														{a.one ? '/:id' : a.value === 'upload' ? '/files' : ''}
 													</Text>
 												</Flex>
 												<Text

@@ -42,7 +42,7 @@ export type InfoEndpoint = {
 	note?: string;
 	method: Method;
 	path: string;
-	action: 'list' | 'get' | 'create' | 'update' | 'delete';
+	action: 'list' | 'get' | 'create' | 'update' | 'delete' | 'upload';
 	model: string;
 	modelTitle: string;
 	standard: boolean;

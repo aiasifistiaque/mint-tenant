@@ -12,7 +12,8 @@ import mainApi from './mainApi';
 const TAG = 'api-builder';
 const KEY_TAG = 'project-key';
 
-export type EndpointAction = 'list' | 'get' | 'create' | 'update' | 'delete';
+/** `upload` (backend AB-14): takes files for a model's file/image fields and answers their URLs. */
+export type EndpointAction = 'list' | 'get' | 'create' | 'update' | 'delete' | 'upload';
 export type EndpointWho = 'anyone' | 'customer' | 'key';
 export type CustomerRef = { ref: 'customer' | 'customer.email' | 'customer.name' | 'customer.phone' | 'customer.role' };
 export type EndpointCondition = { field: string; op: string; value?: any };
