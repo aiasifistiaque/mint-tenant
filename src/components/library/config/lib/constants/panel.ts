@@ -38,7 +38,7 @@ export const API_ORIGIN = BACKEND.replace(/\/(tenant|admin)\/api\/?$/, '');
  */
 export const PROJECT_PAGES = new Set([
 	'dashboard', 't', 'view', 'model-builder', 'builder', 'sidebar-builder', 'dashboard-builder', 'images', 'public-api',
-	'analytics', 'site-setup', 'get-started', 'activity', 'webhooks', 'widgets', 'site-payments', 'site-builder',
+	'analytics', 'site-setup', 'website-setup', 'get-started', 'activity', 'webhooks', 'widgets', 'site-payments', 'site-builder',
 	'pdf-templates', 'project-settings', 'project-people', 'automations', 'email-accounts', 'components', 'content', 'write',
 ]);
 

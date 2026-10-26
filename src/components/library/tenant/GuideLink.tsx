@@ -124,6 +124,8 @@ const GUIDE_OF: Record<string, string> = {
 	'site-contents': 'websites',
 	'site-contents-list': 'websites',
 	'starter-code': 'websites',
+	'website-setup': 'websites',
+	'website-setup-keys': 'websites',
 	analytics: 'analytics',
 	'connect-ai': 'connect-ai',
 	start: 'site-builder',

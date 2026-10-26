@@ -7,7 +7,7 @@ import { Box, Button, Flex, Skeleton, Tabs, Text } from '@chakra-ui/react';
 import { ExternalLink } from 'lucide-react';
 import { Layout, useGetSiteConfigQuery } from '@/components/library';
 import { ConsoleTabs } from '@/components/library/cl';
-import { API_ORIGIN, pagePath } from '@/components/library/config/lib/constants/panel';
+import { API_ORIGIN, pagePath, projectHref } from '@/components/library/config/lib/constants/panel';
 import { useProjectKey } from '@/components/library/tenant/useProjectKey';
 import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
@@ -109,6 +109,12 @@ function SiteSetup() {
 						gap={3}
 						align='center'>
 						<GuideLink section='site-setup' />
+						<Button
+							asChild
+							size='xs'
+							variant='outline'>
+							<NextLink href={projectHref('/website-setup')}>Connect your code</NextLink>
+						</Button>
 						<Button
 							asChild
 							size='xs'
