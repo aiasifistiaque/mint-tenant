@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode, useCallback } from 'react';
+import { FC, ReactNode, useCallback, useMemo } from 'react';
 import {
 	Box,
 	Button,
@@ -41,6 +41,7 @@ const Textarea = (props: TextareaProps) => (
 );
 import {
 	CHANGE_FREQUENCY_OPTIONS,
+	DANGER,
 	DESCRIPTION_HARD_MAX,
 	DESCRIPTION_MAX,
 	DESCRIPTION_MIN,
@@ -59,8 +60,10 @@ import {
 } from './constants';
 import SerpPreview from './SerpPreview';
 import SocialPreview from './SocialPreview';
-import { useGetSiteConfigQuery } from '@/components/library/store/services/tenantApi';
+import { useGetSeoPageWordsQuery, useGetSiteConfigQuery } from '@/components/library/store/services/tenantApi';
+import { seoScore, type ScoreResult, type ScoreStatus } from './seoScore';
 import CharCount from './CharCount';
+import { DOCS_URL } from '@/components/library/config/lib/constants/panel';
 
 type Props = {
 	value: any;
@@ -120,12 +123,44 @@ const VSeo: FC<Props> = ({ value, onChange, name, label, helper, formData }) => 
 	const fallbackTitle = formData?.name || formData?.title || page?.name || '';
 	const fallbackDescription = formData?.shortDescription || formData?.description || '';
 
-	const previewPath = formData?.path || page?.path || (formData?.slug ? `/${formData.slug}` : '/');
+	// The score (docs/seo SEO-01). A website page's words come from the backend (its builder draft, or the live
+	// page for a site built elsewhere); any other record's from its own text fields. An SEO record's form holds
+	// its page as an id, so the backend finds the path too.
+	const pageId = typeof formData?.page === 'string' ? formData.page : '';
+	const pageRef = page?.path ? { path: page.path } : pageId ? { page: pageId } : null;
+	const { data: pageWords, isFetching: wordsLoading } = useGetSeoPageWordsQuery(pageRef || {}, { skip: !pageRef });
+
+	const previewPath = formData?.path || page?.path || pageWords?.path || (formData?.slug ? `/${formData.slug}` : '/');
 
 	// A website project's own domain for the previews; other projects have none and keep this panel's host.
 	const { data: site } = useGetSiteConfigQuery();
 	const siteHost = (site?.seo?.canonicalDomain || site?.domains?.find((d: string) => !d.startsWith('localhost')) || '').replace(/^https?:\/\//, '');
 	const shareHost = siteHost || (typeof window !== 'undefined' ? window.location.host : '');
+
+	const score = useMemo(
+		() =>
+			seoScore({
+				title: seo.metaTitle || fallbackTitle,
+				description: seo.metaDescription || stripHtml(fallbackDescription),
+				keyword: seo.focusKeyword || '',
+				path: previewPath,
+				hasImage: !!seo.ogImage,
+				siteImage: !!site?.seo?.ogImage,
+				noIndex: seo.robots?.index === false,
+				page: pageRef ? (pageWords && pageWords.source !== 'none' ? pageWords : null) : recordWords(formData),
+				otherKeywords: pageRef ? pageWords?.keywords : undefined,
+			}),
+		[seo, fallbackTitle, fallbackDescription, previewPath, site?.seo?.ogImage, pageRef?.path, pageRef?.page, pageWords, formData]
+	);
+	const wordsFrom = pageRef
+		? wordsLoading
+			? 'Reading the page’s words…'
+			: pageWords?.source === 'builder'
+			? 'Checked against the page’s words in the site builder (the saved draft).'
+			: pageWords?.source === 'live'
+			? 'Checked against the words on the live page.'
+			: `Checked without the page’s words${pageWords?.note ? `: ${pageWords.note}` : '.'}`
+		: 'Checked against this record’s own text.';
 
 	return (
 		<Box w='full'>
@@ -141,6 +176,19 @@ const VSeo: FC<Props> = ({ value, onChange, name, label, helper, formData }) => 
 					path={previewPath}
 					host={siteHost}
 				/>
+				<Flex
+					mt={2}
+					align='center'
+					gap={2}
+					fontSize='12px'>
+					<Text {...tone(TEXT_MUTED)}>SEO score</Text>
+					<Text
+						fontWeight='700'
+						{...tone(GRADE[score.grade].pair)}>
+						{score.score} · {GRADE[score.grade].word}
+					</Text>
+					<Text {...tone(TEXT_MUTED)}>— the checks are under Basics</Text>
+				</Flex>
 			</Box>
 
 			<Tabs.Root
@@ -256,10 +304,9 @@ const VSeo: FC<Props> = ({ value, onChange, name, label, helper, formData }) => 
 							/>
 						</Box>
 
-						<SeoChecklist
-							seo={seo}
-							fallbackTitle={fallbackTitle}
-							fallbackDescription={stripHtml(fallbackDescription)}
+						<SeoScore
+							result={score}
+							note={wordsFrom}
 						/>
 					</Flex>
 				</Tabs.Content>
@@ -693,89 +740,108 @@ const JsonStatus: FC<{ value?: string }> = ({ value }) => {
 	);
 };
 
+const GRADE: Record<ScoreStatus, { word: string; pair: { light: string; dark: string } }> = {
+	good: { word: 'Good', pair: SUCCESS },
+	ok: { word: 'Needs work', pair: WARNING },
+	bad: { word: 'Poor', pair: DANGER },
+};
+
+/** A record that isn't a website page (a product, a post): its own text fields, its name as the heading. */
+const TEXT_FIELDS = ['shortDescription', 'description', 'longDescription', 'summary', 'details', 'content', 'body'];
+const recordWords = (formData: any) => {
+	if (!formData || typeof formData !== 'object') return null;
+	const text = TEXT_FIELDS.map(k => stripHtml(typeof formData[k] === 'string' ? formData[k] : '')).filter(Boolean).join('. ');
+	const heading = String(formData.name || formData.title || '').trim();
+	return text ? { text, headings: heading ? [heading] : [] } : null;
+};
+
 /**
- * The handful of checks that actually move the needle, shown inline so the
- * admin does not have to remember them.
+ * The SEO score (docs/seo SEO-01): 0–100 and each check, problems first, with
+ * what to do about each. Worked out in seoScore.ts on every keystroke.
  */
-const SeoChecklist: FC<{ seo: any; fallbackTitle: string; fallbackDescription: string }> = ({
-	seo,
-	fallbackTitle,
-	fallbackDescription,
-}) => {
-	const title = (seo.metaTitle || fallbackTitle || '').toLowerCase();
-	const description = (seo.metaDescription || fallbackDescription || '').toLowerCase();
-	const keyword = (seo.focusKeyword || '').trim().toLowerCase();
-
-	const checks = [
-		{ label: 'Meta title is set', pass: !!(seo.metaTitle || fallbackTitle) },
-		{
-			label: `Meta title is ${TITLE_MIN}–${TITLE_MAX} characters`,
-			pass: title.length >= TITLE_MIN && title.length <= TITLE_MAX,
-		},
-		{ label: 'Meta description is set', pass: !!(seo.metaDescription || fallbackDescription) },
-		{
-			label: `Meta description is ${DESCRIPTION_MIN}–${DESCRIPTION_MAX} characters`,
-			pass: description.length >= DESCRIPTION_MIN && description.length <= DESCRIPTION_MAX,
-		},
-		{ label: 'Focus keyword is set', pass: !!keyword },
-		{ label: 'Focus keyword appears in the title', pass: !!keyword && title.includes(keyword) },
-		{
-			label: 'Focus keyword appears in the description',
-			pass: !!keyword && description.includes(keyword),
-		},
-		{ label: 'Social share image is set', pass: !!seo.ogImage },
-	];
-
-	const passed = checks.filter(check => check.pass).length;
-
-	return (
-		<Box
-			borderWidth='1px'
-			borderColor='border'
-			_dark={{ borderColor: 'whiteAlpha.300' }}
-			borderRadius='lg'
-			p={4}>
+const SeoScore: FC<{ result: ScoreResult; note: string }> = ({ result, note }) => (
+	<Box
+		id='seo-score'
+		borderWidth='1px'
+		borderColor='border'
+		_dark={{ borderColor: 'whiteAlpha.300' }}
+		borderRadius='lg'
+		p={4}>
+		<Flex
+			align='center'
+			gap={3}
+			mb={3}>
 			<Flex
-				justify='space-between'
+				w='44px'
+				h='44px'
+				flexShrink={0}
 				align='center'
-				mb={3}>
+				justify='center'
+				borderRadius='full'
+				borderWidth='3px'
+				borderColor={GRADE[result.grade].pair.light}
+				_dark={{ borderColor: GRADE[result.grade].pair.dark }}>
 				<Text
-					fontSize='12px'
-					fontWeight='600'
-					{...tone(TEXT_STRONG)}>
-					SEO checks
-				</Text>
-				<Text
-					fontSize='12px'
-					fontWeight='600'
-					{...tone(passed === checks.length ? SUCCESS : WARNING)}>
-					{passed} / {checks.length}
+					fontSize='14px'
+					fontWeight='700'
+					{...tone(GRADE[result.grade].pair)}>
+					{result.score}
 				</Text>
 			</Flex>
-			<Grid gap={1}>
-				{checks.map(check => (
-					<Flex
-						key={check.label}
-						align='center'
-						gap={2}>
-						<Box
-							w='14px'
-							h='14px'
-							borderRadius='full'
-							flexShrink={0}
-							bg={check.pass ? SUCCESS.dark : '#D9DDE3'}
-							_dark={{ bg: check.pass ? SUCCESS.dark : '#4A5568' }}
-						/>
+			<Box>
+				<Text
+					fontSize='13px'
+					fontWeight='600'
+					{...tone(TEXT_STRONG)}>
+					SEO score · {GRADE[result.grade].word}
+				</Text>
+				<Text
+					fontSize='11px'
+					{...tone(TEXT_MUTED)}>
+					{note}{' '}
+					<Box
+						as='a'
+						fontSize='inherit'
+						textDecoration='underline'
+						{...{ href: `${DOCS_URL}/websites#seo-score`, target: '_blank', rel: 'noreferrer' }}>
+						How the score works
+					</Box>
+				</Text>
+			</Box>
+		</Flex>
+		<Grid gap={2}>
+			{result.checks.map(check => (
+				<Flex
+					key={check.key}
+					align='flex-start'
+					gap={2}>
+					<Box
+						mt='3px'
+						w='10px'
+						h='10px'
+						borderRadius='full'
+						flexShrink={0}
+						bg={GRADE[check.status].pair.light}
+						_dark={{ bg: GRADE[check.status].pair.dark }}
+					/>
+					<Box>
 						<Text
 							fontSize='12px'
-							{...tone(check.pass ? TEXT_STRONG : TEXT_MUTED)}>
+							{...tone(check.status === 'good' ? TEXT_MUTED : TEXT_STRONG)}>
 							{check.label}
 						</Text>
-					</Flex>
-				))}
-			</Grid>
-		</Box>
-	);
-};
+						{check.advice && (
+							<Text
+								fontSize='11px'
+								{...tone(TEXT_MUTED)}>
+								{check.advice}
+							</Text>
+						)}
+					</Box>
+				</Flex>
+			))}
+		</Grid>
+	</Box>
+);
 
 export default VSeo;

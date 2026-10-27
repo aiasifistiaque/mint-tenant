@@ -703,6 +703,16 @@ export type SiteTracking = {
 	hotjar: string;
 };
 export type SiteTag = { _id?: string; name: string; location: 'head' | 'bodyStart' | 'bodyEnd'; content: string; enabled: boolean };
+/** A page's words for the SEO editor's score (backend seoPage.function.ts, docs/seo SEO-01). */
+export type SeoPageWords = {
+	path: string;
+	source: 'builder' | 'live' | 'none';
+	note?: string;
+	headings: string[];
+	h1?: number;
+	text: string;
+	keywords: { path: string; keyword: string }[];
+};
 /** Website setup → Existing website → Test connection (backend siteConnection.function.ts). */
 export type SiteConnection = {
 	checkedAt: string;
@@ -1113,6 +1123,10 @@ export const tenantApi = mainApi.injectEndpoints({
 		testSiteConnection: builder.mutation<SiteConnection, { url?: string }>({
 			query: body => ({ url: 'site-config/connection', method: 'POST', body }),
 		}),
+		getSeoPageWords: builder.query<SeoPageWords, { path?: string; page?: string }>({
+			query: ({ path, page }) => `site-config/seo-page?${page ? `page=${encodeURIComponent(page)}` : `path=${encodeURIComponent(path || '/')}`}`,
+			providesTags: () => routeTags('tenant-site', 'seo', 'web-contents'),
+		}),
 		getSiteOverview: builder.query<SiteOverview, void>({
 			query: () => 'site-overview',
 			// The kit's own tables too, so editing a page or its SEO refreshes it (routeTags registers them).
@@ -1401,6 +1415,7 @@ export const {
 	useUpdateSiteConfigMutation,
 	useCheckSiteMutation,
 	useTestSiteConnectionMutation,
+	useGetSeoPageWordsQuery,
 	useGetSiteOverviewQuery,
 	useGetProjectHistoryQuery,
 	useGetHistoryFacetsQuery,
