@@ -9,16 +9,16 @@ import moment from 'moment';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import { createPath, projectHref } from '@/components/library/config/lib/constants/panel';
 import { useCheckLinkPreviewMutation, type LinkPreview, type PreviewApp, type PreviewLevel, type SiteConfig } from '@/components/library/store/services/tenantApi';
-import { errorText } from './parts';
 
 /**
- * Site setup → Link previews (backend docs/seo SEO-14): type any address and
+ * The link preview checker (backend docs/seo SEO-14) — Site setup → Link previews
+ * and an SEO record's Link preview tab: type any address and
  * see the card Facebook, LinkedIn, WhatsApp, X and Slack show when it's
  * shared. Those apps read only the HTML the server sends — no JavaScript — so
  * the backend reads the same HTML and builds each card with that app's own
  * fallbacks; the problems say what to change. For a page added to SEO here,
- * Edit SEO opens its record. `?url=` checks an address straight away (the SEO
- * record page's "Link previews" button).
+ * Edit SEO opens its record (not on that record's own tab). Site setup's
+ * `?url=` checks an address straight away.
  *
  * The cards are drawn the way each app lays them out today, roughly — the apps
  * change their looks often; what they show comes from the tags.
@@ -486,7 +486,7 @@ const TagRow: FC<{ name: string; value?: string; note?: string }> = ({ name, val
 const imageNote = (i?: LinkPreview['image']) =>
 	!i ? '' : !i.ok ? i.message || 'can’t be shown' : [i.width && `${i.width}×${i.height}`, kb(i.bytes), i.type?.replace('image/', '').toUpperCase()].filter(Boolean).join(', ');
 
-const Result: FC<{ r: LinkPreview }> = ({ r }) => {
+const Result: FC<{ r: LinkPreview; here?: string }> = ({ r, here }) => {
 	const [showTags, setShowTags] = useState(false);
 	const problems = r.problems || [];
 	const counts = (['error', 'warning', 'notice'] as const).filter(l => r.counts?.[l]);
@@ -538,7 +538,7 @@ const Result: FC<{ r: LinkPreview }> = ({ r }) => {
 							{r.counts![l]} {LEVEL[l].word[r.counts![l] === 1 ? 0 : 1]}
 						</Badge>
 					))}
-					{r.mint?.seo ? (
+					{r.mint?.seo === here ? null : r.mint?.seo ? (
 						<Button
 							asChild
 							size='xs'>
@@ -680,19 +680,34 @@ const Result: FC<{ r: LinkPreview }> = ({ r }) => {
 	);
 };
 
-export const LinkPreviewTab: FC<Props> = ({ config }) => {
-	const params = useSearchParams();
-	const asked = params.get('url') || '';
-	const domain = config.domains?.find(d => !d.startsWith('localhost')) || '';
-	const [url, setUrl] = useState(asked || (domain ? `https://${domain}/` : ''));
+type CheckerProps = {
+	/** The address in the box at first. */
+	initialUrl?: string;
+	/** Check `initialUrl` as soon as it shows. */
+	auto?: boolean;
+	/** Under the title, what this checker is for here. */
+	intro?: ReactNode;
+	/** The SEO record this checker sits on — no Edit SEO for itself. */
+	here?: string;
+	children?: ReactNode;
+};
+
+/** The address box and the result — Site setup's tab and an SEO record's Link preview tab. */
+export const LinkPreviewChecker: FC<CheckerProps> = ({ initialUrl = '', auto, intro, here, children }) => {
+	const [url, setUrl] = useState(initialUrl);
 	const [check, { data, isLoading, error }] = useCheckLinkPreviewMutation();
 	const ran = useRef(false);
+	const typed = useRef(false);
+	// The address often arrives after the first render (the page and the site's domain load); until someone types, follow it.
 	useEffect(() => {
-		if (asked && !ran.current) {
+		if (!typed.current) setUrl(initialUrl);
+	}, [initialUrl]);
+	useEffect(() => {
+		if (auto && initialUrl && !ran.current) {
 			ran.current = true;
-			check({ url: asked });
+			check({ url: initialUrl });
 		}
-	}, [asked, check]);
+	}, [auto, initialUrl, check]);
 	const submit = (e: FormEvent) => {
 		e.preventDefault();
 		if (url.trim()) check({ url: url.trim() });
@@ -727,7 +742,8 @@ export const LinkPreviewTab: FC<Props> = ({ config }) => {
 					color='fg.muted'
 					mt={0.5}
 					mb={3}>
-					What Facebook, LinkedIn, WhatsApp, X and Slack show when someone shares a page. They don’t run the page’s JavaScript — only what your server sends counts, so that’s what’s read here. Any address works, yours or not.
+					{intro ??
+						'What Facebook, LinkedIn, WhatsApp, X and Slack show when someone shares a page. They don’t run the page’s JavaScript — only what your server sends counts, so that’s what’s read here. Any address works, yours or not.'}
 				</Text>
 				<Flex
 					as='form'
@@ -737,7 +753,10 @@ export const LinkPreviewTab: FC<Props> = ({ config }) => {
 						size='sm'
 						flex={1}
 						value={url}
-						onChange={e => setUrl(e.target.value)}
+						onChange={e => {
+							typed.current = true;
+							setUrl(e.target.value);
+						}}
 						placeholder='https://www.example.com/page'
 						aria-label='Address to check'
 						inputMode='url'
@@ -755,7 +774,7 @@ export const LinkPreviewTab: FC<Props> = ({ config }) => {
 				<Text
 					fontSize='12.5px'
 					color='red.fg'>
-					{errorText(error)}
+					{(error as any)?.data?.message || 'Something went wrong — try again.'}
 				</Text>
 			)}
 			{data && !isLoading && !data.ok && (
@@ -770,14 +789,31 @@ export const LinkPreviewTab: FC<Props> = ({ config }) => {
 					<Text>{data.message}</Text>
 				</Flex>
 			)}
-			{data?.ok && <Result r={data} />}
-			{!data && !isLoading && (
-				<Text
-					fontSize='12px'
-					color='fg.muted'>
-					Tip: each page’s SEO (Website → SEO) has a Link previews button that checks that page.
-				</Text>
+			{data?.ok && (
+				<Result
+					r={data}
+					here={here}
+				/>
 			)}
+			{!data && !isLoading && children}
 		</Flex>
+	);
+};
+
+/** Site setup → Link previews: any address; `?url=` checks one at once. */
+export const LinkPreviewTab: FC<Props> = ({ config }) => {
+	const params = useSearchParams();
+	const asked = params.get('url') || '';
+	const domain = config.domains?.find(d => !d.startsWith('localhost')) || '';
+	return (
+		<LinkPreviewChecker
+			initialUrl={asked || (domain ? `https://${domain}/` : '')}
+			auto={!!asked}>
+			<Text
+				fontSize='12px'
+				color='fg.muted'>
+				Tip: each page’s SEO (Website → SEO) has a Link preview tab that checks that page.
+			</Text>
+		</LinkPreviewChecker>
 	);
 };

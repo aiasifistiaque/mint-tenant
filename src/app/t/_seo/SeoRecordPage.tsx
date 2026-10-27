@@ -3,12 +3,13 @@
 import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Badge, Box, Button, Flex, Grid, Tabs, Text } from '@chakra-ui/react';
-import { CircleAlert, CircleX, ExternalLink, FileText, Info, Share2 } from 'lucide-react';
+import { CircleAlert, CircleX, ExternalLink, FileText, Info } from 'lucide-react';
 import RecordView from '../../view/_components/RecordView';
 import { useGetByIdQuery, useUpdateByIdMutation } from '@/components/library/store/services/commonApi';
 import { useGetSeoHealthQuery, type SeoHealthLevel } from '@/components/library/store/services/tenantApi';
 import { DOCS_URL, projectHref } from '@/components/library/config/lib/constants/panel';
 import { toaster } from '@/components/ui/toaster';
+import { LinkPreviewChecker } from './LinkPreview';
 import SerpPreview from '@/components/library/utils/inputs/VSeo/SerpPreview';
 import SocialPreview from '@/components/library/utils/inputs/VSeo/SocialPreview';
 import {
@@ -152,6 +153,14 @@ const SeoRecordPage: FC<{ id: string }> = ({ id }) => {
 
 	const path: string = page?.path || a.previewPath;
 	const liveUrl = a.siteHost && path && !/\[|\{\{/.test(path) ? `https://${a.siteHost}${path}` : '';
+	// The Link preview tab (SEO-14) reads the live page: this one, or on a template page one record's — typed after its folder.
+	const template = /\[|\{\{/.test(path || '');
+	const previewStart = liveUrl || (a.siteHost && template ? `https://${a.siteHost}${(path || '').split(/\[|\{\{/)[0]}` : '');
+	const previewIntro = liveUrl
+		? 'What Facebook, LinkedIn, WhatsApp, X and Slack show when someone shares this page — read from your live site, so save (and publish) a change before checking it.'
+		: template
+		? 'This page is drawn once per record — type one record’s address to see what its shares look like.'
+		: 'Your site has no domain yet — type this page’s address, or add a domain on Site setup → Domains.';
 	const jump = (to: string) => document.getElementById(`seo-${to}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 	const editor = (
@@ -406,17 +415,6 @@ const SeoRecordPage: FC<{ id: string }> = ({ id }) => {
 							asChild
 							size='sm'
 							variant='ghost'>
-							<Link href={projectHref(`/site-setup?tab=previews&url=${encodeURIComponent(liveUrl)}`)}>
-								<Share2 size={14} />
-								Link previews
-							</Link>
-						</Button>
-					)}
-					{liveUrl && (
-						<Button
-							asChild
-							size='sm'
-							variant='ghost'>
 							<a
 								href={liveUrl}
 								target='_blank'
@@ -435,7 +433,21 @@ const SeoRecordPage: FC<{ id: string }> = ({ id }) => {
 					</Button>
 				</>
 			}
-			tabs={[{ value: 'seo', label: 'SEO', content: editor }]}
+			tabs={[
+				{ value: 'seo', label: 'SEO', content: editor },
+				{
+					value: 'link-preview',
+					label: 'Link preview',
+					content: (
+						<LinkPreviewChecker
+							initialUrl={previewStart}
+							auto={!!liveUrl}
+							intro={previewIntro}
+							here={id}
+						/>
+					),
+				},
+			]}
 		/>
 	);
 };

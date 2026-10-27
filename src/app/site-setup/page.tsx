@@ -17,7 +17,7 @@ import { ServerSideTab, TrackingTab } from './_components/Tracking';
 import { ScriptsTab } from './_components/Code';
 import { DomainsTab, RedirectsTab } from './_components/Lists';
 import { CheckTab } from './_components/Check';
-import { LinkPreviewTab } from './_components/LinkPreview';
+import { LinkPreviewTab } from '../t/_seo/LinkPreview';
 
 /**
  * A website project's settings (WO-34, WO-38) — one page, a tab per concern,
