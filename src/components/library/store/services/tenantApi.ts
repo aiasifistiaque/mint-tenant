@@ -58,7 +58,7 @@ export type Organization = {
 /** Business details: what invoices print as {{business.*}} (docs/pdf-templates D14). */
 export type BusinessDetails = { name: string; logo: string; address: string; phone: string; email: string; website: string; taxId: string };
 
-export type ProjectType = 'app' | 'website' | 'api';
+export type ProjectType = 'app' | 'website' | 'api' | 'ecommerce';
 /** Whose media library a project uses (WO-23). */
 export type MediaScope = 'project' | 'organization';
 

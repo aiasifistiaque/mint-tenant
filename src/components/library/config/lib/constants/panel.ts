@@ -40,6 +40,8 @@ export const PROJECT_PAGES = new Set([
 	'dashboard', 't', 'view', 'model-builder', 'builder', 'sidebar-builder', 'dashboard-builder', 'images', 'public-api',
 	'analytics', 'site-setup', 'website-setup', 'get-started', 'activity', 'webhooks', 'widgets', 'site-payments', 'site-builder',
 	'pdf-templates', 'project-settings', 'project-people', 'automations', 'email-accounts', 'components', 'content', 'write',
+	// An e-commerce project's store: setup, settings, POS, orders, returns (backend docs/ecommerce).
+	'store',
 ]);
 
 // Every top-level page folder (next.config.mjs); any other first segment is a project.

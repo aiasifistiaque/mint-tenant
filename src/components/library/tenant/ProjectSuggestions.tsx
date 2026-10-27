@@ -89,6 +89,8 @@ const CARDS_FOR: Record<ProjectType, CardKey[]> = {
 	app: ['model', 'records', 'sidebar', 'dashboard', 'team', 'ai', 'api', 'guides'],
 	api: ['model', 'records', 'api', 'webhooks', 'team', 'ai', 'guides'],
 	website: ['site-setup', 'site-pages', 'model', 'records', 'dashboard', 'team', 'ai', 'guides'],
+	// A store's own setup is its wizard (docs/ecommerce); after it, what any app does next.
+	ecommerce: ['records', 'team', 'dashboard', 'model', 'ai', 'guides'],
 };
 
 const useTicks = (projectId?: string) => {

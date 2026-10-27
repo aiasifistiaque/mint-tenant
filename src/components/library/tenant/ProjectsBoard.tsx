@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Box, Button, Center, Field, Flex, Grid, Input, SegmentGroup, Skeleton, Text, Textarea } from '@chakra-ui/react';
-import { Archive, ArchiveRestore, Boxes, Globe, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, Pin, PinOff, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
+import { Archive, ArchiveRestore, Boxes, Globe, Store, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, Pin, PinOff, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -37,10 +37,11 @@ const TYPES: { value: ProjectType; title: string; hint: string; icon: ReactNode 
 	{ value: 'app', title: 'App', hint: 'Your own models, pages, sidebar and dashboard — an internal tool, a CRM.', icon: <LayoutGrid size={18} /> },
 	{ value: 'website', title: 'Website', hint: 'Pages, SEO, content blocks and site settings, with a site API and analytics.', icon: <Globe size={18} /> },
 	{ value: 'api', title: 'API', hint: 'A backend for your own app or site: models behind endpoints, customer sign-in, webhooks.', icon: <PlugZap size={18} /> },
+	{ value: 'ecommerce', title: 'E-commerce', hint: 'A store set up for you: products, stock per outlet, orders, a POS, returns and refunds.', icon: <Store size={18} /> },
 ];
 
 /** Each kind's colour, from the website's tones. */
-const KIND_TONE: Record<string, Tone> = { app: 'emerald', website: 'sky', api: 'violet' };
+const KIND_TONE: Record<string, Tone> = { app: 'emerald', website: 'sky', api: 'violet', ecommerce: 'amber' };
 
 /** A project's kind, as a word and an icon. */
 const KIND: Record<ProjectType, { label: string; icon: ReactNode }> = Object.fromEntries(TYPES.map(t => [t.value, { label: t.title, icon: t.icon }])) as any;
@@ -226,6 +227,8 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 		const res = await create({ ...body, type });
 		if ('data' in res && res.data) {
 			close();
+			// A store starts with its setup wizard (docs/ecommerce EC-04).
+			if (type === 'ecommerce') return openProject(res.data.publicSlug, '/store/setup');
 			// A new project starts with its Get started page (WO-35) — on the template picked here, if one was.
 			openProject(res.data.publicSlug, `/get-started${start === 'own' ? '?start=own' : start ? `?template=${encodeURIComponent(start)}` : ''}`);
 		}
@@ -268,7 +271,7 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 								<Text {...labelCss}>Kind</Text>
 								<Grid
 									mt={1.5}
-									templateColumns={{ base: '1fr', sm: 'repeat(3, 1fr)' }}
+									templateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)' }}
 									gap={2}>
 									{TYPES.map(t => {
 										const on = type === t.value;
@@ -320,7 +323,7 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 								</Grid>
 							</Box>
 						)}
-						{!project && open && (
+						{!project && open && type !== 'ecommerce' && (
 							<StartFrom
 								type={type}
 								value={start}
@@ -659,7 +662,7 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 			{!firstRun && (
 				<CardSection
 					title='Projects'
-					subtitle='Apps, websites and APIs in this organization'
+					subtitle='Apps, websites, APIs and stores in this organization'
 					actions={
 						<Flex
 							align='center'
@@ -810,7 +813,7 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 								fontSize='13px'
 								color='fg.muted'
 								maxW='360px'>
-								A project is an app, a website or an API: its own models, pages, sidebar and dashboard.
+								A project is an app, a website, an API or a store: its own models, pages, sidebar and dashboard.
 							</Text>
 							{canCreate && (
 								<Button

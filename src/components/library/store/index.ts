@@ -33,6 +33,7 @@ export * from './services/tenantApi';
 export * from './services/templatesApi';
 export * from './services/pdfTemplatesApi';
 export * from './services/apiBuilderApi';
+export * from './services/commerceApi';
 export * from './services/siteContentsApi';
 
 export * from './store';

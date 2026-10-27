@@ -18,6 +18,7 @@ import {
 	Rocket,
 	Table2,
 	UserPlus,
+	Store,
 	X,
 } from 'lucide-react';
 import { DOCS_URL } from '../config/lib/constants/panel';
@@ -153,6 +154,15 @@ const KINDS: { type: ProjectType; title: string; icon: ReactNode; tone: string; 
 		text: 'A backend for an app or site you build yourself: your models behind ready endpoints, with sign-in for your users.',
 		examples: 'A mobile app’s backend, a SaaS, an integration',
 		gets: ['Endpoints with filters and paging', 'Customer sign-in', 'Webhooks when data changes'],
+	},
+	{
+		type: 'ecommerce',
+		title: 'A store',
+		icon: <Store size={20} />,
+		tone: 'orange',
+		text: 'A shop set up for you by a short wizard: products and stock, a till for the counter, orders, returns and refunds.',
+		examples: 'A clothing shop, a pharmacy, a grocery with two branches',
+		gets: ['Products, variants and stock per outlet', 'A POS with receipts and shifts', 'Returns, refunds and store credit'],
 	},
 ];
 
@@ -381,7 +391,7 @@ const FirstRun: FC<{ name?: string; organization?: string; onCreate: (type: Proj
 				title='Step 1 · Choose what to build'
 				subtitle='Every project is one of three kinds. Not sure? Pick an app: it fits most businesses, and you can add more projects later.'>
 				<Grid
-					templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
+					templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }}
 					gap={3}>
 					{KINDS.map(k => (
 						<Flex

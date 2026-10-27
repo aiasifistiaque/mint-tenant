@@ -12,6 +12,8 @@ import WebsiteOverview from '@/components/library/tenant/WebsiteOverview';
 import ApiOverview from '@/components/library/tenant/ApiOverview';
 import { useWorkspace } from '@/components/library/tenant';
 import ProjectSuggestions from '@/components/library/tenant/ProjectSuggestions';
+import StoreGate from '@/components/library/commerce/StoreGate';
+import { useGetCommerceSettingsQuery } from '@/components/library/store/services/commerceApi';
 
 /**
  * The dashboard: the widgets saved in the dashboard builder (/dashboard-builder),
@@ -39,6 +41,9 @@ function Dashboard() {
 	const { project } = useWorkspace();
 	// Suggestions lead an empty dashboard and follow one that has widgets.
 	const hasWidgets = !!data?.saved && widgets.length > 0;
+	// A store opens on its setup wizard until it's built (docs/ecommerce EC2).
+	const store = useGetCommerceSettingsQuery(undefined, { skip: !IS_TENANT_PANEL || project?.type !== 'ecommerce' });
+	if (IS_TENANT_PANEL && project?.type === 'ecommerce' && store.data?.status !== 'ready') return <StoreGate>{null}</StoreGate>;
 	if (IS_TENANT_PANEL && (project?.type === 'website' || project?.type === 'api'))
 		return (
 			<Layout
