@@ -276,7 +276,7 @@ const MessageEditor: FC<{ value: string; onChange: (v: string) => void; page?: P
 					minW='200px'
 					fontSize='12px'
 					color='fg.muted'>
-					{preview ? 'How the message reads in the email (in your email design).' : 'Click in the message to insert a field there, or make words bold, italic or a list.'}
+					{preview ? 'How the message reads in the email (in your email design).' : 'Click in the message to insert a field there, or make words bold, italic or a list. A link: [words](https://…).'}
 				</Text>
 				<Button
 					size='xs'

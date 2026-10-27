@@ -74,6 +74,7 @@ const esc = (v: string) => v.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt
 const BOTH = /\*\*\*(?=[^\s*])([^\n]*?[^\s*])\*\*\*/g;
 const BOLD = /\*\*(?=\S)([^\n]*?\S)\*\*/g;
 const ITALIC = /(^|[^*\w])\*(?=[^\s*])([^*\n]*?[^\s*])?\*(?![*\w])/g;
+const LINK = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
 
 /**
  * The message as the email will show it (the server's `formatHtml`), with
@@ -85,7 +86,19 @@ export const previewHtml = (text: string, labelOf: (key: string) => string) => {
 		chips.push(labelOf(k));
 		return `${chips.length - 1}`;
 	});
-	const inline = (line: string) => esc(line).replace(BOTH, '<b><i>$1</i></b>').replace(BOLD, '<b>$1</b>').replace(ITALIC, (m, pre, t) => (t === undefined ? m : `${pre}<i>${t}</i>`));
+	// [words](https://…) — underlined like the email's link, held aside so its address isn't read as bold/italic
+	const inline = (line: string) => {
+		const links: string[] = [];
+		const held = line.replace(LINK, (_, words) => {
+			links.push(`<u title="A link">${esc(words)}</u>`);
+			return `\uE002${links.length - 1}\uE003`;
+		});
+		return esc(held)
+			.replace(BOTH, '<b><i>$1</i></b>')
+			.replace(BOLD, '<b>$1</b>')
+			.replace(ITALIC, (m, pre, t) => (t === undefined ? m : `${pre}<i>${t}</i>`))
+			.replace(/\uE002(\d+)\uE003/g, (_, i) => links[Number(i)]);
+	};
 	const html = marked
 		.replace(/\r\n/g, '\n')
 		.split(/\n{2,}/)
