@@ -3,7 +3,7 @@
 import { FC, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Badge, Box, Button, Flex, Grid, Tabs, Text } from '@chakra-ui/react';
-import { CircleAlert, CircleX, ExternalLink, FileText, Info } from 'lucide-react';
+import { CircleAlert, CircleX, ExternalLink, FileText, Info, Share2 } from 'lucide-react';
 import RecordView from '../../view/_components/RecordView';
 import { useGetByIdQuery, useUpdateByIdMutation } from '@/components/library/store/services/commonApi';
 import { useGetSeoHealthQuery, type SeoHealthLevel } from '@/components/library/store/services/tenantApi';
@@ -398,6 +398,17 @@ const SeoRecordPage: FC<{ id: string }> = ({ id }) => {
 							<Link href={projectHref(`/view/pages/${pageId}`)}>
 								<FileText size={14} />
 								Page
+							</Link>
+						</Button>
+					)}
+					{liveUrl && (
+						<Button
+							asChild
+							size='sm'
+							variant='ghost'>
+							<Link href={projectHref(`/site-setup?tab=previews&url=${encodeURIComponent(liveUrl)}`)}>
+								<Share2 size={14} />
+								Link previews
 							</Link>
 						</Button>
 					)}

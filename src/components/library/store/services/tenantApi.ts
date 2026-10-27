@@ -754,6 +754,44 @@ export type RobotsPreview = {
 	crawlers: RobotsCrawler[];
 	origin: string;
 };
+/** The link preview checker (backend linkPreview.function.ts, docs/seo SEO-14). */
+export type PreviewApp = 'facebook' | 'linkedin' | 'whatsapp' | 'x' | 'slack';
+export type PreviewLevel = 'error' | 'warning' | 'notice';
+export type PreviewImage = { url: string; ok: boolean; width?: number; height?: number; bytes?: number; type?: string; message?: string };
+export type LinkPreview = {
+	checkedAt: string;
+	url: string;
+	finalUrl?: string;
+	status?: number;
+	ok: boolean;
+	/** Why there are no cards (ok false). */
+	message?: string;
+	tags?: Record<
+		| 'title'
+		| 'description'
+		| 'ogTitle'
+		| 'ogDescription'
+		| 'ogImage'
+		| 'ogImageAlt'
+		| 'ogUrl'
+		| 'ogType'
+		| 'ogSiteName'
+		| 'twitterCard'
+		| 'twitterTitle'
+		| 'twitterDescription'
+		| 'twitterImage'
+		| 'canonical'
+		| 'icon',
+		string
+	>;
+	image?: PreviewImage | null;
+	twitterImage?: PreviewImage | null;
+	cards?: { app: PreviewApp; title: string; description: string; image: string; domain: string; siteName: string; layout: 'large' | 'small' | 'text' }[];
+	problems?: { key: string; level: PreviewLevel; message: string; apps?: PreviewApp[] }[];
+	counts?: Record<PreviewLevel, number>;
+	/** One of the project's pages: its SEO record (null when it has none yet). */
+	mint?: { page: { name: string; path: string }; seo: string | null; template: boolean; builder: boolean; browserOnly: boolean } | null;
+};
 export type SiteConfig = {
 	_id: string;
 	identity: { siteName: string; tagline: string; logo: string; favicon: string; footerText: string; primaryColor: string; secondaryColor: string; fontFamily: string };
@@ -1154,6 +1192,10 @@ export const tenantApi = mainApi.injectEndpoints({
 		previewRobots: builder.mutation<RobotsPreview, Partial<RobotsInput>>({
 			query: body => ({ url: 'site-config/robots-preview', method: 'POST', body }),
 		}),
+		// What Facebook, LinkedIn, WhatsApp, X and Slack show for an address (backend docs/seo SEO-14).
+		checkLinkPreview: builder.mutation<LinkPreview, { url: string }>({
+			query: body => ({ url: 'site-config/link-preview', method: 'POST', body }),
+		}),
 		getSeoPageWords: builder.query<SeoPageWords, { path?: string; page?: string }>({
 			query: ({ path, page }) => `site-config/seo-page?${page ? `page=${encodeURIComponent(page)}` : `path=${encodeURIComponent(path || '/')}`}`,
 			providesTags: () => routeTags('tenant-site', 'seo', 'web-contents'),
@@ -1451,6 +1493,7 @@ export const {
 	useCheckSiteMutation,
 	useTestSiteConnectionMutation,
 	usePreviewRobotsMutation,
+	useCheckLinkPreviewMutation,
 	useGetSeoPageWordsQuery,
 	useGetSeoHealthQuery,
 	useGetSiteOverviewQuery,

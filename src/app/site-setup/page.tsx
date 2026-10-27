@@ -17,6 +17,7 @@ import { ServerSideTab, TrackingTab } from './_components/Tracking';
 import { ScriptsTab } from './_components/Code';
 import { DomainsTab, RedirectsTab } from './_components/Lists';
 import { CheckTab } from './_components/Check';
+import { LinkPreviewTab } from './_components/LinkPreview';
 
 /**
  * A website project's settings (WO-34, WO-38) — one page, a tab per concern,
@@ -37,6 +38,7 @@ const TABS = [
 	{ value: 'redirects', label: 'Redirects & headers' },
 	{ value: 'domains', label: 'Domains' },
 	{ value: 'check', label: 'Check the site' },
+	{ value: 'previews', label: 'Link previews' },
 ];
 
 function SiteSetup() {
@@ -75,6 +77,8 @@ function SiteSetup() {
 				return <DomainsTab {...p} />;
 			case 'check':
 				return <CheckTab {...p} />;
+			case 'previews':
+				return <LinkPreviewTab {...p} />;
 		}
 		return null;
 	};

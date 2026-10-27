@@ -117,6 +117,7 @@ const GUIDE_OF: Record<string, string> = {
 	'site-seo': 'websites',
 	'server-side': 'websites',
 	'site-check': 'websites',
+	'link-preview': 'websites',
 	tracking: 'websites',
 	'site-code': 'websites',
 	indexing: 'websites',
