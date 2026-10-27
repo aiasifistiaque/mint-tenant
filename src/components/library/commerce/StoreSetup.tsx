@@ -31,40 +31,41 @@ const Stepper: FC<{ step: number; onPick: (i: number) => void; reached: number }
 		{STEPS.map((s, i) => (
 			<Flex
 				key={s}
-				as='button'
-				// @ts-ignore — Flex as button
-				type='button'
-				disabled={i > reached}
-				onClick={() => onPick(i)}
+				asChild
+				onClick={() => i <= reached && onPick(i)}
 				align='center'
 				gap={1.5}
 				cursor={i > reached ? 'default' : 'pointer'}
 				color={i <= step ? 'fg' : 'fg.subtle'}>
-				<Flex
-					align='center'
-					justify='center'
-					boxSize='20px'
-					borderRadius='full'
-					borderWidth='1px'
-					borderColor={i <= step ? 'fg' : 'border'}
-					bg={i < step ? 'fg' : 'transparent'}
-					color={i < step ? 'bg' : 'inherit'}
-					fontSize='11px'
-					fontFamily='mono'>
-					{i < step ? <Check size={11} /> : i + 1}
-				</Flex>
-				<Text
-					fontSize='12px'
-					display={{ base: i === step ? 'block' : 'none', md: 'block' }}>
-					{TITLE[s]}
-				</Text>
-				{i < STEPS.length - 1 && (
-					<Box
-						w='12px'
-						h='1px'
-						bg='border'
-					/>
-				)}
+				<button
+					type='button'
+					disabled={i > reached}>
+					<Flex
+						align='center'
+						justify='center'
+						boxSize='20px'
+						borderRadius='full'
+						borderWidth='1px'
+						borderColor={i <= step ? 'fg' : 'border'}
+						bg={i < step ? 'fg' : 'transparent'}
+						color={i < step ? 'bg' : 'inherit'}
+						fontSize='11px'
+						fontFamily='mono'>
+						{i < step ? <Check size={11} /> : i + 1}
+					</Flex>
+					<Text
+						fontSize='12px'
+						display={{ base: i === step ? 'block' : 'none', md: 'block' }}>
+						{TITLE[s]}
+					</Text>
+					{i < STEPS.length - 1 && (
+						<Box
+							w='12px'
+							h='1px'
+							bg='border'
+						/>
+					)}
+				</button>
 			</Flex>
 		))}
 	</Flex>
