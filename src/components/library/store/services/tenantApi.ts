@@ -755,6 +755,8 @@ export type SiteConfig = {
 		keywords: string[];
 		indexing: boolean;
 		sitemap: boolean;
+		/** Addresses the sitemap lists besides Mint's pages (docs/seo SEO-08). */
+		sitemapExtra: string[];
 		robots: string;
 		canonicalDomain: string;
 		googleVerification: string;

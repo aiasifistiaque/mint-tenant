@@ -65,7 +65,8 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 
 const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 	const s = config.seo;
-	const saved = { indexing: s.indexing, sitemap: s.sitemap, canonicalDomain: s.canonicalDomain, robots: s.robots };
+	// Extra addresses are edited one per line and saved as a list (docs/seo SEO-08).
+	const saved = { indexing: s.indexing, sitemap: s.sitemap, canonicalDomain: s.canonicalDomain, robots: s.robots, sitemapExtra: (s.sitemapExtra || []).join('\n') };
 	const { draft, set, reset, dirty } = useDraft(saved);
 	const { save, saving, error } = useSave('Indexing');
 	return (
@@ -79,7 +80,15 @@ const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 			error={error}
 			disabled={!canBuild}
 			onReset={reset}
-			onSave={() => save({ seo: changed(draft, saved) })}>
+			onSave={() => {
+				const seo: any = changed(draft, saved);
+				if ('sitemapExtra' in seo)
+					seo.sitemapExtra = String(seo.sitemapExtra)
+						.split('\n')
+						.map(l => l.trim())
+						.filter(Boolean);
+				save({ seo });
+			}}>
 			<Flex
 				direction='column'
 				gap={5}>
@@ -91,7 +100,7 @@ const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 				/>
 				<Toggle
 					label='Sitemap'
-					help='A sitemap.xml of your published pages, named in robots.txt. Pages marked “Hide from search engines” are left out.'
+					help='A sitemap.xml of your published pages and every blog post, product or other record your template pages show, named in robots.txt. Anything marked “Hide from search engines” is left out.'
 					checked={draft.sitemap}
 					onChange={sitemap => set({ sitemap })}
 				/>
@@ -106,6 +115,18 @@ const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 						onChange={v => set({ canonicalDomain: v.trim() })}
 					/>
 				</Grid>
+				{draft.sitemap && (
+					<TextField
+						label='Extra sitemap addresses'
+						help='Pages Mint doesn’t know about, one per line: /old-page, or a full address on your site.'
+						placeholder={'/catalogue\n/landing/summer-sale'}
+						long
+						mono
+						rows={3}
+						value={draft.sitemapExtra}
+						onChange={sitemapExtra => set({ sitemapExtra })}
+					/>
+				)}
 				<TextField
 					label='Extra robots.txt rules'
 					help='Added after the defaults, e.g. “Disallow: /private”'
