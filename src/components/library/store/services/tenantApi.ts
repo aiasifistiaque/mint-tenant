@@ -82,6 +82,8 @@ export type TenantProject = {
 	collaboration?: { comments: boolean; mentions: boolean };
 	isActive: boolean;
 	models?: number;
+	/** When this account pinned it to the top of its projects board (WO-57), from the list only; absent when not pinned. */
+	pinnedAt?: string;
 	/** Its business details — only from GET /projects/:id and PUT (the organization's until it has its own). */
 	business?: BusinessDetails;
 	/** A template preview in the sandbox (docs/templates T-04). */
@@ -1009,6 +1011,11 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: ({ id, ...body }) => ({ url: `projects/${id}`, method: 'PUT', body }),
 			invalidatesTags: ['tenant-projects', 'self', 'tenant-org'],
 		}),
+		/** Pin a project to the top of your own board, or unpin it (WO-57). */
+		pinProject: builder.mutation<{ pinnedAt?: string }, { id: string; pinned: boolean }>({
+			query: ({ id, pinned }) => ({ url: `projects/${id}/pin`, method: pinned ? 'PUT' : 'DELETE' }),
+			invalidatesTags: ['tenant-projects'],
+		}),
 		deleteProject: builder.mutation<{ message: string }, { id: string; force?: boolean }>({
 			query: ({ id, force }) => ({ url: `projects/${id}${force ? '?force=1' : ''}`, method: 'DELETE' }),
 			invalidatesTags: ['tenant-projects', 'self', 'tenant-org'],
@@ -1479,6 +1486,7 @@ export const {
 	useGetTenantProjectQuery,
 	useCreateProjectMutation,
 	useUpdateProjectMutation,
+	usePinProjectMutation,
 	useDeleteProjectMutation,
 	useGetAnalyticsSummaryQuery,
 	useGetAnalyticsSeriesQuery,

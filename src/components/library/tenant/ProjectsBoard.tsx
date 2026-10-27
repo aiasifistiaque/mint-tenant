@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Box, Button, Center, Field, Flex, Grid, Input, SegmentGroup, Skeleton, Text, Textarea } from '@chakra-ui/react';
-import { Archive, ArchiveRestore, Boxes, Globe, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
+import { Archive, ArchiveRestore, Boxes, Globe, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, Pin, PinOff, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -15,6 +15,7 @@ import {
 	useDeleteProjectMutation,
 	useGetNewProjectTemplatesQuery,
 	useGetProjectsQuery,
+	usePinProjectMutation,
 	useUpdateProjectMutation,
 } from '..';
 import type { MediaScope, ProjectTemplateCard, ProjectType, TenantProject } from '../store/services/tenantApi';
@@ -403,9 +404,11 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 	);
 };
 
-/** One project: open it, or archive / restore / delete it from its menu. */
+/** One project: open it, pin it to the top (WO-57), or archive / restore / delete it from its menu. */
 const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boolean; isOwner: boolean }> = ({ project, current, canManage, isOwner }) => {
 	const [update] = useUpdateProjectMutation();
+	const [pin] = usePinProjectMutation();
+	const pinned = !!project.pinnedAt;
 	const [remove, removing] = useDeleteProjectMutation();
 	const [confirm, setConfirm] = useState(false);
 	const [editing, setEditing] = useState(false);
@@ -481,12 +484,21 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 					<Text>
 						{project.models || 0} model{project.models === 1 ? '' : 's'}
 					</Text>
+					{pinned && (
+						<Flex
+							align='center'
+							gap={1}>
+							<Pin size={12} />
+							Pinned
+						</Flex>
+					)}
 					{archived && <Text>Archived</Text>}
 					{current && <Text color='fg'>Open</Text>}
 				</Flex>
 			</Flex>
 
-			{canManage && (
+			{/* Anyone can pin; editing, archiving and deleting need manage-projects. */}
+			{(canManage || !archived) && (
 				<Box
 					position='absolute'
 					top={2}
@@ -509,19 +521,31 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 							gap={0}
 							boxShadow={undefined}>
 							<MenuItemStyle compact>
-								<CustomMenuItem
-									value='edit'
-									icon={<Pencil size={15} />}
-									onClick={() => setEditing(true)}>
-									Edit…
-								</CustomMenuItem>
-								<CustomMenuItem
-									value='archive'
-									icon={archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
-									onClick={() => update({ id: project._id, isActive: archived })}>
-									{archived ? 'Restore' : 'Archive'}
-								</CustomMenuItem>
-								{(!hasData || isOwner) && (
+								{!archived && (
+									<CustomMenuItem
+										value='pin'
+										icon={pinned ? <PinOff size={15} /> : <Pin size={15} />}
+										onClick={() => pin({ id: project._id, pinned: !pinned })}>
+										{pinned ? 'Unpin' : 'Pin to top'}
+									</CustomMenuItem>
+								)}
+								{canManage && (
+									<CustomMenuItem
+										value='edit'
+										icon={<Pencil size={15} />}
+										onClick={() => setEditing(true)}>
+										Edit…
+									</CustomMenuItem>
+								)}
+								{canManage && (
+									<CustomMenuItem
+										value='archive'
+										icon={archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+										onClick={() => update({ id: project._id, isActive: archived })}>
+										{archived ? 'Restore' : 'Archive'}
+									</CustomMenuItem>
+								)}
+								{canManage && (!hasData || isOwner) && (
 									<CustomMenuItem
 										value='delete'
 										icon={<Trash2 size={15} />}
@@ -580,6 +604,24 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 	// By kind, then by the search: its name, address, description or domains.
 	const projects = (kind === 'all' ? all : all.filter(p => p.type === kind)).filter(
 		p => !needle || [p.name, p.publicSlug, p.description, ...(p.domains || [])].some(v => String(v || '').toLowerCase().includes(needle))
+	);
+	// Pinned ones lead, latest pin first (WO-57); the rest keep their order below.
+	const pinned = projects.filter(p => p.pinnedAt).sort((a, b) => String(b.pinnedAt).localeCompare(String(a.pinnedAt)));
+	const others = projects.filter(p => !p.pinnedAt);
+	const cards = (list: TenantProject[]) => (
+		<Grid
+			templateColumns='repeat(auto-fill, minmax(240px, 1fr))'
+			gap={3}>
+			{list.map(p => (
+				<ProjectCard
+					key={p._id}
+					project={p}
+					current={p._id === project?._id}
+					canManage={can('manage-projects')}
+					isOwner={role?.system === 'owner'}
+				/>
+			))}
+		</Grid>
 	);
 	const canCreate = can('create-projects');
 	// Home, before the organization's first project: the first steps take the page (FirstSteps).
@@ -715,20 +757,23 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 								/>
 							))}
 						</Grid>
+					) : pinned.length ? (
+						<Flex
+							direction='column'
+							gap={5}>
+							<Box>
+								<GroupLabel icon={<Pin size={13} />}>Pinned</GroupLabel>
+								{cards(pinned)}
+							</Box>
+							{others.length > 0 && (
+								<Box>
+									<GroupLabel>All projects</GroupLabel>
+									{cards(others)}
+								</Box>
+							)}
+						</Flex>
 					) : projects.length ? (
-						<Grid
-							templateColumns='repeat(auto-fill, minmax(240px, 1fr))'
-							gap={3}>
-							{projects.map(p => (
-								<ProjectCard
-									key={p._id}
-									project={p}
-									current={p._id === project?._id}
-									canManage={can('manage-projects')}
-									isOwner={role?.system === 'owner'}
-								/>
-							))}
-						</Grid>
+						cards(projects)
 					) : needle && all.length ? (
 						<Text
 							fontSize='13.5px'
@@ -791,6 +836,22 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 		</Flex>
 	);
 };
+
+/** A small heading over one group of cards: Pinned, All projects. */
+const GroupLabel: FC<{ icon?: ReactNode; children: ReactNode }> = ({ icon, children }) => (
+	<Flex
+		align='center'
+		gap={1.5}
+		mb={2}
+		fontSize='12px'
+		fontWeight='600'
+		color='fg.muted'
+		textTransform='uppercase'
+		letterSpacing='0.04em'>
+		{icon}
+		{children}
+	</Flex>
+);
 
 const labelCss: any = { fontSize: '13px', fontWeight: '600', m: 0 };
 const helperCss: any = { fontSize: '12px', color: 'fg.muted', m: 0 };
