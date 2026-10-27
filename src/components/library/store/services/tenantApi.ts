@@ -742,6 +742,16 @@ export type SiteCheck = {
 	extra: { key: string; label: string; ids: string[] }[];
 	serverSide: { meta?: { ok: boolean | null; note: string }; ga4?: { ok: boolean | null; note: string } };
 };
+export type RobotsInput = { indexing: boolean; sitemap: boolean; robots: string; robotsMode: 'built' | 'custom'; robotsFile: string; robotsBlock: string[] };
+export type RobotsCrawler = { id: string; agent: string; owner: string; kind: 'search' | 'ai'; about: string };
+export type RobotsPreview = {
+	mode: 'built' | 'custom';
+	text: string;
+	problems: { level: 'error' | 'warning'; message: string; line?: number }[];
+	notes: string[];
+	crawlers: RobotsCrawler[];
+	origin: string;
+};
 export type SiteConfig = {
 	_id: string;
 	identity: { siteName: string; tagline: string; logo: string; favicon: string; footerText: string; primaryColor: string; secondaryColor: string; fontFamily: string };
@@ -757,6 +767,11 @@ export type SiteConfig = {
 		sitemap: boolean;
 		/** Addresses the sitemap lists besides Mint's pages (docs/seo SEO-08). */
 		sitemapExtra: string[];
+		/** robots.txt (docs/seo SEO-09): built from these settings, or the whole file as written. */
+		robotsMode: 'built' | 'custom';
+		robotsFile: string;
+		/** Crawler ids blocked in built mode. */
+		robotsBlock: string[];
 		robots: string;
 		canonicalDomain: string;
 		googleVerification: string;
@@ -1133,6 +1148,10 @@ export const tenantApi = mainApi.injectEndpoints({
 		testSiteConnection: builder.mutation<SiteConnection, { url?: string }>({
 			query: body => ({ url: 'site-config/connection', method: 'POST', body }),
 		}),
+		// The robots.txt the settings being edited make, and its mistakes (backend docs/seo SEO-09).
+		previewRobots: builder.mutation<RobotsPreview, Partial<RobotsInput>>({
+			query: body => ({ url: 'site-config/robots-preview', method: 'POST', body }),
+		}),
 		getSeoPageWords: builder.query<SeoPageWords, { path?: string; page?: string }>({
 			query: ({ path, page }) => `site-config/seo-page?${page ? `page=${encodeURIComponent(page)}` : `path=${encodeURIComponent(path || '/')}`}`,
 			providesTags: () => routeTags('tenant-site', 'seo', 'web-contents'),
@@ -1429,6 +1448,7 @@ export const {
 	useUpdateSiteConfigMutation,
 	useCheckSiteMutation,
 	useTestSiteConnectionMutation,
+	usePreviewRobotsMutation,
 	useGetSeoPageWordsQuery,
 	useGetSeoHealthQuery,
 	useGetSiteOverviewQuery,

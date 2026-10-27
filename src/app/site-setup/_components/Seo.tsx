@@ -7,6 +7,7 @@ import { CopyValue } from '@/components/library/cl';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import type { SiteConfig } from '@/components/library/store/services/tenantApi';
 import { Field, SettingCard, TextField, Toggle, changed, imageValue, useDraft, useSave } from './parts';
+import { RobotsCard } from './Robots';
 
 /** SEO: the defaults every page falls back to, indexing, and search engine verification. */
 
@@ -66,7 +67,7 @@ const Defaults: FC<Props> = ({ config, canBuild }) => {
 const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 	const s = config.seo;
 	// Extra addresses are edited one per line and saved as a list (docs/seo SEO-08).
-	const saved = { indexing: s.indexing, sitemap: s.sitemap, canonicalDomain: s.canonicalDomain, robots: s.robots, sitemapExtra: (s.sitemapExtra || []).join('\n') };
+	const saved = { indexing: s.indexing, sitemap: s.sitemap, canonicalDomain: s.canonicalDomain, sitemapExtra: (s.sitemapExtra || []).join('\n') };
 	const { draft, set, reset, dirty } = useDraft(saved);
 	const { save, saving, error } = useSave('Indexing');
 	return (
@@ -127,15 +128,6 @@ const Indexing: FC<Props> = ({ config, canBuild, base, apiKey }) => {
 						onChange={sitemapExtra => set({ sitemapExtra })}
 					/>
 				)}
-				<TextField
-					label='Extra robots.txt rules'
-					help='Added after the defaults, e.g. “Disallow: /private”'
-					long
-					mono
-					rows={4}
-					value={draft.robots}
-					onChange={robots => set({ robots })}
-				/>
 				{base && (
 					<Grid
 						templateColumns={{ base: '1fr', md: '1fr 1fr' }}
@@ -203,6 +195,7 @@ export const SeoTab: FC<Props> = props => (
 		gap={4}>
 		<Defaults {...props} />
 		<Indexing {...props} />
+		<RobotsCard {...props} />
 		<Verification {...props} />
 	</Flex>
 );

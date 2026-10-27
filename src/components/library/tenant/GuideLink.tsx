@@ -120,6 +120,7 @@ const GUIDE_OF: Record<string, string> = {
 	tracking: 'websites',
 	'site-code': 'websites',
 	indexing: 'websites',
+	robots: 'websites',
 	redirects: 'websites',
 	'site-domains': 'websites',
 	'site-overview': 'websites',
