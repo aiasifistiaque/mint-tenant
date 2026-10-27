@@ -10,6 +10,7 @@ import type { AnalyticsRange } from '@/components/library/store/services/tenantA
 import Overview from './_components/Overview';
 import Visitors from './_components/Visitors';
 import Live from './_components/Live';
+import Domains from './_components/Domains';
 
 /**
  * A website project's analytics (tenant panel; backend routes-tenant/
@@ -39,7 +40,7 @@ function Analytics() {
 	const router = useRouter();
 	const params = useSearchParams();
 	const tab = TABS.some(t => t.value === params.get('tab')) ? String(params.get('tab')) : 'overview';
-	const { project } = useWorkspace();
+	const { project, can } = useWorkspace();
 	const [days, setDays] = useState('30');
 	const range = useMemo<AnalyticsRange>(() => ({ from: iso(new Date(Date.now() - (Number(days) - 1) * DAY)), to: iso(new Date()) }), [days]);
 
@@ -62,11 +63,10 @@ function Analytics() {
 							fontWeight='600'>
 							{project?.name || 'Website'}
 						</Text>
-						<Text
-							fontSize='12.5px'
-							color='fg.muted'>
-							{project?.domains?.length ? project.domains.join(' · ') : 'Counting visits from any site — add your domains to the project'}
-						</Text>
+						<Domains
+							domains={project?.domains || []}
+							canEdit={can('manage-projects')}
+						/>
 					</Box>
 					{tab !== 'live' && (
 						<Box w='180px'>

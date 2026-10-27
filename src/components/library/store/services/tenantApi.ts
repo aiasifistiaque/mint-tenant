@@ -1093,6 +1093,11 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: () => 'analytics/live',
 			providesTags: ['tenant-analytics'],
 		}),
+		// The sites visits came from (30 days), offered as the project's domains on Analytics.
+		getAnalyticsHosts: builder.query<{ hosts: { host: string; pageviews: number; lastSeen: string; added: boolean }[] }, void>({
+			query: () => 'analytics/hosts',
+			providesTags: ['tenant-analytics', 'tenant-site'],
+		}),
 		getSiteConfig: builder.query<SiteConfig, void>({
 			query: () => 'site-config',
 			providesTags: ['tenant-site'],
@@ -1390,6 +1395,7 @@ export const {
 	useGetAnalyticsVisitorsQuery,
 	useGetAnalyticsVisitorQuery,
 	useGetAnalyticsLiveQuery,
+	useGetAnalyticsHostsQuery,
 	useUpdatePublicApiMutation,
 	useGetSiteConfigQuery,
 	useUpdateSiteConfigMutation,
