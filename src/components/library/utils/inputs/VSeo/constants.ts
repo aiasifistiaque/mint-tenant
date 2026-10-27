@@ -67,6 +67,7 @@ export const SCHEMA_TYPE_OPTIONS = [
 	{ label: 'Organization', value: 'Organization' },
 	{ label: 'Local Business', value: 'LocalBusiness' },
 	{ label: 'FAQ Page', value: 'FAQPage' },
+	{ label: 'Event', value: 'Event' },
 	{ label: 'Job Posting', value: 'JobPosting' },
 	{ label: 'Service', value: 'Service' },
 ];

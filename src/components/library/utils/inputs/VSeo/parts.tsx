@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode, useCallback, useMemo } from 'react';
+import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import { Box, Button, Flex, Grid, Image, SimpleGrid, Text, Textarea as ChakraTextarea, TextareaProps } from '@chakra-ui/react';
 
 import { FormControl, HelperText, Input, Label, SelectContainer, UploadModal, VTags, VSwitch, styles } from '../../..';
@@ -27,6 +27,9 @@ import SocialPreview from './SocialPreview';
 import { useGetSeoPageWordsQuery, useGetSiteConfigQuery } from '@/components/library/store/services/tenantApi';
 import { seoScore, type ScoreResult, type ScoreStatus } from './seoScore';
 import CharCount from './CharCount';
+import SchemaForm from './SchemaForm';
+import { SCHEMA_FORMS, richResultsTest } from './schemaForms';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { DOCS_URL } from '@/components/library/config/lib/constants/panel';
 
 /**
@@ -126,7 +129,22 @@ export const useSeoAnalysis = (seo: any, formData: any) => {
 			: `Checked without the page’s words${pageWords?.note ? `: ${pageWords.note}` : '.'}`
 		: 'Checked against this record’s own text.';
 
-	return { fallbackTitle, fallbackDescription, previewPath, siteHost, shareHost, score, wordsFrom, siteImage: site?.seo?.ogImage as string | undefined };
+	// The live address, for Google's Rich Results Test (not a template page's pattern).
+	const liveUrl = siteHost && !/\[|\{\{/.test(previewPath) ? `https://${siteHost}${previewPath}` : '';
+
+	return {
+		fallbackTitle,
+		fallbackDescription,
+		previewPath,
+		siteHost,
+		shareHost,
+		score,
+		wordsFrom,
+		siteImage: site?.seo?.ogImage as string | undefined,
+		liveUrl,
+		/** A template page's record fields, for {{record.…}} in the structured data form (SEO-04). */
+		record: pageRef ? pageWords?.record || null : null,
+	};
 };
 
 export type SeoAnalysis = ReturnType<typeof useSeoAnalysis>;
@@ -516,60 +534,112 @@ export const SeoIndexingFields: FC<SectionProps> = ({ seo, setNested }) => (
 	</Flex>
 );
 
-/** Schema type, custom JSON-LD, breadcrumb label. */
-export const SeoStructuredFields: FC<SectionProps> = ({ seo, set, a }) => (
-	<Flex
-		direction='column'
-		gap={5}>
-		<Note>
-			Structured data is what earns rich results — star ratings, prices, FAQ accordions, breadcrumbs. The frontend
-			builds it from this page&apos;s own content; you only need to touch this to override the choice.
-		</Note>
+/** Schema type, its form (SEO-04), custom JSON-LD under Advanced, breadcrumb label. */
+export const SeoStructuredFields: FC<SectionProps> = ({ seo, set, a }) => {
+	const type = seo.schemaType || 'auto';
+	const hasForm = !!SCHEMA_FORMS[type];
+	const [advanced, setAdvanced] = useState(!!(seo.schemaJson || '').trim() || (!hasForm && !['auto', 'none'].includes(type)));
+	return (
+		<Flex
+			direction='column'
+			gap={5}>
+			<Note>
+				Structured data is what earns rich results — star ratings, prices, FAQ accordions, opening hours. Pick what this
+				page is and fill in its form; the page&apos;s title, description and image are added for you.{' '}
+				<Box
+					as='a'
+					fontSize='inherit'
+					textDecoration='underline'
+					{...{ href: `${DOCS_URL}/websites#seo-structured`, target: '_blank', rel: 'noreferrer' }}>
+					How it works
+				</Box>
+			</Note>
 
-		<Field label='Schema type'>
-			<SelectContainer
-				value={seo.schemaType || 'auto'}
-				onChange={(e: any) => set('schemaType', e.target.value)}>
-				{SCHEMA_TYPE_OPTIONS.map(option => (
-					<option
-						key={option.value}
-						value={option.value}>
-						{option.label}
-					</option>
-				))}
-			</SelectContainer>
-		</Field>
+			<Field label='Schema type'>
+				<SelectContainer
+					value={type}
+					onChange={(e: any) => set('schemaType', e.target.value)}>
+					{SCHEMA_TYPE_OPTIONS.map(option => (
+						<option
+							key={option.value}
+							value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</SelectContainer>
+			</Field>
 
-		<Field
-			label='Custom JSON-LD'
-			helper='Merged over the generated schema, so anything you set here wins. Must be a valid JSON object. Invalid JSON is ignored by the frontend rather than breaking the page.'>
-			<Textarea
-				size='sm'
-				px={3}
-				py={2}
-				minH='180px'
-				fontFamily='mono'
-				fontSize='12px'
-				placeholder={'{\n  "@type": "Product",\n  "brand": "Your Brand"\n}'}
-				value={seo.schemaJson || ''}
-				onChange={e => set('schemaJson', e.target.value)}
-			/>
-			<JsonStatus value={seo.schemaJson} />
-		</Field>
+			{hasForm && (
+				<SchemaForm
+					type={type}
+					value={seo.schemaData}
+					record={a.record}
+					onChange={next => set('schemaData', next)}
+				/>
+			)}
 
-		<Field
-			label='Breadcrumb label'
-			helper='Overrides how this page is named in the breadcrumb trail. Useful when the page title is long.'>
-			<Input
-				size='sm'
-				px={3}
-				placeholder={a.fallbackTitle}
-				value={seo.breadcrumbTitle || ''}
-				onChange={e => set('breadcrumbTitle', e.target.value)}
-			/>
-		</Field>
-	</Flex>
-);
+			{a.siteHost && type !== 'none' && (
+				<Text
+					fontSize='12px'
+					{...tone(TEXT_MUTED)}>
+					After saving and publishing,{' '}
+					<Box
+						as='a'
+						fontSize='inherit'
+						textDecoration='underline'
+						{...{ href: richResultsTest(a.liveUrl), target: '_blank', rel: 'noreferrer' }}>
+						{a.liveUrl ? 'test this page in Google’s Rich Results Test' : 'test one of its records’ pages in Google’s Rich Results Test'}
+					</Box>
+					.
+				</Text>
+			)}
+
+			<Box>
+				<Button
+					size='xs'
+					variant='ghost'
+					px={1}
+					onClick={() => setAdvanced(v => !v)}
+					{...{ 'aria-expanded': advanced }}>
+					{advanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+					Advanced: your own JSON-LD
+				</Button>
+				{advanced && (
+					<Box mt={2}>
+						<Field
+							label='Custom JSON-LD'
+							helper='Merged over the generated schema and the form above, so anything you set here wins. Must be a valid JSON object. Invalid JSON is ignored by the frontend rather than breaking the page.'>
+							<Textarea
+								size='sm'
+								px={3}
+								py={2}
+								minH='180px'
+								fontFamily='mono'
+								fontSize='12px'
+								placeholder={'{\n  "@type": "Product",\n  "brand": "Your Brand"\n}'}
+								value={seo.schemaJson || ''}
+								onChange={e => set('schemaJson', e.target.value)}
+							/>
+							<JsonStatus value={seo.schemaJson} />
+						</Field>
+					</Box>
+				)}
+			</Box>
+
+			<Field
+				label='Breadcrumb label'
+				helper='Overrides how this page is named in the breadcrumb trail. Useful when the page title is long.'>
+				<Input
+					size='sm'
+					px={3}
+					placeholder={a.fallbackTitle}
+					value={seo.breadcrumbTitle || ''}
+					onChange={e => set('breadcrumbTitle', e.target.value)}
+				/>
+			</Field>
+		</Flex>
+	);
+};
 
 /** sitemap.xml: in or out, priority, change frequency. */
 export const SeoSitemapFields: FC<SectionProps> = ({ seo, setNested }) => (

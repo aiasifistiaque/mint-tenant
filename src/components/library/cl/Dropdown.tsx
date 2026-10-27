@@ -183,6 +183,9 @@ const Dropdown = ({
 						</Box>
 						<Input
 							ref={searchRef}
+							// Its own id: inside a Field it would take the field's control id, which Select also
+							// gives its hidden <select> — and on a pick Select would sync this box as one (and crash).
+							id={`${idBase}-search`}
 							size='xs'
 							ps={7}
 							placeholder='Search…'

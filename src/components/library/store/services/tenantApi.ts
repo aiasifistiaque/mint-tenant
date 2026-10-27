@@ -712,6 +712,8 @@ export type SeoPageWords = {
 	h1?: number;
 	text: string;
 	keywords: { path: string; keyword: string }[];
+	/** A template page: its model's fields, for {{record.…}} in the structured data form (SEO-04). */
+	record?: { model: string; title: string; fields: { key: string; label: string; kind: string }[] };
 };
 /** Website → SEO's health card (backend seoIssues.function.ts, docs/seo SEO-03). */
 export type SeoHealthLevel = 'error' | 'warning' | 'notice';
