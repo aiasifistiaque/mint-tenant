@@ -563,6 +563,10 @@ export type MailDesignsView = {
 /* A project's payments (backend routes-tenant/payments.router.ts, docs/widgets W-06/W-07). Keys are never sent back. */
 export type SitePaymentSettings = {
 	stripe: { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKeySet: boolean; webhookSecretSet: boolean; webhookUrl: string };
+	sslcommerz: { enabled: boolean; mode: 'test' | 'live'; storeId: string; storePasswordSet: boolean; ipnUrl: string; currencies: string[] };
+	bkash: { enabled: boolean; mode: 'test' | 'live'; username: string; appKey: string; passwordSet: boolean; appSecretSet: boolean; currencies: string[] };
+	/** The shop's currency (empty until the shop is set up). */
+	currency: string;
 	successUrl: string;
 	cancelUrl: string;
 	/** The providers the organization's country offers. */
@@ -572,6 +576,8 @@ export type SitePaymentSettings = {
 };
 export type SitePaymentSettingsInput = {
 	stripe?: { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey?: string; webhookSecret?: string };
+	sslcommerz?: { enabled: boolean; mode: 'test' | 'live'; storeId: string; storePassword?: string };
+	bkash?: { enabled: boolean; mode: 'test' | 'live'; username: string; appKey: string; password?: string; appSecret?: string };
 	successUrl?: string;
 	cancelUrl?: string;
 };
@@ -1143,8 +1149,8 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: body => ({ url: 'payments/settings', method: 'PUT', body }),
 			invalidatesTags: ['tenant-payments'],
 		}),
-		checkSitePaymentKeys: builder.mutation<{ ok: boolean; mode: string }, void>({
-			query: () => ({ url: 'payments/settings/check', method: 'POST' }),
+		checkSitePaymentKeys: builder.mutation<{ ok: boolean; mode: string; provider: string }, { provider: 'stripe' | 'sslcommerz' | 'bkash' } | void>({
+			query: body => ({ url: 'payments/settings/check', method: 'POST', body: body || {} }),
 		}),
 		getSitePayments: builder.query<{ doc: SitePayment[] }, void>({
 			query: () => 'payments',

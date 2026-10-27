@@ -87,6 +87,8 @@ const GUIDE_OF: Record<string, string> = {
 	orders: 'widgets',
 	payments: 'payments',
 	stripe: 'payments',
+	sslcommerz: 'payments',
+	bkash: 'payments',
 	'return-pages': 'payments',
 	'payments-list': 'payments',
 	coming: 'payments',
