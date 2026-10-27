@@ -137,6 +137,17 @@ const GUIDE_OF: Record<string, string> = {
 	'live-visitors': 'analytics',
 	'traffic-sources': 'analytics',
 	'connect-ai': 'connect-ai',
+	// An e-commerce project's store (backend docs/ecommerce).
+	'store-setup': 'store',
+	'store-basics': 'store',
+	'store-outlets': 'store',
+	'store-products': 'store',
+	'store-payments': 'store',
+	'store-returns': 'store',
+	'store-delivery': 'store',
+	'store-pos': 'store',
+	'store-review': 'store',
+	'store-settings': 'store',
 	start: 'site-builder',
 };
 

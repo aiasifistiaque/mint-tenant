@@ -7,6 +7,7 @@ import mainApi from './mainApi';
  */
 
 const TAG = 'commerce';
+export const SIDEBAR_TAGS = ['/sidebar/crm/page', '/sidebar/crm/server', '/sidebar/crm/generic', 'sidebaritems', 'sidebarcategories'];
 
 export type CommerceSection = 'store' | 'outlets' | 'products' | 'payments' | 'returns' | 'delivery' | 'pos';
 export type CommerceStep = CommerceSection | 'review';
@@ -66,11 +67,17 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG] }).inje
 			query: () => 'commerce/settings',
 			providesTags: [TAG],
 		}),
+		// A built store's settings show and hide its pages: the sidebar follows.
 		saveCommerceSettings: builder.mutation<CommerceView, CommerceSaveInput>({
 			query: body => ({ url: 'commerce/settings', method: 'PUT', body }),
+			invalidatesTags: [TAG, ...SIDEBAR_TAGS],
+		}),
+		/** Builds the store in the background (EC-03): answers 202 `building`; poll the settings for `ready` / `failed`. */
+		startCommerceSetup: builder.mutation<CommerceView, void>({
+			query: () => ({ url: 'commerce/setup', method: 'POST', body: {} }),
 			invalidatesTags: [TAG],
 		}),
 	}),
 });
 
-export const { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } = commerceApi;
+export const { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation, useStartCommerceSetupMutation } = commerceApi;
