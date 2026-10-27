@@ -13,6 +13,7 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import { MONO_CAPS } from '@/theme/tones';
 import Snippet from '@/app/public-api/_components/Snippet';
 import { FRAMEWORKS, type Filled, type Framework, type Step } from './_components/snippets';
+import ConnectionTest from './_components/ConnectionTest';
 
 /**
  * Website setup: how a website connects to this website project — one that's
@@ -51,7 +52,7 @@ function Go({ href, children }: { href: string; children: ReactNode }) {
 	);
 }
 
-const StepBlock: FC<{ n: number; step: Step }> = ({ n, step }) => (
+const StepBlock: FC<{ n: number; step: Step; children?: ReactNode }> = ({ n, step, children }) => (
 	<Flex
 		id={step.id}
 		gap={3}
@@ -105,11 +106,12 @@ const StepBlock: FC<{ n: number; step: Step }> = ({ n, step }) => (
 					</Box>
 				))}
 			</Flex>
+			{children}
 			{step.links?.length ? (
 				<Flex
 					gap={4}
 					wrap='wrap'
-					mt={step.snippets.length ? 3 : 0}
+					mt={step.snippets.length || children ? 3 : 0}
 					fontSize='12.5px'>
 					{step.links.map(l => (
 						<Go
@@ -147,7 +149,8 @@ function WebsiteSetup() {
 	const asked = params.get('fw');
 	const fw: Framework = FRAMEWORKS.some(f => f.value === asked) ? (asked as Framework) : 'site';
 
-	const domain = (project?.domains || []).find(d => !d.startsWith('localhost')) || 'www.your-site.com';
+	const realDomain = (project?.domains || []).find(d => !d.startsWith('localhost')) || '';
+	const domain = realDomain || 'www.your-site.com';
 	const filled: Filled = { api: `${API_ORIGIN}/public/api`, origin: API_ORIGIN, key: apiKey || 'mint_pk_…', domain };
 
 	const body = () => {
@@ -216,8 +219,9 @@ function WebsiteSetup() {
 										<StepBlock
 											key={step.id}
 											n={i + 1}
-											step={step}
-										/>
+											step={step}>
+											{step.test && <ConnectionTest domain={realDomain} />}
+										</StepBlock>
 									))}
 								</Flex>
 							</Tabs.Content>

@@ -703,6 +703,15 @@ export type SiteTracking = {
 	hotjar: string;
 };
 export type SiteTag = { _id?: string; name: string; location: 'head' | 'bodyStart' | 'bodyEnd'; content: string; enabled: boolean };
+/** Website setup → Existing website → Test connection (backend siteConnection.function.ts). */
+export type SiteConnection = {
+	checkedAt: string;
+	url: string;
+	connected: boolean;
+	message: string;
+	items: { key: 'domain' | 'snippet' | 'visits' | 'seo'; label: string; status: 'ok' | 'warning' | 'missing' | 'idle'; message: string }[];
+};
+
 export type SiteCheck = {
 	checkedAt: string;
 	origin: string;
@@ -1096,6 +1105,9 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: () => ({ url: 'site-config/check', method: 'POST' }),
 			invalidatesTags: ['tenant-site'],
 		}),
+		testSiteConnection: builder.mutation<SiteConnection, { url?: string }>({
+			query: body => ({ url: 'site-config/connection', method: 'POST', body }),
+		}),
 		getSiteOverview: builder.query<SiteOverview, void>({
 			query: () => 'site-overview',
 			// The kit's own tables too, so editing a page or its SEO refreshes it (routeTags registers them).
@@ -1382,6 +1394,7 @@ export const {
 	useGetSiteConfigQuery,
 	useUpdateSiteConfigMutation,
 	useCheckSiteMutation,
+	useTestSiteConnectionMutation,
 	useGetSiteOverviewQuery,
 	useGetProjectHistoryQuery,
 	useGetHistoryFacetsQuery,

@@ -31,6 +31,8 @@ export type Step = {
 	notes?: string[];
 	/** Places in the panel this step happens in. */
 	links?: { label: string; href: string }[];
+	/** Shows the Test connection box (Existing website). */
+	test?: boolean;
 };
 
 /* ----------------------------------------------------------- shared */
@@ -101,10 +103,15 @@ const existing = (f: Filled): Step[] => [
 	},
 	{
 		id: 'check',
-		title: 'See what a page gets',
-		lead: 'Open this address with a page’s path at the end. "found": false means the page isn’t added, and the snippet leaves it alone.',
-		snippets: [{ label: 'what Mint sends', file: 'in your browser', code: headUrl(f) }],
-		links: [{ label: 'Site setup → Check the site', href: '/site-setup?tab=check' }],
+		title: 'Test the connection',
+		lead: 'Open your site once in a browser, then test a page’s address here: it checks the domain, finds the snippet on the page, sees whether visits are arriving, and says where that page’s SEO comes from.',
+		snippets: [],
+		test: true,
+		notes: [
+			'Added the snippet through a tag manager or a plugin? It may not be in the page’s HTML — Visits shows whether it runs.',
+			'The raw answer for a page (the SEO it gets): ' + headUrl(f) + ' — "found": false means the page isn’t added, and the snippet leaves it alone.',
+		],
+		links: [{ label: 'Site setup → Check the site (tracking tags)', href: '/site-setup?tab=check' }],
 	},
 	{
 		id: 'server',
