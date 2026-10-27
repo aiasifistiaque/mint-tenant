@@ -86,6 +86,8 @@ export const PLANNED_FIELD_TYPES = [
 	// nested-fieldset type; 'array' is its array-of-values sibling.
 	'object',
 	'array',
+	// A link (a model's `url` kind): a link on view pages, a plain text box in forms.
+	'uri',
 ] as const;
 
 export default inputDataOptions;

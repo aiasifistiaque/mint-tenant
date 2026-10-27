@@ -25,7 +25,7 @@ type Group = Health['groups'][number];
 const PageRow: FC<{ p: Group['pages'][number] }> = ({ p }) => (
 	<Flex
 		as={Link}
-		{...{ href: p.seo ? projectHref(`/seo/${p.seo}`) : createPath('seo') }}
+		{...{ href: p.seo ? projectHref(`/view/seo/${p.seo}`) : createPath('seo') }}
 		gap={3}
 		px={3}
 		py={1.5}

@@ -37,6 +37,8 @@ export type RecordViewProps = {
 	meta?: ReactNode;
 	/** Buttons before Edit. */
 	actions?: ReactNode;
+	/** No Edit dialog: the page edits the record itself (an SEO record's page, docs/seo SEO-20). */
+	noEdit?: boolean;
 	/** Rendered after the page, for the custom page's own dialogs. */
 	children?: ReactNode;
 };
@@ -50,7 +52,7 @@ export type RecordViewProps = {
  * (`/repos/<id>`) wraps this too and passes its console as `tabs`, so the
  * table's "Open" lands on the same overview and tabs either way.
  */
-const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions, children }: RecordViewProps) => {
+const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions, noEdit, children }: RecordViewProps) => {
 	const rv = useRecordView({ slug, id });
 	const { name, code, recordTitle, routeTitle, single, drafts, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
 	// Like the edit dialog's header: the code, then how fresh the record is.
@@ -154,7 +156,7 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 								route={slug}
 								id={id}
 							/>
-							{canEdit && (
+							{canEdit && !noEdit && (
 								<CreateModal {...modalProps}>
 									<Button
 										size='sm'
