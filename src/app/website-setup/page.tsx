@@ -15,9 +15,10 @@ import Snippet from '@/app/public-api/_components/Snippet';
 import { FRAMEWORKS, type Filled, type Framework, type Step } from './_components/snippets';
 
 /**
- * Website setup: how a website you build yourself — plain HTML, React or
- * Next.js — connects to this website project. Its keys and where each one
- * goes, then per framework: the settings file, reading the site API, showing
+ * Website setup: how a website connects to this website project — one that's
+ * already built (the snippet: analytics + each added page's SEO, docs/site-connect),
+ * or one you build yourself in plain HTML, React or Next.js. Its keys and
+ * where each one goes, then per kind of site: the settings file, reading the site API, showing
  * a page, analytics (track.js) and SEO (page SEO, robots.txt, sitemap.xml),
  * all filled in with this project's address, key and domain. Nothing is
  * saved here; the settings themselves are on Site setup and API → Keys.
@@ -104,6 +105,21 @@ const StepBlock: FC<{ n: number; step: Step }> = ({ n, step }) => (
 					</Box>
 				))}
 			</Flex>
+			{step.links?.length ? (
+				<Flex
+					gap={4}
+					wrap='wrap'
+					mt={step.snippets.length ? 3 : 0}
+					fontSize='12.5px'>
+					{step.links.map(l => (
+						<Go
+							key={l.href}
+							href={l.href}>
+							{l.label} →
+						</Go>
+					))}
+				</Flex>
+			) : null}
 			{step.notes?.length ? (
 				<Box
 					as='ul'
@@ -129,7 +145,7 @@ function WebsiteSetup() {
 	const { project, can, isLoading } = useWorkspace();
 	const apiKey = useProjectKey();
 	const asked = params.get('fw');
-	const fw: Framework = FRAMEWORKS.some(f => f.value === asked) ? (asked as Framework) : 'html';
+	const fw: Framework = FRAMEWORKS.some(f => f.value === asked) ? (asked as Framework) : 'site';
 
 	const domain = (project?.domains || []).find(d => !d.startsWith('localhost')) || 'www.your-site.com';
 	const filled: Filled = { api: `${API_ORIGIN}/public/api`, origin: API_ORIGIN, key: apiKey || 'mint_pk_…', domain };
@@ -177,8 +193,8 @@ function WebsiteSetup() {
 
 				<Panel
 					title='Connect your site'
-					subtitle='Pick what your site is built with — the code below is filled in for this project.'
-					actions={<GuideLink section='website-setup' />}>
+					subtitle='Already have a website? Start with Existing website. Building one? Pick what it’s built with — the code below is filled in for this project.'
+					actions={<GuideLink section={fw === 'site' ? 'connect-a-website' : 'website-setup'} />}>
 					<ConsoleTabs
 						tabs={FRAMEWORKS.map(f => ({ value: f.value, label: f.label }))}
 						value={fw}
@@ -299,7 +315,7 @@ function WebsiteSetup() {
 						{ href: '#', title: 'Website setup' },
 					]}
 					title='Website setup'
-					meta='Connect a website you build yourself — its content, analytics and SEO all come from this project.'
+					meta='Connect a website — one you already have, or one you build yourself — to this project’s analytics and SEO.'
 				/>
 				{body()}
 			</Flex>

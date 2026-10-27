@@ -6,7 +6,7 @@
  * variable names (MINT_API, MINT_API_KEY, NEXT_PUBLIC_… and VITE_…).
  */
 
-export type Framework = 'html' | 'react' | 'next';
+export type Framework = 'site' | 'html' | 'react' | 'next';
 
 export type Filled = {
 	/** The site API: <origin>/public/api */
@@ -29,6 +29,8 @@ export type Step = {
 	snippets: Snippet[];
 	/** Short notes under the code. */
 	notes?: string[];
+	/** Places in the panel this step happens in. */
+	links?: { label: string; href: string }[];
 };
 
 /* ----------------------------------------------------------- shared */
@@ -60,6 +62,135 @@ const vercelRewrites = (f: Filled, spa = false) => `{
 const analyticsNotes = [
 	'It counts page views (also when a single-page app changes route), visitors, where they came from, and clicks on links that leave the site.',
 	'Google Analytics, Tag Manager, Meta Pixel and the other tags you set in Site setup → Tracking come in through this script — don’t paste their code as well, or visits are counted twice.',
+];
+
+/* ------------------------------------------ a website built anywhere */
+
+// docs/site-connect SC-03/08: the snippet puts each page's SEO from Website → SEO on it — only on pages
+// added there; every other page keeps its own. A server prints the same answer (/site/head) for link previews.
+const headUrl = ({ api, key }: Filled, path = '/about') => `${api}/site/head?apiKey=${key}&path=${path}`;
+
+const existing = (f: Filled): Step[] => [
+	{
+		id: 'snippet',
+		title: 'Paste the snippet',
+		lead: 'One line in the <head> of every page — as high as your site lets you. It counts visits for Analytics and puts each page’s SEO from this panel on it.',
+		snippets: [{ label: 'snippet', file: 'every page — in <head>', code: `<script src="${f.origin}/public/track.js" data-key="${f.key}" data-seo></script>` }],
+		notes: [
+			'WordPress: a header-code plugin (e.g. WPCode → Header), or your theme’s header.php just before </head>.',
+			'Webflow: Site settings → Custom code → Head code. Wix: Settings → Custom code → Head, all pages. Squarespace: Settings → Advanced → Code injection → Header.',
+			'Shopify: Online Store → Themes → Edit code → theme.liquid, just before </head>. Hand-written sites: the <head> of each page, or your shared header file.',
+			'Google Analytics, Tag Manager and pixels set in Site setup → Tracking come in through it too — don’t paste their code as well.',
+		],
+	},
+	{
+		id: 'pages',
+		title: 'Add the pages Mint should handle',
+		lead: 'Add a page with its address as it shows in the browser (/about) and set it to Published, then give it SEO on Website → SEO. Only those pages get their SEO from here — every other page keeps its own, untouched.',
+		snippets: [],
+		links: [
+			{ label: 'Website → Pages', href: '/t/pages' },
+			{ label: 'Website → SEO', href: '/t/seo' },
+			{ label: 'Site setup → SEO (defaults)', href: '/site-setup?tab=seo' },
+		],
+		notes: [
+			'On a page you add, what you fill in replaces the page’s own tags. A field you leave empty keeps the page’s own; Site setup → SEO’s defaults only fill in tags the page doesn’t have.',
+			'/about, /about/ and /about.html are the same page.',
+			'Changes show on the site within a minute — no deploy.',
+		],
+	},
+	{
+		id: 'check',
+		title: 'See what a page gets',
+		lead: 'Open this address with a page’s path at the end. "found": false means the page isn’t added, and the snippet leaves it alone.',
+		snippets: [{ label: 'what Mint sends', file: 'in your browser', code: headUrl(f) }],
+		links: [{ label: 'Site setup → Check the site', href: '/site-setup?tab=check' }],
+	},
+	{
+		id: 'server',
+		title: 'For link previews: print it on your server',
+		lead: 'Google runs the snippet, so it sees the SEO. WhatsApp, Facebook, LinkedIn and X previews (and most other crawlers) only read the HTML your server sends. If your site has a server you can edit, print the same tags there — empty for pages you haven’t added, so yours stay.',
+		snippets: [
+			{
+				label: 'PHP',
+				file: 'mint-seo.php — then in <head>',
+				code: `<?php
+// mint-seo.php — this page's SEO from Mint, or '' when the page isn't added there
+function mint_seo() {
+  $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+  $url = '${f.api}/site/head?format=html&apiKey=${f.key}&path=' . urlencode($path);
+  $html = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 2]]));
+  return $html ?: '';
+}
+
+// in your <head>:
+// <?php require_once __DIR__ . '/mint-seo.php'; $seo = mint_seo(); ?>
+// <?php if ($seo) { echo $seo; } else { ?>
+//   <title>Your own title</title>
+//   <meta name="description" content="Your own description">
+// <?php } ?>`,
+			},
+			{
+				label: 'Node / Express',
+				file: 'mintSeo.js',
+				code: `// mintSeo.js — this page's SEO from Mint as <head> tags, or '' when the page isn't added there
+const cache = new Map();
+
+export async function mintSeo(path) {
+  const hit = cache.get(path);
+  if (hit && hit.until > Date.now()) return hit.html;
+  const url = '${f.api}/site/head?format=html&apiKey=${f.key}&path=' + encodeURIComponent(path);
+  const html = await fetch(url, { signal: AbortSignal.timeout(2000) })
+    .then(r => (r.ok ? r.text() : ''))
+    .catch(() => '');
+  cache.set(path, { html, until: Date.now() + 60_000 });
+  return html;
+}
+
+// app.get('*', async (req, res) => res.render('page', { mintSeo: await mintSeo(req.path) }));
+// in the template's <head>:  <%- mintSeo || '<title>Your own title</title>' %>`,
+			},
+			{
+				label: 'Next.js',
+				file: 'app/…/page.tsx — generateMetadata',
+				code: `import type { Metadata } from 'next';
+
+// This page's SEO from Mint; null when the page isn't added there.
+async function mintSeo(path: string) {
+  const url = \`\${process.env.MINT_API}/site/head?apiKey=\${process.env.MINT_API_KEY}&path=\${encodeURIComponent(path)}\`;
+  const h = await fetch(url, { next: { revalidate: 60 } }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  return h?.found ? h.seo : null;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await mintSeo('/about'); // this page's path
+  if (!s) return { title: 'Your own title', description: 'Your own description' };
+  return {
+    title: { absolute: s.title },
+    description: s.description,
+    alternates: s.canonical ? { canonical: s.canonical } : undefined,
+    robots: s.noIndex ? { index: false, follow: !s.noFollow } : undefined,
+    openGraph: { title: s.ogTitle, description: s.ogDescription, url: s.canonical, siteName: s.siteName, images: s.image ? [{ url: s.image, alt: s.ogImageAlt }] : [] },
+    twitter: { card: s.twitterCard, title: s.twitterTitle, description: s.twitterDescription, images: s.twitterImage ? [s.twitterImage] : [] },
+  };
+}`,
+			},
+		],
+		notes: [
+			'Keep the snippet in the page as well — it counts the visits, and keeps the SEO right when a single-page app changes pages.',
+			'The answer is cached for a minute; if this project can’t be reached, the code falls back to your own tags.',
+		],
+	},
+	{
+		id: 'robots',
+		title: 'Optional: robots.txt and sitemap.xml from here',
+		lead: 'The sitemap lists the published pages you added on Website → Pages. Use it only if your site doesn’t make its own.',
+		snippets: [
+			{ label: 'Netlify _redirects', file: 'on Netlify', code: netlifyRedirects(f) },
+			{ label: 'vercel.json', file: 'on Vercel', code: vercelRewrites(f) },
+		],
+		notes: ['Another host: open both addresses below and upload them as files — robots.txt: ' + robotsUrl(f) + ' · sitemap.xml: ' + sitemapUrl(f)],
+	},
 ];
 
 /* ------------------------------------------------------- plain HTML */
@@ -504,6 +635,12 @@ export async function GET() {
 ];
 
 export const FRAMEWORKS: { value: Framework; label: string; about: string; steps: (f: Filled) => Step[] }[] = [
+	{
+		value: 'site',
+		label: 'Existing website',
+		about: 'A website that’s already built — WordPress, Webflow, Wix, Shopify, a site by an agency, anything. Paste one line, then choose which pages take their SEO from here.',
+		steps: existing,
+	},
 	{ value: 'html', label: 'Plain HTML', about: 'HTML pages and a little JavaScript — no build step.', steps: html },
 	{ value: 'react', label: 'React (Vite)', about: 'A React app built with Vite (or Create React App), drawn in the browser.', steps: react },
 	{ value: 'next', label: 'Next.js', about: 'React rendered on the server — the best for SEO.', steps: next },
