@@ -713,6 +713,14 @@ export type SeoPageWords = {
 	text: string;
 	keywords: { path: string; keyword: string }[];
 };
+/** Website → SEO's health card (backend seoIssues.function.ts, docs/seo SEO-03). */
+export type SeoHealthLevel = 'error' | 'warning' | 'notice';
+export type SeoHealth = {
+	checkedAt: string;
+	checked: number;
+	counts: Record<SeoHealthLevel, number>;
+	groups: { key: string; level: SeoHealthLevel; label: string; advice: string; pages: { path: string; name: string; page: string; seo?: string; detail?: string }[] }[];
+};
 /** Website setup → Existing website → Test connection (backend siteConnection.function.ts). */
 export type SiteConnection = {
 	checkedAt: string;
@@ -1127,6 +1135,10 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: ({ path, page }) => `site-config/seo-page?${page ? `page=${encodeURIComponent(page)}` : `path=${encodeURIComponent(path || '/')}`}`,
 			providesTags: () => routeTags('tenant-site', 'seo', 'web-contents'),
 		}),
+		getSeoHealth: builder.query<SeoHealth, void>({
+			query: () => 'site-config/seo-health',
+			providesTags: () => routeTags('tenant-site', 'pages', 'seo'),
+		}),
 		getSiteOverview: builder.query<SiteOverview, void>({
 			query: () => 'site-overview',
 			// The kit's own tables too, so editing a page or its SEO refreshes it (routeTags registers them).
@@ -1416,6 +1428,7 @@ export const {
 	useCheckSiteMutation,
 	useTestSiteConnectionMutation,
 	useGetSeoPageWordsQuery,
+	useGetSeoHealthQuery,
 	useGetSiteOverviewQuery,
 	useGetProjectHistoryQuery,
 	useGetHistoryFacetsQuery,

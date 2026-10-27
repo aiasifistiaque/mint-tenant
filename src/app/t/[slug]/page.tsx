@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { ServerPage } from '@/components/library';
 import { useWorkspace } from '@/components/library/tenant';
 import ContentsScreen from '../_contents/ContentsScreen';
+import SeoHealth from '../_seo/SeoHealth';
 
 /**
  * A tenant project's table (tenant panel only — see pagePath in
@@ -14,11 +15,20 @@ import ContentsScreen from '../_contents/ContentsScreen';
  * (docs/cms D1) — its table is `?view=table`.
  */
 const KIT_CONTENTS = 'web-contents';
+const KIT_SEO = 'seo';
 
 const Table = ({ slug }: { slug: string }) => {
 	const params = useSearchParams();
 	const { project } = useWorkspace();
 	if (slug === KIT_CONTENTS && project?.type === 'website' && params.get('view') !== 'table') return <ContentsScreen />;
+	// A website's SEO table has the site's SEO health above it (docs/seo SEO-03).
+	if (slug === KIT_SEO && project?.type === 'website')
+		return (
+			<ServerPage
+				route={slug}
+				above={<SeoHealth />}
+			/>
+		);
 	return <ServerPage route={slug} />;
 };
 

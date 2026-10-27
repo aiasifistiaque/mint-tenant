@@ -1,6 +1,6 @@
 'use client';
 
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Direct imports instead of barrel export
@@ -22,10 +22,12 @@ type TableProps = {
 	// component) appended to the backend-authored `table.menu`, since the
 	// backend config is plain JSON and can't carry a component reference.
 	extraMenu?: any[];
+	/** Shown between the heading and the table (Website → SEO's health card). */
+	above?: ReactNode;
 };
 
 // Define the PageTable component
-const ServerPage: FC<TableProps> = ({ route, extraMenu }) => {
+const ServerPage: FC<TableProps> = ({ route, extraMenu, above }) => {
 	const { page, limit, search, sort, filters, preferences, selectedItems }: any = useAppSelector(
 		(state: any) => state.table
 	);
@@ -144,7 +146,7 @@ const ServerPage: FC<TableProps> = ({ route, extraMenu }) => {
 						path={table?.path} //Path of the table
 						export={table?.export} //If export button should be displayed
 					/>
-					{/* <Flex>{children}</Flex> */}
+					{above}
 
 					<CustomTable
 						schema={schema} //Schema of the table
