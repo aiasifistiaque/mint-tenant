@@ -86,9 +86,148 @@ export type ProductStock = {
 	variants: { _id: string; title: string; sku: string; barcode: string; price: number | null; active: boolean; isDefault: boolean; total: number; stock: Record<string, { onHand: number; reorderPoint: number | null }> }[];
 };
 
+/* ------------------------------------------------------- orders (EC-06) */
+
+export type StoreTender = { id: string; label: string; cash?: boolean };
+export type StoreDiscount = { type: 'percent' | 'amount'; value: number } | null;
+export type StoreQuoteInput = {
+	outlet?: string;
+	customer?: string | null;
+	lines: { variant: string; quantity: number; discount?: StoreDiscount }[];
+	orderDiscount?: StoreDiscount;
+	couponCode?: string;
+	shipping?: number;
+};
+export type StoreQuoteLine = {
+	variant: string;
+	product: string;
+	name: string;
+	sku: string;
+	quantity: number;
+	unitPrice: number;
+	gross: number;
+	lineDiscount: number;
+	couponDiscount: number;
+	orderDiscount: number;
+	discount: number;
+	net: number;
+	taxRate: number;
+	tax: number;
+	total: number;
+	trackStock: boolean;
+	available: number | null;
+};
+export type StoreQuote = {
+	lines: StoreQuoteLine[];
+	subtotal: number;
+	lineDiscounts: number;
+	couponDiscount: number;
+	orderDiscount: number;
+	discount: number;
+	tax: number;
+	taxMode: 'none' | 'inclusive' | 'added';
+	shipping: number;
+	total: number;
+	coupon: { _id: string; code: string; type: string; value: number } | null;
+	currency: string;
+	problems: string[];
+	warnings: string[];
+};
+export type StorePaymentInput = { method: string; amount: number; tendered?: number; reference?: string };
+export type StoreShift = {
+	_id: string;
+	code?: string;
+	register: string;
+	outlet: string;
+	status: 'open' | 'closed';
+	openedBy: string;
+	openedAt: string;
+	openingFloat: number;
+	cashMoves: { type: 'in' | 'out'; amount: number; reason: string; by: string; at: string }[];
+	expectedCash?: number;
+	countedCash?: number;
+	difference?: number;
+	closedAt?: string;
+};
+export type StoreShiftSummary = {
+	shift: StoreShift;
+	totals: { method: string; label: string; sales: number; refunds: number }[];
+	cashIn: number;
+	cashOut: number;
+	expectedCash: number;
+	sales: number;
+};
+export type PosSetup = {
+	currency: string;
+	features: string[];
+	outlets: { _id: string; name: string; outletCode: string; address?: string; phone?: string; receiptHeader?: string }[];
+	registers: { _id: string; name: string; outlet: string }[];
+	tenders: StoreTender[];
+	shift: StoreShift | null;
+	pos: { receipt: { size: '80mm' | 'a4'; header: string; footer: string }; taxMode: 'none' | 'inclusive' | 'added'; customerRequired: boolean };
+	delivery: { rates: CommerceShippingRate[] } | null;
+	negativeStock: boolean;
+};
+export type StoreOrder = {
+	_id: string;
+	code: string;
+	channel: 'pos' | 'manual';
+	status: 'held' | 'open' | 'completed' | 'cancelled';
+	outlet: string;
+	customer?: string;
+	items: { variant: string; product: string; name: string; sku: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; returned: number }[];
+	subtotal: number;
+	discount: number;
+	orderDiscount: number;
+	couponCode: string;
+	tax: number;
+	shipping: number;
+	total: number;
+	paid: number;
+	refunded: number;
+	balance: number;
+	paymentStatus: string;
+	fulfilment: string;
+	returnedItems?: number;
+	delivery?: { name?: string; phone?: string; address?: string; area?: string; rate?: string };
+	courier?: Record<string, any>;
+	/** On held sales: the customer's name and credit. */
+	customerInfo?: { _id: string; name: string; storeCredit?: number };
+	register?: string;
+	shift?: string;
+	cashier?: string;
+	completedAt?: string;
+	createdAt: string;
+	note?: string;
+};
+export type StorePayment = {
+	_id: string;
+	code: string;
+	type: 'payment' | 'refund';
+	method: string;
+	methodLabel: string;
+	amount: number;
+	tendered?: number;
+	change?: number;
+	reference?: string;
+	status: string;
+	by: string;
+	createdAt: string;
+	note?: string;
+};
+export type StoreOrderDetail = {
+	order: StoreOrder;
+	payments: StorePayment[];
+	movements: any[];
+	returns: any[];
+	credit: any[];
+	customer: { _id: string; name: string; phone?: string; email?: string; address?: string; storeCredit?: number } | null;
+	outlet: { _id: string; name: string; outletCode: string; address?: string; phone?: string; receiptHeader?: string } | null;
+};
+
 export type CommerceSaveInput = { answers?: Partial<CommerceAnswers>; step?: CommerceStep };
 
-export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock'] }).injectEndpoints({
+export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift'] }).injectEndpoints({
 	endpoints: builder => ({
 		getCommerceSettings: builder.query<CommerceView, void>({
 			query: () => 'commerce/settings',
@@ -125,6 +264,72 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			invalidatesTags: (_r, _e, { routes }) => ['store-stock', ...routeTags(...routes)],
 		}),
 
+		/* ----------------------------------------------- orders and the POS (EC-06) */
+		getPosSetup: builder.query<PosSetup, string | void>({
+			query: register => ({ url: 'commerce/pos/setup', params: register ? { register } : {} }),
+			providesTags: ['store-shift'],
+		}),
+		quoteStoreBasket: builder.mutation<StoreQuote, StoreQuoteInput>({
+			query: body => ({ url: 'commerce/quote', method: 'POST', body }),
+		}),
+		lookupStoreCode: builder.query<StoreItem, { code: string; outlet?: string }>({
+			query: ({ code, outlet }) => ({ url: 'commerce/lookup', params: { code, ...(outlet && { outlet }) } }),
+			keepUnusedDataFor: 0,
+		}),
+		/** A POS sale: `routes` are the store's model routes whose tables should refresh. */
+		createStoreSale: builder.mutation<StoreOrderDetail, StoreQuoteInput & { register?: string; payments: StorePaymentInput[]; note?: string; heldId?: string; routes: string[] }>({
+			query: ({ routes, ...body }) => ({ url: 'commerce/sales', method: 'POST', body }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-stock', 'store-orders', 'store-held', 'store-shift', ...routeTags(...routes)],
+		}),
+		createStoreOrder: builder.mutation<StoreOrderDetail, StoreQuoteInput & { payments?: StorePaymentInput[]; note?: string; delivery?: StoreOrder['delivery']; routes: string[] }>({
+			query: ({ routes, ...body }) => ({ url: 'commerce/orders', method: 'POST', body }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-stock', 'store-orders', ...routeTags(...routes)],
+		}),
+		getStoreHeld: builder.query<{ docs: StoreOrder[] }, { outlet?: string; register?: string }>({
+			query: params => ({ url: 'commerce/held', params }),
+			providesTags: ['store-held'],
+		}),
+		holdStoreSale: builder.mutation<{ doc: StoreOrder }, StoreQuoteInput & { register?: string; note?: string }>({
+			query: body => ({ url: 'commerce/held', method: 'POST', body }),
+			invalidatesTags: ['store-held'],
+		}),
+		discardStoreHeld: builder.mutation<{ ok: boolean }, string>({
+			query: id => ({ url: `commerce/held/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['store-held'],
+		}),
+		getStoreOrder: builder.query<StoreOrderDetail, string>({
+			query: id => `commerce/orders/${id}`,
+			providesTags: ['store-orders'],
+		}),
+		payStoreOrder: builder.mutation<StoreOrderDetail, { id: string; payments: StorePaymentInput[]; register?: string; routes: string[] }>({
+			query: ({ id, routes, ...body }) => ({ url: `commerce/orders/${id}/pay`, method: 'POST', body }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-orders', 'store-shift', ...routeTags(...routes)],
+		}),
+		fulfilStoreOrder: builder.mutation<StoreOrderDetail, { id: string; to: string; routes: string[] }>({
+			query: ({ id, to }) => ({ url: `commerce/orders/${id}/fulfil`, method: 'POST', body: { to } }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-orders', ...routeTags(...routes)],
+		}),
+		cancelStoreOrder: builder.mutation<StoreOrderDetail, { id: string; reason?: string; register?: string; routes: string[] }>({
+			query: ({ id, routes, ...body }) => ({ url: `commerce/orders/${id}/cancel`, method: 'POST', body }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-stock', 'store-orders', 'store-shift', ...routeTags(...routes)],
+		}),
+		openStoreShift: builder.mutation<{ doc: StoreShift }, { register: string; openingFloat: number }>({
+			query: body => ({ url: 'commerce/shifts', method: 'POST', body }),
+			invalidatesTags: ['store-shift'],
+		}),
+		getStoreShift: builder.query<StoreShiftSummary, string>({
+			query: id => `commerce/shifts/${id}`,
+			providesTags: ['store-shift'],
+		}),
+		storeShiftCash: builder.mutation<StoreShiftSummary, { id: string; type: 'in' | 'out'; amount: number; reason?: string }>({
+			query: ({ id, ...body }) => ({ url: `commerce/shifts/${id}/cash`, method: 'POST', body }),
+			invalidatesTags: ['store-shift'],
+		}),
+		closeStoreShift: builder.mutation<StoreShiftSummary, { id: string; countedCash: number; note?: string }>({
+			query: ({ id, ...body }) => ({ url: `commerce/shifts/${id}/close`, method: 'POST', body }),
+			invalidatesTags: ['store-shift'],
+		}),
+
 		/** Builds the store in the background (EC-03): answers 202 `building`; poll the settings for `ready` / `failed`. */
 		startCommerceSetup: builder.mutation<CommerceView, void>({
 			query: () => ({ url: 'commerce/setup', method: 'POST', body: {} }),
@@ -144,4 +349,20 @@ export const {
 	useSetStoreStockMutation,
 	useApplyStoreAdjustmentMutation,
 	useStoreTransferActionMutation,
+	useGetPosSetupQuery,
+	useQuoteStoreBasketMutation,
+	useLazyLookupStoreCodeQuery,
+	useCreateStoreSaleMutation,
+	useCreateStoreOrderMutation,
+	useGetStoreHeldQuery,
+	useHoldStoreSaleMutation,
+	useDiscardStoreHeldMutation,
+	useGetStoreOrderQuery,
+	usePayStoreOrderMutation,
+	useFulfilStoreOrderMutation,
+	useCancelStoreOrderMutation,
+	useOpenStoreShiftMutation,
+	useGetStoreShiftQuery,
+	useStoreShiftCashMutation,
+	useCloseStoreShiftMutation,
 } = commerceApi;
