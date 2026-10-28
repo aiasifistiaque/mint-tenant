@@ -17,7 +17,7 @@ export type CommerceTaxRate = { name: string; rate: number; default?: boolean };
 export type CommerceShippingRate = { name: string; amount: number };
 
 export type CommerceAnswers = {
-	store: { currency: string; orderPrefix: string; negativeStock: boolean };
+	store: { currency: string; orderPrefix: string; negativeStock: boolean; guestCheckout?: boolean };
 	outlets: CommerceOutlet[];
 	products: { variations: boolean; options: string[]; brands: boolean; barcodes: boolean; trackStock: boolean };
 	payments: { tenders: string[]; custom: string[]; gateways: string[] };

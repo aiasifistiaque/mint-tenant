@@ -172,6 +172,12 @@ export const StoreBasics: FC<SectionProps<'store'>> = ({ value, onChange, offere
 			label='Sell items the outlet has none of'
 			hint='Off: the POS refuses a sale bigger than the outlet’s stock (“only 2 left here”). On: stock can go below zero, to be counted later.'
 		/>
+		<OnSwitch
+			checked={value.guestCheckout !== false}
+			onChange={guestCheckout => onChange({ ...value, guestCheckout })}
+			label='Guest checkout on your website'
+			hint='On: buyers can order on your website without an account. Off: they sign in or sign up first.'
+		/>
 	</Stack>
 );
 

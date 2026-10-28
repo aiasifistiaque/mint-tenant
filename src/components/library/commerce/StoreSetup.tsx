@@ -92,7 +92,7 @@ const summaryOf = (key: CommerceSection, a: CommerceAnswers, v: CommerceView): s
 		ids.map(id => list.find(x => x.id === id)?.label || list.find(x => x.id === id)?.name || id).join(', ');
 	switch (key) {
 		case 'store':
-			return `Sells in ${a.store.currency}; orders ${a.store.orderPrefix || 'ORD'}00001…; ${a.store.negativeStock ? 'stock may go below zero' : 'never sells more than an outlet has'}`;
+			return `Sells in ${a.store.currency}; orders ${a.store.orderPrefix || 'ORD'}00001…; ${a.store.negativeStock ? 'stock may go below zero' : 'never sells more than an outlet has'}; ${a.store.guestCheckout === false ? 'website buyers sign in first' : 'guest checkout on the website'}`;
 		case 'outlets':
 			return a.outlets.map(o => `${o.name} (${o.code}, ${o.kind})`).join(' · ');
 		case 'products':
