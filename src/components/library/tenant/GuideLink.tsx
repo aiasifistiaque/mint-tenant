@@ -148,6 +148,9 @@ const GUIDE_OF: Record<string, string> = {
 	'store-pos': 'store',
 	'store-review': 'store',
 	'store-settings': 'store',
+	'store-orders': 'store',
+	'store-order': 'store',
+	'store-returns-page': 'store',
 	start: 'site-builder',
 };
 

@@ -1,17 +1,28 @@
 'use client';
 
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@chakra-ui/react';
 import RecordView from '@/app/view/_components/RecordView';
 import { useGetByIdQuery } from '../store/services/commonApi';
 import type { CommerceView } from '../store/services/commerceApi';
 import { ProductStock, StockLines } from './stock';
+import { projectHref } from '../config/lib/constants/panel';
 
 /**
  * A store model's record page (backend docs/ecommerce): the generic record
  * page with the store's own tab first — a product's stock by outlet, an
- * adjustment's or transfer's items and actions. Others are the generic page.
+ * adjustment's or transfer's items and actions. Orders and returns have pages
+ * of their own (EC-09), so their record links go there. Others are the
+ * generic page.
  */
+
+/** Sends a record link on to the store's own page for it. */
+const OwnPage: FC<{ href: string }> = ({ href }) => {
+	const router = useRouter();
+	useEffect(() => router.replace(projectHref(href)), [href]);
+	return null;
+};
 
 const STATUS_COLOR: Record<string, string> = { draft: 'gray', applied: 'green', sent: 'orange', received: 'green', cancelled: 'red' };
 
@@ -34,6 +45,8 @@ export const storeKeyOf = (store: CommerceView | undefined, slug: string) =>
 
 const StoreRecordPage: FC<{ slug: string; id: string; store: CommerceView }> = ({ slug, id, store }) => {
 	const key = storeKeyOf(store, slug);
+	if (key === 'order') return <OwnPage href={`/store/orders/${id}`} />;
+	if (key === 'return') return <OwnPage href={`/store/returns/${id}`} />;
 	if (key === 'product')
 		return (
 			<RecordView

@@ -223,11 +223,59 @@ export type StoreOrderDetail = {
 	credit: any[];
 	customer: { _id: string; name: string; phone?: string; email?: string; address?: string; storeCredit?: number } | null;
 	outlet: { _id: string; name: string; outletCode: string; address?: string; phone?: string; receiptHeader?: string } | null;
+	extra?: StoreExtraField[];
+};
+
+/* ------------------------------------------- Orders and Returns pages (EC-09) */
+
+export type StoreOrderView = 'all' | 'today' | 'unpaid' | 'to-ship' | 'returns' | 'cancelled';
+export type StoreOrderRow = StoreOrder & {
+	customerInfo: { _id: string; name: string; phone?: string } | null;
+	outletInfo: { _id: string; name: string; outletCode?: string } | null;
+	itemCount: number;
+};
+export type StoreList<T, V extends string> = { doc: T[]; total: number; page: number; limit: number; views: Record<V, number> };
+export type StoreOrderQuery = { view?: StoreOrderView; q?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
+/** A field people added to a store model, with the record's value (the "More details" card). */
+export type StoreExtraField = { key: string; label: string; kind: string; value: any };
+
+export type StoreReturnStatus = 'requested' | 'approved' | 'received' | 'refunded' | 'rejected' | 'closed';
+export type StoreReturnView = 'all' | 'open' | 'refunded' | 'rejected';
+export type StoreReturn = {
+	_id: string;
+	code: string;
+	order: string;
+	customer?: string;
+	outlet?: string;
+	lines: { line: number; variant: string; name: string; sku: string; quantity: number; unitRefund: number; total: number; reason?: string; condition?: string; restock?: boolean }[];
+	refundDue: number;
+	refunded: number;
+	restocked: boolean;
+	status: StoreReturnStatus;
+	by?: string;
+	note?: string;
+	createdAt: string;
+	updatedAt: string;
+};
+export type StoreReturnRow = StoreReturn & {
+	orderInfo: { _id: string; code: string } | null;
+	customerInfo: { _id: string; name: string; phone?: string } | null;
+	outletInfo: { _id: string; name: string } | null;
+	itemCount: number;
+};
+export type StoreReturnDetail = {
+	return: StoreReturn;
+	order: { _id: string; code: string; total: number; paid: number; refunded: number; createdAt: string; channel: string } | null;
+	customer: { _id: string; name: string; phone?: string; email?: string; storeCredit?: number } | null;
+	outlet: { _id: string; name: string; outletCode?: string } | null;
+	payments: StorePayment[];
+	movements: any[];
+	extra: StoreExtraField[];
 };
 
 export type CommerceSaveInput = { answers?: Partial<CommerceAnswers>; step?: CommerceStep };
 
-export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift'] }).injectEndpoints({
+export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift', 'store-returns'] }).injectEndpoints({
 	endpoints: builder => ({
 		getCommerceSettings: builder.query<CommerceView, void>({
 			query: () => 'commerce/settings',
@@ -297,6 +345,11 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: id => ({ url: `commerce/held/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['store-held'],
 		}),
+		/** The Orders page (EC-09): a page of orders and each quick filter's count. */
+		getStoreOrders: builder.query<StoreList<StoreOrderRow, StoreOrderView>, StoreOrderQuery>({
+			query: params => ({ url: 'commerce/orders', params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '')) }),
+			providesTags: ['store-orders'],
+		}),
 		getStoreOrder: builder.query<StoreOrderDetail, string>({
 			query: id => `commerce/orders/${id}`,
 			providesTags: ['store-orders'],
@@ -312,6 +365,19 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 		cancelStoreOrder: builder.mutation<StoreOrderDetail, { id: string; reason?: string; register?: string; routes: string[] }>({
 			query: ({ id, routes, ...body }) => ({ url: `commerce/orders/${id}/cancel`, method: 'POST', body }),
 			invalidatesTags: (_r, _e, { routes }) => ['store-stock', 'store-orders', 'store-shift', ...routeTags(...routes)],
+		}),
+		/* ------------------------------------------------- returns (EC-09) */
+		getStoreReturns: builder.query<StoreList<StoreReturnRow, StoreReturnView>, { view?: StoreReturnView; q?: string; outlet?: string; page?: number; limit?: number }>({
+			query: params => ({ url: 'commerce/returns', params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '')) }),
+			providesTags: ['store-returns'],
+		}),
+		getStoreReturn: builder.query<StoreReturnDetail, string>({
+			query: id => `commerce/returns/${id}`,
+			providesTags: ['store-returns'],
+		}),
+		moveStoreReturn: builder.mutation<StoreReturnDetail, { id: string; to: StoreReturnStatus; note?: string; routes: string[] }>({
+			query: ({ id, to, note }) => ({ url: `commerce/returns/${id}/status`, method: 'POST', body: { to, note } }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-returns', ...routeTags(...routes)],
 		}),
 		openStoreShift: builder.mutation<{ doc: StoreShift }, { register: string; openingFloat: number }>({
 			query: body => ({ url: 'commerce/shifts', method: 'POST', body }),
@@ -357,7 +423,11 @@ export const {
 	useGetStoreHeldQuery,
 	useHoldStoreSaleMutation,
 	useDiscardStoreHeldMutation,
+	useGetStoreOrdersQuery,
 	useGetStoreOrderQuery,
+	useGetStoreReturnsQuery,
+	useGetStoreReturnQuery,
+	useMoveStoreReturnMutation,
 	usePayStoreOrderMutation,
 	useFulfilStoreOrderMutation,
 	useCancelStoreOrderMutation,
