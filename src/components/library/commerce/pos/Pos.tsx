@@ -14,6 +14,7 @@ import {
 	useDiscardStoreHeldMutation,
 	useGetPosSetupQuery,
 	useGetStoreCatalogueQuery,
+	useGetStoreCategoriesQuery,
 	useGetStoreHeldQuery,
 	useHoldStoreSaleMutation,
 	useLazyLookupStoreCodeQuery,
@@ -533,8 +534,7 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 		return () => clearTimeout(t);
 	}, [q]);
 	const { data: cat, isFetching } = useGetStoreCatalogueQuery({ outlet, q: search || undefined, category: category || undefined, limit: 60 });
-	const categoryRoute = store.installed.category?.route;
-	const { data: cats } = useGetAllQuery({ path: categoryRoute, limit: 30, sort: 'sortOrder' }, { skip: !categoryRoute });
+	const { data: cats } = useGetStoreCategoriesQuery(undefined, { skip: !store.installed.category, refetchOnMountOrArgChange: true });
 	const { data: held } = useGetStoreHeldQuery({ register: register._id }, { skip: !has('held') });
 	const [lookup] = useLazyLookupStoreCodeQuery();
 	const [runQuote] = useQuoteStoreBasketMutation();

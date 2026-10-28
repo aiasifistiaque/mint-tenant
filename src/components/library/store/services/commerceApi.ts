@@ -291,6 +291,10 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: ({ outlet, q, category, page, all, limit }) => ({ url: 'commerce/catalogue', params: { ...(outlet && { outlet }), ...(q && { q }), ...(category && { category }), ...(page && { page }), ...(all && { all: '1' }), ...(limit && { limit }) } }),
 			providesTags: ['store-stock'],
 		}),
+		/** The POS's category bar: active on the POS, highest Order on POS first. */
+		getStoreCategories: builder.query<{ doc: { _id: string; name: string; parent: string | null; image: string | null }[] }, void>({
+			query: () => 'commerce/categories',
+		}),
 		getStoreProductStock: builder.query<ProductStock, string>({
 			query: id => `commerce/products/${id}/stock`,
 			providesTags: ['store-stock'],
@@ -409,6 +413,7 @@ export const {
 	useSaveCommerceSettingsMutation,
 	useStartCommerceSetupMutation,
 	useGetStoreCatalogueQuery,
+	useGetStoreCategoriesQuery,
 	useLazyGetStoreCatalogueQuery,
 	useGetStoreProductStockQuery,
 	useSyncStoreVariantsMutation,

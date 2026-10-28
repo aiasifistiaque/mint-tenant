@@ -46,7 +46,7 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 	{
 		value: 'uid',
 		label: 'Address (slug)',
-		hint: 'A record’s address on your site, made from its title — “My first post” → my-first-post. Always unique',
+		hint: 'A record’s address on your site, made from its title when left empty — “My first post” → my-first-post. Always unique: one that’s taken gets -2',
 		group: 'Text',
 	},
 	{ value: 'color', label: 'Color', hint: 'A colour, picked with a colour picker', group: 'Text' },
