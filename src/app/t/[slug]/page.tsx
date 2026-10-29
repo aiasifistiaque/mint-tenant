@@ -22,7 +22,7 @@ const Table = ({ slug }: { slug: string }) => {
 	const { project } = useWorkspace();
 	if (slug === KIT_CONTENTS && (project?.type === 'website' || project?.type === 'ecommerce') && params.get('view') !== 'table') return <ContentsScreen />;
 	// A website's SEO table has the site's SEO health above it (docs/seo SEO-03).
-	if (slug === KIT_SEO && project?.type === 'website')
+	if (slug === KIT_SEO && (project?.type === 'website' || project?.type === 'ecommerce'))
 		return (
 			<ServerPage
 				route={slug}

@@ -17,7 +17,7 @@ const ViewPage = () => {
 	const { project } = useWorkspace();
 	const isStore = project?.type === 'ecommerce';
 	const { data: store } = useGetCommerceSettingsQuery(undefined, { skip: !isStore });
-	if (slug === 'seo' && project?.type === 'website') return <SeoRecordPage id={id} />;
+	if (slug === 'seo' && (project?.type === 'website' || isStore)) return <SeoRecordPage id={id} />;
 	// A store's page waits for the store, so its own tab doesn't pop in after the generic page.
 	if (isStore && !store) return null;
 	if (isStore && store?.status === 'ready')
