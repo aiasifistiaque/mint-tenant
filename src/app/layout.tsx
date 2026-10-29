@@ -7,6 +7,7 @@ import 'swiper/css';
 // weights; JetBrains Mono for labels. theme/index.ts reads the variables.
 import { mono, outfit } from '@/fonts';
 import Script from 'next/script';
+import PullToRefresh from '@/components/library/tenant/PullToRefresh';
 import { THEME_BOOT_SCRIPT } from '@/theme/themeBoot';
 import { pwaBootScript } from '@/components/library/tenant/pwaBoot';
 
@@ -67,7 +68,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				</Script>
 			</head>
 			<body>
-				<Providers>{children}</Providers>
+				<Providers>
+					{children}
+					<PullToRefresh />
+				</Providers>
 			</body>
 		</html>
 	);
