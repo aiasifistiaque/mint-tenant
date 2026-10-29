@@ -1,14 +1,15 @@
 'use client';
 
-import { FC, ReactNode, useState } from 'react';
-import { Box, Center, Drawer, Flex, Menu, Portal, Text } from '@chakra-ui/react';
+import { FC, ReactNode, useEffect, useState } from 'react';
+import { Box, Center, Drawer, Flex, IconButton, Input, Menu, Portal, Text } from '@chakra-ui/react';
 import Link from 'next/link';
-import { Check, ChevronsUpDown, FolderKanban, Globe, LayoutGrid, Plus, Building2 } from 'lucide-react';
+import { Check, ChevronsUpDown, FolderKanban, Globe, LayoutGrid, Pin, Plus, Building2, Search, X } from 'lucide-react';
 import CustomMenuItem, { MenuItemStyle } from '../menu/CustomMenuItem';
 import { MenuContainer } from '../menu';
 import { DrawerContentContainer } from '../components/table/table-components/pop-modals';
 import { useAppDispatch } from '../hooks';
 import { refreshAuth, useSwitchOrganizationMutation } from '../store';
+import { useGetProjectsQuery } from '../store/services/tenantApi';
 import { HOME, rememberProject } from '../config/lib/constants/panel';
 import { useOpenAnyProject, useWorkspace } from './useWorkspace';
 import type { ProjectRef } from '../store/services/tenantApi';
@@ -26,6 +27,12 @@ const WorkspaceSwitcher: FC = () => {
 	const [switchOrg] = useSwitchOrganizationMutation();
 	const { open } = useOpenAnyProject();
 	const [sheet, setSheet] = useState(false);
+	const [find, setFind] = useState('');
+	useEffect(() => {
+		if (!sheet) setFind('');
+	}, [sheet]);
+	// Pins are this account's, on the open organization's projects (the projects list carries them).
+	const { data: listed } = useGetProjectsQuery(undefined, { skip: !sheet });
 
 	if (!organization) return null;
 
@@ -45,6 +52,14 @@ const WorkspaceSwitcher: FC = () => {
 		{ _id: organization._id, name: organization.name, guest: organizations.find(o => o._id === organization._id)?.guest, projects },
 		...others.filter(o => o.projects?.length).map(o => ({ _id: o._id, name: o.name, guest: o.guest, projects: o.projects || [] })),
 	];
+
+	const needle = find.trim().toLowerCase();
+	const pinAt = new Map((listed?.doc || []).filter(p => p.pinnedAt).map(p => [p._id, p.pinnedAt as string]));
+	const byName = (p: ProjectRef) => !needle || p.name.toLowerCase().includes(needle);
+	const pinnedHere = (groups[0]?.projects || []).filter(p => pinAt.has(p._id) && byName(p)).sort((a, b) => String(pinAt.get(b._id)).localeCompare(String(pinAt.get(a._id))));
+	const pinnedIds = new Set(pinnedHere.map(p => p._id));
+	// Everything else, by the search; an organization with nothing left is dropped while searching.
+	const shown = groups.map(g => ({ ...g, list: g.projects.filter(p => !pinnedIds.has(p._id) && byName(p)) })).filter(g => !needle || g.list.length);
 
 	const row = (key: string, icon: ReactNode, label: ReactNode, onPick?: () => void, href?: string, on?: boolean) => {
 		const inner = (
@@ -77,34 +92,65 @@ const WorkspaceSwitcher: FC = () => {
 			onClick={() => setSheet(true)}>
 			{project ? project.type === 'website' ? <Globe size={13} /> : <LayoutGrid size={13} /> : <Building2 size={13} />}
 		</Flex>
-		<Drawer.Root lazyMount unmountOnExit open={sheet} onOpenChange={d => setSheet(d.open)} placement='bottom'>
+		<Drawer.Root lazyMount unmountOnExit open={sheet} onOpenChange={d => { setSheet(d.open); if (!d.open) setFind(''); }} placement='bottom'>
 			<Portal>
 				<Drawer.Backdrop />
 				<Drawer.Positioner>
 					<DrawerContentContainer>
-						<Drawer.Header px={4} pt={4} pb={3} gap={1} flexDir='column' alignItems='flex-start' border='none'>
+						<Drawer.Header px={4} pt={4} pb={3} gap={1} flexDir='column' alignItems='flex-start' borderBottomWidth='1px' borderColor='border.muted'>
 							<Drawer.Title fontWeight='600' fontSize='16px' letterSpacing='-0.01em' lineHeight='1.4' pr={8}>{project ? project.name : organization.name}</Drawer.Title>
 						</Drawer.Header>
 						<Drawer.Body px={2} pb='max(20px, env(safe-area-inset-bottom))' overflowY='auto'>
-							{groups.map(g => (
+							<Flex align='center' gap={2} mx={2} mt={1} mb={2} px={3} h='40px' borderWidth='1px' borderColor='border' borderRadius='md' color='fg.muted'>
+								<Search size={15} />
+								<Input
+									size='sm'
+									variant='flushed'
+									border='none'
+									h='full'
+									px={0}
+									color='fg'
+									css={{ '--focus-color': 'transparent' }}
+									aria-label='Search projects'
+									placeholder='Search projects'
+									value={find}
+									onChange={e => setFind(e.target.value)}
+								/>
+								{find && (
+									<IconButton aria-label='Clear' size='xs' variant='ghost' onClick={() => setFind('')}>
+										<X size={14} />
+									</IconButton>
+								)}
+							</Flex>
+							{!!pinnedHere.length && (
+								<Box>
+									<Text {...groupCss}>Pinned</Text>
+									{pinnedHere.map(p => row(`pin-${p._id}`, <Pin size={18} />, p.name, () => p._id !== project?._id && open(organization._id, p.publicSlug), undefined, p._id === project?._id))}
+								</Box>
+							)}
+							{shown.map(g => (
 								<Box key={g._id}>
 									<Text {...groupCss}>{g.name}{g.guest ? ' · Invited' : ''}</Text>
-									{g.projects.length ? (
-										g.projects.map(p =>
+									{g.list.length ? (
+										g.list.map(p =>
 											row(p._id, p.type === 'website' ? <Globe size={18} /> : <LayoutGrid size={18} />, p.name, () => p._id !== project?._id && open(g._id, p.publicSlug), undefined, p._id === project?._id),
 										)
 									) : (
-										<Text px={3} py={2} fontSize='13px' color='fg.muted'>No projects yet</Text>
+										<Text px={3} py={2} fontSize='13px' color='fg.muted'>{find ? 'No match' : 'No projects yet'}</Text>
 									)}
 								</Box>
 							))}
-							<Box borderTopWidth='1px' borderColor='border.muted' my={2} />
+							{!find && <Box borderTopWidth='1px' borderColor='border.muted' my={2} />}
 							{row('all', <FolderKanban size={18} />, 'All projects', undefined, '/projects')}
-							<Box borderTopWidth='1px' borderColor='border.muted' my={2} />
-							<Text {...groupCss}>Organization</Text>
-							{row(`org-${organization._id}`, <Building2 size={18} />, organization.name, undefined, undefined, true)}
-							{others.map(o => row(`org-${o._id}`, <Building2 size={18} />, o.name, () => toOrg(o._id)))}
-							{row('new-org', <Plus size={18} />, 'New organization', undefined, '/org/new')}
+							{!find && (
+								<>
+									<Box borderTopWidth='1px' borderColor='border.muted' my={2} />
+									<Text {...groupCss}>Organization</Text>
+									{row(`org-${organization._id}`, <Building2 size={18} />, organization.name, undefined, undefined, true)}
+									{others.map(o => row(`org-${o._id}`, <Building2 size={18} />, o.name, () => toOrg(o._id)))}
+									{row('new-org', <Plus size={18} />, 'New organization', undefined, '/org/new')}
+								</>
+							)}
 						</Drawer.Body>
 					</DrawerContentContainer>
 				</Drawer.Positioner>
