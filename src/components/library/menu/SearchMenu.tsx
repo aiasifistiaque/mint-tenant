@@ -72,6 +72,22 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 		setSearch('');
 	};
 
+	// A phone closes the search with a swipe to the left: mostly sideways, far enough to be meant.
+	const swipe = useRef<{ x: number; y: number } | null>(null);
+	const onTouchStart = (e: React.TouchEvent) => {
+		const t = e.touches[0];
+		swipe.current = { x: t.clientX, y: t.clientY };
+	};
+	const onTouchEnd = (e: React.TouchEvent) => {
+		const s = swipe.current;
+		swipe.current = null;
+		if (!s) return;
+		const t = e.changedTouches[0];
+		const dx = t.clientX - s.x;
+		const dy = t.clientY - s.y;
+		if (dx < -70 && Math.abs(dx) > Math.abs(dy) * 1.5) onClose();
+	};
+
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			// Command + K (Mac) or Alt + K
@@ -302,7 +318,9 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 							my={0}
 							maxH='none'
 							h={{ base: '100dvh', md: 'auto' }}
-							w='full'>
+							w='full'
+							onTouchStart={onTouchStart}
+							onTouchEnd={onTouchEnd}>
 							<Flex
 								align='center'
 								gap={2.5}
