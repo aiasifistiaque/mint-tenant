@@ -155,11 +155,11 @@ function WebsiteSetup() {
 
 	const body = () => {
 		if (isLoading || !project) return <Skeleton h='320px' />;
-		if (project.type !== 'website')
+		if (project.type !== 'website' && project.type !== 'ecommerce')
 			return (
 				<EmptyState
-					title='For website projects'
-					description='This page shows how a website connects to a website project. An app or API project connects through API → Overview.'
+					title='For website and store projects'
+					description='This page shows how a website connects to a website or store project. An app or API project connects through API → Overview.'
 				/>
 			);
 		if (!can('build'))

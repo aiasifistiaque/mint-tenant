@@ -20,7 +20,7 @@ const KIT_SEO = 'seo';
 const Table = ({ slug }: { slug: string }) => {
 	const params = useSearchParams();
 	const { project } = useWorkspace();
-	if (slug === KIT_CONTENTS && project?.type === 'website' && params.get('view') !== 'table') return <ContentsScreen />;
+	if (slug === KIT_CONTENTS && (project?.type === 'website' || project?.type === 'ecommerce') && params.get('view') !== 'table') return <ContentsScreen />;
 	// A website's SEO table has the site's SEO health above it (docs/seo SEO-03).
 	if (slug === KIT_SEO && project?.type === 'website')
 		return (
