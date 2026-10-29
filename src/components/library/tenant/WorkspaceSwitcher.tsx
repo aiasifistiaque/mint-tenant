@@ -1,7 +1,8 @@
 'use client';
 
-import { FC } from 'react';
-import { Box, Center, Flex, Menu, Text } from '@chakra-ui/react';
+import { FC, ReactNode, useState } from 'react';
+import { Box, Center, Drawer, Flex, Menu, Portal, Text } from '@chakra-ui/react';
+import Link from 'next/link';
 import { Check, ChevronsUpDown, FolderKanban, Globe, LayoutGrid, Plus, Building2 } from 'lucide-react';
 import CustomMenuItem, { MenuItemStyle } from '../menu/CustomMenuItem';
 import { MenuContainer } from '../menu';
@@ -23,6 +24,7 @@ const WorkspaceSwitcher: FC = () => {
 	const dispatch = useAppDispatch();
 	const [switchOrg] = useSwitchOrganizationMutation();
 	const { open } = useOpenAnyProject();
+	const [sheet, setSheet] = useState(false);
 
 	if (!organization) return null;
 
@@ -43,11 +45,75 @@ const WorkspaceSwitcher: FC = () => {
 		...others.filter(o => o.projects?.length).map(o => ({ _id: o._id, name: o.name, guest: o.guest, projects: o.projects || [] })),
 	];
 
+	const row = (key: string, icon: ReactNode, label: ReactNode, onPick?: () => void, href?: string, on?: boolean) => {
+		const inner = (
+			<Flex align='center' gap={3} px={3} h='46px' borderRadius='md' _active={{ bg: 'bg.muted' }}>
+				<Box color='fg.muted' flexShrink={0}>{icon}</Box>
+				<Text flex={1} minW={0} fontSize='15px' truncate>{label}</Text>
+				{on && <Check size={16} />}
+			</Flex>
+		);
+		return href ? (
+			<Link key={key} href={href} onClick={() => setSheet(false)}>{inner}</Link>
+		) : (
+			<Box key={key} as='button' w='full' textAlign='left' onClick={() => { setSheet(false); onPick?.(); }}>{inner}</Box>
+		);
+	};
+
 	return (
+		<>
+		<Flex
+			as='button'
+			display={{ base: 'flex', md: 'none' }}
+			aria-label='Switch project or organization'
+			align='center'
+			justify='center'
+			boxSize='32px'
+			borderRadius='full'
+			borderWidth='1px'
+			borderColor='border'
+			bg='bg.panel'
+			onClick={() => setSheet(true)}>
+			{project ? project.type === 'website' ? <Globe size={13} /> : <LayoutGrid size={13} /> : <Building2 size={13} />}
+		</Flex>
+		<Drawer.Root open={sheet} onOpenChange={d => setSheet(d.open)} placement='bottom'>
+			<Portal>
+				<Drawer.Backdrop />
+				<Drawer.Positioner>
+					<Drawer.Content borderTopRadius='xl' maxH='80vh'>
+						<Drawer.Header pb={1}>
+							<Drawer.Title fontSize='15px'>{project ? project.name : organization.name}</Drawer.Title>
+						</Drawer.Header>
+						<Drawer.Body px={2} pb={6}>
+							{groups.map(g => (
+								<Box key={g._id}>
+									<Text {...groupCss}>{g.name}{g.guest ? ' · Invited' : ''}</Text>
+									{g.projects.length ? (
+										g.projects.map(p =>
+											row(p._id, p.type === 'website' ? <Globe size={18} /> : <LayoutGrid size={18} />, p.name, () => p._id !== project?._id && open(g._id, p.publicSlug), undefined, p._id === project?._id),
+										)
+									) : (
+										<Text px={3} py={2} fontSize='13px' color='fg.muted'>No projects yet</Text>
+									)}
+								</Box>
+							))}
+							<Box borderTopWidth='1px' borderColor='border.muted' my={2} />
+							{row('all', <FolderKanban size={18} />, 'All projects', undefined, '/projects')}
+							<Box borderTopWidth='1px' borderColor='border.muted' my={2} />
+							<Text {...groupCss}>Organization</Text>
+							{row(`org-${organization._id}`, <Building2 size={18} />, organization.name, undefined, undefined, true)}
+							{others.map(o => row(`org-${o._id}`, <Building2 size={18} />, o.name, () => toOrg(o._id)))}
+							{row('new-org', <Plus size={18} />, 'New organization', undefined, '/org/new')}
+						</Drawer.Body>
+					</Drawer.Content>
+				</Drawer.Positioner>
+			</Portal>
+		</Drawer.Root>
 		<Menu.Root positioning={{ placement: 'bottom-end', gutter: 8 }}>
 			<Menu.Trigger asChild>
 				<Flex
 					as='button'
+					display={{ base: 'none', md: 'flex' }}
 					aria-label='Switch project or organization'
 					title={project ? project.name : organization.name}
 					align='center'
@@ -206,6 +272,7 @@ const WorkspaceSwitcher: FC = () => {
 				</MenuItemStyle>
 			</MenuContainer>
 		</Menu.Root>
+		</>
 	);
 };
 
