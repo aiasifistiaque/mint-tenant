@@ -13,7 +13,7 @@ import { OptionFilter, optionQuery } from '../functions/optionFilters';
  */
 
 /** `templates`: Template Studio's overview — the super admin panel only (docs/templates T-11). */
-export type WidgetType = 'stat' | 'chart' | 'recent' | 'templates';
+export type WidgetType = 'stat' | 'chart' | 'recent' | 'templates' | 'actions';
 export type WidgetSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 export type Metric = 'count' | 'sum' | 'avg';
 export type Range = 'all' | 'today' | '7d' | '30d' | '90d' | 'month' | '12m' | 'year';
@@ -41,6 +41,8 @@ export type Widget = {
 	interval?: Interval;
 	by?: string;
 	limit?: number;
+	// actions: buttons to the project's own pages
+	items?: { label: string; href: string; icon?: string }[];
 	// recent
 	columns?: string[];
 	sort?: string;
@@ -67,7 +69,7 @@ export const RANGE_LABEL: Record<Range, string> = {
 	all: 'All time',
 };
 
-export const TYPE_LABEL: Record<WidgetType, string> = { stat: 'Number', chart: 'Chart', recent: 'Recent items', templates: 'Templates overview' };
+export const TYPE_LABEL: Record<WidgetType, string> = { stat: 'Number', chart: 'Chart', recent: 'Recent items', templates: 'Templates overview', actions: 'Quick actions' };
 
 /** A donut's slices beyond these fold into "Other" — the palette's validated hues. */
 export const DONUT_MAX = 7;
@@ -149,6 +151,7 @@ export const bucketLabel = (key: string, interval: Interval = 'day', long = fals
 /** A readable title when none is set: "Projects · count, last 30 days". */
 export const defaultTitle = (w: Widget, modelLabel?: string) => {
 	if (w.type === 'templates') return 'Templates';
+	if (w.type === 'actions') return 'Quick actions';
 	const what = modelLabel || w.route || 'Pick a model';
 	if (w.type === 'recent') return `Latest ${what.toLowerCase()}`;
 	const metric = w.metric === 'sum' ? `Total ${w.field || ''}` : w.metric === 'avg' ? `Average ${w.field || ''}` : '';

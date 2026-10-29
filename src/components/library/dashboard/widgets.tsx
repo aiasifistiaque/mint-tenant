@@ -18,7 +18,8 @@ import {
 	statsParams,
 	withUnit,
 } from './types';
-import { pagePath } from '../config/lib/constants/panel';
+import { pagePath, projectHref } from '../config/lib/constants/panel';
+import { Icon } from '../icon';
 import { useGetTemplateStatsQuery } from '../store/services/templatesApi';
 import type { TemplateStatRow } from '../store/services/templatesApi';
 
@@ -46,7 +47,7 @@ type WidgetProps = { w: Widget; index: number; editing?: Editing; preview?: bool
 const titleOf = (w: Widget) => w.title?.trim() || defaultTitle(w, humanizeKey(w.route));
 
 /** A route's list page, when the widget has one to link to. */
-const pageHref = (w: Widget) => (w.route ? pagePath(w.route) : undefined);
+const pageHref = (w: Widget) => (w.route && w.type !== 'actions' ? pagePath(w.route) : undefined);
 
 const errorStatus = (error: any) => error?.status ?? error?.originalStatus;
 const errorText = (error: any) => error?.data?.message || 'Couldn’t load this widget';
@@ -508,8 +509,55 @@ const TemplatesWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => {
 	);
 };
 
+/** Quick actions: a button to each of the project's own pages. */
+const ActionsWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => (
+	<Frame
+		w={w}
+		index={index}
+		editing={editing}>
+		<Grid
+			templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }}
+			gap={2}>
+			{(w.items || []).map(a => (
+				<NextLink
+					key={a.href + a.label}
+					href={preview ? '#' : projectHref(a.href)}
+					onClick={e => preview && e.preventDefault()}>
+					<Flex
+						direction='column'
+						align='center'
+						justify='center'
+						gap={2}
+						h='88px'
+						px={2}
+						borderWidth='1px'
+						borderColor='border'
+						borderRadius='lg'
+						bg='bg.panel'
+						textAlign='center'
+						transition='background-color 120ms, border-color 120ms'
+						_hover={{ bg: 'bg.muted', borderColor: 'border.emphasized' }}>
+						<Icon
+							name={a.icon || 'arrow-right'}
+							size={20}
+						/>
+						<Text
+							fontSize='13px'
+							fontWeight='500'
+							lineClamp={1}>
+							{a.label}
+						</Text>
+					</Flex>
+				</NextLink>
+			))}
+		</Grid>
+	</Frame>
+);
+
 export const WidgetView: FC<WidgetProps> = props =>
-	props.w.type === 'templates' ? (
+	props.w.type === 'actions' ? (
+		<ActionsWidget {...props} />
+	) : props.w.type === 'templates' ? (
 		<TemplatesWidget {...props} />
 	) : props.w.type === 'stat' ? (
 		<StatWidget {...props} />
