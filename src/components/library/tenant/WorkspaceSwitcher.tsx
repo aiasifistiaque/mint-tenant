@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Check, ChevronsUpDown, FolderKanban, Globe, LayoutGrid, Plus, Building2 } from 'lucide-react';
 import CustomMenuItem, { MenuItemStyle } from '../menu/CustomMenuItem';
 import { MenuContainer } from '../menu';
+import { DrawerContentContainer } from '../components/table/table-components/pop-modals';
 import { useAppDispatch } from '../hooks';
 import { refreshAuth, useSwitchOrganizationMutation } from '../store';
 import { HOME, rememberProject } from '../config/lib/constants/panel';
@@ -76,15 +77,15 @@ const WorkspaceSwitcher: FC = () => {
 			onClick={() => setSheet(true)}>
 			{project ? project.type === 'website' ? <Globe size={13} /> : <LayoutGrid size={13} /> : <Building2 size={13} />}
 		</Flex>
-		<Drawer.Root open={sheet} onOpenChange={d => setSheet(d.open)} placement='bottom'>
+		<Drawer.Root lazyMount unmountOnExit open={sheet} onOpenChange={d => setSheet(d.open)} placement='bottom'>
 			<Portal>
 				<Drawer.Backdrop />
 				<Drawer.Positioner>
-					<Drawer.Content borderTopRadius='xl' maxH='80vh'>
-						<Drawer.Header pb={1}>
-							<Drawer.Title fontSize='15px'>{project ? project.name : organization.name}</Drawer.Title>
+					<DrawerContentContainer>
+						<Drawer.Header px={4} pt={4} pb={3} gap={1} flexDir='column' alignItems='flex-start' border='none'>
+							<Drawer.Title fontWeight='600' fontSize='16px' letterSpacing='-0.01em' lineHeight='1.4' pr={8}>{project ? project.name : organization.name}</Drawer.Title>
 						</Drawer.Header>
-						<Drawer.Body px={2} pb={6}>
+						<Drawer.Body px={2} pb='max(20px, env(safe-area-inset-bottom))' overflowY='auto'>
 							{groups.map(g => (
 								<Box key={g._id}>
 									<Text {...groupCss}>{g.name}{g.guest ? ' · Invited' : ''}</Text>
@@ -105,7 +106,7 @@ const WorkspaceSwitcher: FC = () => {
 							{others.map(o => row(`org-${o._id}`, <Building2 size={18} />, o.name, () => toOrg(o._id)))}
 							{row('new-org', <Plus size={18} />, 'New organization', undefined, '/org/new')}
 						</Drawer.Body>
-					</Drawer.Content>
+					</DrawerContentContainer>
 				</Drawer.Positioner>
 			</Portal>
 		</Drawer.Root>
