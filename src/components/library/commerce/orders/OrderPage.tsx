@@ -8,10 +8,11 @@ import { DetailRow, DetailSkeleton, EmptyState, ErrorState, PageHeader, Panel, d
 import { PromptDialog } from '../..';
 import { projectHref } from '../../config/lib/constants/panel';
 import { toaster } from '@/components/ui/toaster';
-import { useCancelStoreOrderMutation, useFulfilStoreOrderMutation, useGetPosSetupQuery, useGetStoreOrderQuery, usePayStoreOrderMutation } from '../../store/services/commerceApi';
+import { useCancelStoreOrderMutation, useReturnStoreOrderMutation, useFulfilStoreOrderMutation, useGetPosSetupQuery, useGetStoreOrderQuery, usePayStoreOrderMutation } from '../../store/services/commerceApi';
 import type { CommerceView, StoreOrderDetail, StorePaymentInput } from '../../store/services/commerceApi';
 import GuideLink from '../../tenant/GuideLink';
 import { PayDialog } from '../pos/pay';
+import { ReturnDialog } from './ReturnDialog';
 import { moneyFor, printReceipt, receiptHtml } from '../pos/receipt';
 import { CHANNEL, FULFIL_NEXT, FulfilmentBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, showValue, storeRoutes } from './common';
 
@@ -20,7 +21,7 @@ import { CHANNEL, FULFIL_NEXT, FulfilmentBadge, OrderStatusBadge, PaymentBadge, 
  * returned quantities, the totals, customer and delivery, payments and refunds,
  * returns, stock movements, the fields people added, and a timeline — with
  * the actions the order allows (take payment, fulfil, cancel, print).
- * Return items and refunds come with the returns engine (EC-08).
+ * Return items puts sellable stock back and refunds what was paid (EC-08).
  */
 
 const errText = (e: any) => e?.data?.message || e?.message || 'Something went wrong';
@@ -60,6 +61,8 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 	const [pay, paying] = usePayStoreOrderMutation();
 	const [fulfil, fulfilling] = useFulfilStoreOrderMutation();
 	const [cancel, cancelling] = useCancelStoreOrderMutation();
+	const [giveBack, givingBack] = useReturnStoreOrderMutation();
+	const [returnOpen, setReturnOpen] = useState(false);
 	const [payOpen, setPayOpen] = useState(false);
 	const [cancelOpen, setCancelOpen] = useState(false);
 	const [reason, setReason] = useState('');
@@ -107,6 +110,9 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 	const onPay = async (payments: StorePaymentInput[]) => {
 		if (await run(pay({ id, payments, routes }).unwrap(), 'Payment taken')) setPayOpen(false);
 	};
+	const onReturn = async (body: Parameters<typeof giveBack>[0] extends infer T ? Omit<Extract<T, object>, 'id' | 'routes'> : never) => {
+		if (await run(giveBack({ id, ...body, routes } as any).unwrap(), 'Items returned — stock and refund updated')) setReturnOpen(false);
+	};
 	const onCancel = async () => {
 		if (await run(cancel({ id, reason: reason.trim() || undefined, routes }).unwrap(), 'Order cancelled — stock and money went back')) setCancelOpen(false);
 	};
@@ -153,8 +159,8 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 							<Button
 								size='sm'
 								variant='outline'
-								disabled
-								title='Coming with the returns engine'>
+								disabled={!(o.items || []).some((it: any) => (Number(it.quantity) || 0) > (Number(it.returned) || 0))}
+								onClick={() => setReturnOpen(true)}>
 								<Undo2 size={15} /> Return items
 							</Button>
 						)}
@@ -604,6 +610,16 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 					onPay={onPay}
 				/>
 			)}
+			<ReturnDialog
+				open={returnOpen}
+				onClose={() => setReturnOpen(false)}
+				items={(o.items || []) as any}
+				currency={store.answers.store.currency}
+				paid={Math.max(0, (Number(o.paid) || 0) - (Number(o.refunded) || 0))}
+				methods={store.answers.returns.refundMethods?.length ? store.answers.returns.refundMethods : ['original', 'cash']}
+				busy={givingBack.isLoading}
+				onReturn={onReturn as any}
+			/>
 			<PromptDialog
 				open={cancelOpen}
 				onClose={() => setCancelOpen(false)}

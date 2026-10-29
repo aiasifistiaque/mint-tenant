@@ -373,6 +373,10 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: ({ id, routes, ...body }) => ({ url: `commerce/orders/${id}/cancel`, method: 'POST', body }),
 			invalidatesTags: (_r, _e, { routes }) => ['store-stock', 'store-orders', 'store-shift', ...routeTags(...routes)],
 		}),
+		returnStoreOrder: builder.mutation<any, { id: string; lines: { line: number; quantity: number; reason?: string; condition?: string; restock?: boolean }[]; refundMethod?: string; note?: string; routes: string[] }>({
+			query: ({ id, routes, ...body }) => ({ url: `commerce/orders/${id}/return`, method: 'POST', body }),
+			invalidatesTags: (_r, _e, { routes }) => ['store-stock', 'store-orders', 'store-returns', 'store-shift', ...routeTags(...routes)],
+		}),
 		/* ------------------------------------------------- returns (EC-09) */
 		getStoreReturns: builder.query<StoreList<StoreReturnRow, StoreReturnView>, { view?: StoreReturnView; q?: string; outlet?: string; page?: number; limit?: number }>({
 			query: params => ({ url: 'commerce/returns', params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '')) }),
@@ -439,6 +443,7 @@ export const {
 	usePayStoreOrderMutation,
 	useFulfilStoreOrderMutation,
 	useCancelStoreOrderMutation,
+	useReturnStoreOrderMutation,
 	useOpenStoreShiftMutation,
 	useGetStoreShiftQuery,
 	useStoreShiftCashMutation,
