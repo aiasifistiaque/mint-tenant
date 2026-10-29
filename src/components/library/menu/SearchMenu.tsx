@@ -365,6 +365,26 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 										flexShrink={0}
 									/>
 								)}
+								{search && (
+									<Box
+										as='button'
+										aria-label='Clear search'
+										display='flex'
+										alignItems='center'
+										justifyContent='center'
+										boxSize='24px'
+										borderRadius='full'
+										color='fg.muted'
+										flexShrink={0}
+										cursor='pointer'
+										_hover={{ bg: 'bg.muted' }}
+										onClick={() => {
+											setSearch('');
+											initialRef.current?.focus();
+										}}>
+										<X size={16} />
+									</Box>
+								)}
 								<Kbd
 									display={{ base: 'none', md: 'inline-flex' }}
 									size='sm'
