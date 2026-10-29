@@ -130,7 +130,9 @@ const ContentDialog: FC<{
 	onPage?: string[];
 	/** The types suggested first on an empty page and on the whole site. */
 	start?: { page: string[]; site: string[] };
-}> = ({ open, onClose, types, models, pages, page, content, drafts, onPage = [], start }) => {
+	/** Drawn as the page's own content, not in a window (a phone's "New content"). */
+	asPage?: boolean;
+}> = ({ open, onClose, types, models, pages, page, content, drafts, onPage = [], start, asPage }) => {
 	const [uid, setUid] = useState<string>('');
 	const [name, setName] = useState('');
 	const [slug, setSlug] = useState('');
@@ -209,20 +211,11 @@ const ContentDialog: FC<{
 		onClose();
 	};
 
-	return (
-		<Dialog
-			isOpen={open}
-			onClose={onClose}
-			size={type ? 'xl' : 'lg'}
-			forceModal>
-			<DialogHeader
-				divider
-				icon={<Icon size={17} strokeWidth={1.75} />}
-				description={type ? type.description : `What goes on ${pageName}? Pick what it is; the form then asks only for that.`}>
-				{content ? `Edit “${content.name}”` : type ? `New ${type.title.toLowerCase()}` : 'New content'}
-			</DialogHeader>
-			<DialogCloseButton />
-			<DialogBody>
+	const title = content ? `Edit “${content.name}”` : type ? `New ${type.title.toLowerCase()}` : 'New content';
+	const description = type ? type.description : `What goes on ${pageName}? Pick what it is; the form then asks only for that.`;
+	const saveLabel = content ? 'Save' : type ? `Add to ${pageName}` : 'Add';
+	const body = (
+		<>
 				{!type ? (
 					<Flex
 						direction='column'
@@ -387,6 +380,75 @@ const ContentDialog: FC<{
 						)}
 					</Flex>
 				)}
+		</>
+	);
+
+	if (asPage)
+		return (
+			<Flex
+				direction='column'
+				gap={4}>
+				<Flex
+					align='flex-start'
+					gap={3}>
+					<Box
+						as='button'
+						aria-label='Back'
+						mt={0.5}
+						onClick={onClose}>
+						<ArrowLeft size={20} />
+					</Box>
+					<Box minW={0}>
+						<Text
+							fontSize='18px'
+							fontWeight='600'>
+							{title}
+						</Text>
+						<Text
+							fontSize='13px'
+							color='fg.muted'>
+							{description}
+						</Text>
+					</Box>
+				</Flex>
+				{body}
+				<Flex
+					position='sticky'
+					bottom={0}
+					zIndex={2}
+					gap={2}
+					justify='flex-end'
+					py={3}
+					bg='bg.panel'
+					borderTopWidth='1px'
+					borderColor='border'>
+					<DiscardButton onClick={onClose}>Cancel</DiscardButton>
+					<Button
+						{...(styles.MODAL_BUTTON as any)}
+						disabled={!type}
+						loading={creating.isLoading || updating.isLoading}
+						onClick={save}>
+						{saveLabel}
+					</Button>
+				</Flex>
+			</Flex>
+		);
+
+	return (
+		<Dialog
+			isOpen={open}
+			onClose={onClose}
+			size={type ? 'xl' : 'lg'}
+			forceModal>
+			<DialogHeader
+				divider
+				icon={<Icon size={17} strokeWidth={1.75} />}
+				description={description}>
+				{title}
+			</DialogHeader>
+			<DialogCloseButton />
+			<DialogBody>
+				{body}
 			</DialogBody>
 			<DialogFooter>
 				<Box mr='auto'>
@@ -398,7 +460,7 @@ const ContentDialog: FC<{
 					disabled={!type}
 					loading={creating.isLoading || updating.isLoading}
 					onClick={save}>
-					{content ? 'Save' : type ? `Add to ${pageName}` : 'Add'}
+					{saveLabel}
 				</Button>
 			</DialogFooter>
 		</Dialog>

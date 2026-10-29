@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp, ExternalLink, Pencil, Plus, Send, Table2, Trash2 } 
 import {
 	Layout,
 	PromptDialog,
+	useIsMobile,
 	useGetSiteContentsQuery,
 	useGetSiteContentTypesQuery,
 	useOrderSiteContentsMutation,
@@ -241,6 +242,9 @@ const ContentsScreen: FC = () => {
 	const [publishingId, setPublishingId] = useState<string | null>(null);
 	const [editing, setEditing] = useState<SiteContent | null>(null);
 	const [adding, setAdding] = useState(false);
+	const isMobile = useIsMobile();
+	// A phone adds on a page of its own; a bigger screen in the window.
+	const startAdding = () => (isMobile ? router.push(projectHref(`/t/web-contents/new?page=${page}`)) : setAdding(true));
 	const [removingOne, setRemovingOne] = useState<SiteContent | null>(null);
 	const [local, setLocal] = useState<SiteContent[] | null>(null);
 
@@ -319,7 +323,7 @@ const ContentsScreen: FC = () => {
 								<Button
 									size='sm'
 									disabled={!typesData}
-									onClick={() => setAdding(true)}>
+									onClick={startAdding}>
 									<Plus size={14} />
 									New content
 								</Button>
@@ -408,7 +412,7 @@ const ContentsScreen: FC = () => {
 												<Button
 													size='sm'
 													disabled={!typesData}
-													onClick={() => setAdding(true)}>
+													onClick={startAdding}>
 													<Plus size={14} />
 													New content
 												</Button>
