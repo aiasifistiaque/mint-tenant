@@ -692,7 +692,52 @@ const ProjectsBoard: FC<{ welcome?: boolean }> = ({ welcome }) => {
 							wrap='wrap'
 							mb={3}>
 							{all.length > 1 && (
+								<Flex
+									display={{ base: 'flex', md: 'none' }}
+									w='full'
+									gap={2}
+									overflowX='auto'
+									pb={1}
+									css={{ scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+									{[
+										{ value: 'all', title: 'All', icon: <Boxes size={20} />, n: all.length },
+										...TYPES.map(t => ({ value: t.value as string, title: t.title, icon: t.icon, n: all.filter(p => p.type === t.value).length })),
+									]
+										.filter(c => c.value === 'all' || c.n > 0 || c.value === kind)
+										.map(c => {
+											const on = kind === c.value;
+											return (
+												<Flex
+													key={c.value}
+													as='button'
+													flexShrink={0}
+													direction='column'
+													align='center'
+													justify='space-between'
+													gap={2}
+													w='76px'
+													h='76px'
+													px={1}
+													py={2.5}
+													borderWidth='1px'
+													borderColor={on ? 'fg' : 'border'}
+													bg={on ? 'bg.muted' : 'transparent'}
+													borderRadius='lg'
+													color={on ? 'fg' : 'fg.muted'}
+													aria-pressed={on}
+													onClick={() => setKind(c.value as any)}>
+													{c.icon}
+													<Text fontSize='11px' lineHeight='1.2' textAlign='center' lineClamp={1}>
+														{c.title} ({c.n})
+													</Text>
+												</Flex>
+											);
+										})}
+								</Flex>
+							)}
+							{all.length > 1 && (
 								<SegmentGroup.Root
+									display={{ base: 'none', md: 'inline-flex' }}
 									size='sm'
 									value={kind}
 									onValueChange={d => setKind((d.value as any) || 'all')}
