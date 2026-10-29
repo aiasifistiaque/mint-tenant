@@ -12,6 +12,7 @@ import { useCustomToast, useFormData } from '../hooks';
 import { useGetConfigQuery, useGetRouteQuery, usePostMutation } from '../store';
 import { EmptyState, PageHeader } from '../cl';
 import { HOME, pagePath } from '../config/lib/constants/panel';
+import { recalledTable } from './tableOrigin';
 import { singularOf } from '../modals/CreateModal/CreateModal';
 import { GuidelinesDialog, GuidelinesLink } from '../components/guidelines/Guidelines';
 
@@ -54,7 +55,7 @@ const CreateForm: FC<{ route: string; fields: any[]; table: any }> = ({ route, f
 	});
 
 	useEffect(() => {
-		if (isSuccess) router.replace(back);
+		if (isSuccess) router.replace(recalledTable(route) || back);
 	}, [isSuccess]);
 
 	const onSubmit = (e: FormEvent<HTMLFormElement>) => {

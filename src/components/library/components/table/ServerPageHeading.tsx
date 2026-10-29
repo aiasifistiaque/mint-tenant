@@ -17,6 +17,7 @@ import { Icon } from '../../icon';
 import { useIsMobile } from '../../hooks';
 import { radius, sizes } from '../../config';
 import { HOME, addButtonHref, createPath, multiplePath, pagePath } from '../../config/lib/constants/panel';
+import { rememberTable } from '../../pages/tableOrigin';
 
 type PageHeadingProps = FlexProps & {
 	title: string;
@@ -132,7 +133,14 @@ const ServerPageHeading: React.FC<PageHeadingProps> = ({
 
 	const renderButton = () => {
 		// On a phone, "add" opens the record's own page instead of a modal; editing stays as it is.
-		if (isModal && isMobile) return <Link href={createPath(path)}>{btn}</Link>;
+		if (isModal && isMobile)
+			return (
+				<Link
+					href={createPath(path)}
+					onClick={() => rememberTable(path)}>
+					{btn}
+				</Link>
+			);
 		if (isModal)
 			return (
 				<BackendCreateModal
