@@ -499,10 +499,37 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 						<Panel title='Delivery'>
 							<Box fontSize='14px'>
 								{o.delivery?.name && <Text fontWeight='600'>{o.delivery.name}</Text>}
-								{o.delivery?.phone && <Text color='fg.muted'>{o.delivery.phone}</Text>}
-								{address && <Text whiteSpace='pre-line'>{address}</Text>}
-								{o.delivery?.area && <Text color='fg.muted'>{o.delivery.area}</Text>}
-								{o.delivery?.rate && <Text mt={2}>Shipping: {o.delivery.rate}</Text>}
+								{o.delivery?.phone && (
+									<Text color='fg.muted'>
+										<a href={`tel:${o.delivery.phone}`}>{o.delivery.phone}</a>
+									</Text>
+								)}
+								{(o.delivery?.email || o.email) && (
+									<Text color='fg.muted'>
+										<a href={`mailto:${o.delivery?.email || o.email}`}>{o.delivery?.email || o.email}</a>
+									</Text>
+								)}
+								{address && (
+									<Text
+										mt={2}
+										whiteSpace='pre-line'>
+										{address}
+									</Text>
+								)}
+								{o.delivery?.landmark && <Text color='fg.muted'>Near {o.delivery.landmark}</Text>}
+								{[o.delivery?.area, o.delivery?.city].filter(Boolean).length > 0 && <Text color='fg.muted'>{[o.delivery?.area, o.delivery?.city].filter(Boolean).join(', ')}</Text>}
+								{o.slot && <Text mt={2}>Deliver: {o.slot}</Text>}
+								{o.delivery?.rate && <Text mt={o.slot ? 0 : 2}>Shipping: {o.delivery.rate}</Text>}
+								{address && (
+									<Text mt={2}>
+										<a
+											href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([address, o.delivery?.area, o.delivery?.city].filter(Boolean).join(', '))}`}
+											target='_blank'
+											rel='noreferrer'>
+											Open in Maps ↗
+										</a>
+									</Text>
+								)}
 							</Box>
 						</Panel>
 					)}
@@ -526,7 +553,7 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 
 					<Panel title='Details'>
 						<DetailRow
-							label='Channel'
+							label='Origin'
 							value={CHANNEL[o.channel] || o.channel}
 						/>
 						<DetailRow

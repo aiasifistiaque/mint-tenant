@@ -189,7 +189,10 @@ export type StoreOrder = {
 	paymentStatus: string;
 	fulfilment: string;
 	returnedItems?: number;
-	delivery?: { name?: string; phone?: string; address?: string; area?: string; rate?: string };
+	delivery?: { name?: string; phone?: string; address?: string; area?: string; city?: string; landmark?: string; email?: string; rate?: string };
+	email?: string;
+	slot?: string;
+	paymentMethod?: string;
 	courier?: Record<string, any>;
 	/** On held sales: the customer's name and credit. */
 	customerInfo?: { _id: string; name: string; storeCredit?: number };
@@ -228,14 +231,14 @@ export type StoreOrderDetail = {
 
 /* ------------------------------------------- Orders and Returns pages (EC-09) */
 
-export type StoreOrderView = 'all' | 'today' | 'unpaid' | 'to-ship' | 'returns' | 'cancelled';
+export type StoreOrderView = 'all' | 'today' | 'unpaid' | 'to-ship' | 'returns' | 'cancelled' | 'new' | 'confirmed' | 'out' | 'delivered';
 export type StoreOrderRow = StoreOrder & {
 	customerInfo: { _id: string; name: string; phone?: string } | null;
 	outletInfo: { _id: string; name: string; outletCode?: string } | null;
 	itemCount: number;
 };
 export type StoreList<T, V extends string> = { doc: T[]; total: number; page: number; limit: number; views: Record<V, number> };
-export type StoreOrderQuery = { view?: StoreOrderView; q?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
+export type StoreOrderQuery = { view?: StoreOrderView; q?: string; scope?: 'pos' | 'website'; area?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
 /** A field people added to a store model, with the record's value (the "More details" card). */
 export type StoreExtraField = { key: string; label: string; kind: string; value: any };
 

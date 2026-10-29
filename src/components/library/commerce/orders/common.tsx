@@ -12,7 +12,7 @@ import type { CommerceView } from '../../store/services/commerceApi';
 const words = (s: string) => (s ? `${s[0].toUpperCase()}${s.slice(1)}`.replace(/-/g, ' ') : '');
 
 const PAYMENT: Record<string, string> = { unpaid: 'red', partial: 'orange', paid: 'green', 'partially-refunded': 'purple', refunded: 'gray' };
-const FULFILMENT: Record<string, string> = { unfulfilled: 'orange', fulfilled: 'blue', shipped: 'purple', delivered: 'green', returned: 'gray', cancelled: 'red' };
+const FULFILMENT: Record<string, string> = { unfulfilled: 'orange', confirmed: 'cyan', fulfilled: 'blue', shipped: 'purple', delivered: 'green', returned: 'gray', cancelled: 'red' };
 const STATUS: Record<string, string> = { open: 'blue', completed: 'green', cancelled: 'red', held: 'gray' };
 const RETURN: Record<string, string> = { requested: 'orange', approved: 'blue', received: 'purple', refunded: 'green', rejected: 'red', closed: 'gray' };
 
@@ -29,17 +29,23 @@ const make =
 		) : null;
 
 export const PaymentBadge = make(PAYMENT, { 'partially-refunded': 'Part refunded', partial: 'Part paid' });
-export const FulfilmentBadge = make(FULFILMENT);
+export const FulfilmentBadge = make(FULFILMENT, { unfulfilled: 'New' });
 export const OrderStatusBadge = make(STATUS);
 export const ReturnBadge = make(RETURN);
 
-export const CHANNEL: Record<string, string> = { pos: 'POS', manual: 'Phone / by hand' };
+export const CHANNEL: Record<string, string> = { pos: 'POS', manual: 'Phone / by hand', website: 'Website' };
 
 /** The next fulfilment steps an order can take, as the store allows them. */
 export const FULFIL_NEXT: Record<string, { to: string; label: string }[]> = {
 	unfulfilled: [
+		{ to: 'confirmed', label: 'Confirm order' },
 		{ to: 'fulfilled', label: 'Mark packed' },
 		{ to: 'shipped', label: 'Mark shipped' },
+		{ to: 'delivered', label: 'Mark delivered' },
+	],
+	confirmed: [
+		{ to: 'fulfilled', label: 'Mark packed' },
+		{ to: 'shipped', label: 'Out for delivery' },
 		{ to: 'delivered', label: 'Mark delivered' },
 	],
 	fulfilled: [
