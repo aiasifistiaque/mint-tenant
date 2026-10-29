@@ -173,7 +173,7 @@ const CustomerDialog: FC<{ open: boolean; onClose: () => void; route: string; on
 							<Field.Label fontSize='13px'>Name</Field.Label>
 							<Input
 								size='sm'
-								autoFocus={!isMobile}
+								autoFocus
 								value={name}
 								onChange={e => setName(e.target.value)}
 							/>
@@ -990,7 +990,7 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 							size='md'
 							border='none'
 							px={0}
-							autoFocus
+							autoFocus={!isMobile}
 							_focusVisible={{ outline: 'none' }}
 							value={q}
 							placeholder='Scan a barcode, or find by name or SKU'
