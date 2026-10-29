@@ -80,17 +80,20 @@ const modalItemCss: any = {
 	bg: 'transparent',
 };
 
+// A card from md up; on a phone the sections are flat, a hairline between them, so the fields get the width.
 const pageItemCss: any = {
-	borderWidth: '1px',
-	borderColor: 'border',
-	borderRadius: 'lg',
-	bg: 'bg.panel',
-	_dark: { bg: 'background.dark' },
+	borderWidth: { base: 0, md: '1px' },
+	borderTopWidth: '1px',
+	borderColor: { base: 'border.muted', md: 'border' },
+	borderRadius: { base: 0, md: 'lg' },
+	bg: { base: 'transparent', md: 'bg.panel' },
+	_dark: { bg: { base: 'transparent', md: 'background.dark' } },
+	_first: { borderTopWidth: { base: 0, md: '1px' } },
 	overflow: 'hidden',
 };
 
 const modalTriggerCss: any = { px: 0, py: 4, gap: 3 };
-const pageTriggerCss: any = { px: 5, py: 4, gap: 3 };
+const pageTriggerCss: any = { px: { base: 0, md: 5 }, py: 4, gap: 3 };
 
 // One column on a phone; two from md, where a field can span both (item.span).
 const gridBase: GridProps = {
@@ -100,6 +103,6 @@ const gridBase: GridProps = {
 	w: 'full',
 };
 const modalGridCss: GridProps = { ...gridBase, pb: 5 };
-const pageGridCss: GridProps = { ...gridBase, px: 5, pb: 5 };
+const pageGridCss: GridProps = { ...gridBase, px: { base: 0, md: 5 }, pb: 5 };
 
 export default FormDivisionAccordion;
