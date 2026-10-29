@@ -19,7 +19,7 @@ import {
 	withUnit,
 } from './types';
 import { pagePath, projectHref } from '../config/lib/constants/panel';
-import { Icon } from '../icon';
+import { LucideIcon } from '../icon';
 import { useGetTemplateStatsQuery } from '../store/services/templatesApi';
 import type { TemplateStatRow } from '../store/services/templatesApi';
 
@@ -58,8 +58,10 @@ const Frame: FC<{
 	index: number;
 	editing?: Editing;
 	subtitle?: ReactNode;
+	/** No outline, fill or padding on a phone — the content brings its own. */
+	flatOnPhone?: boolean;
 	children: ReactNode;
-}> = ({ w, index, editing, subtitle, children }) => {
+}> = ({ w, index, editing, subtitle, flatOnPhone, children }) => {
 	const span = SIZE_SPAN[w.size] || 6;
 	const href = pageHref(w);
 	const dragging = editing?.dragIndex === index;
@@ -72,9 +74,9 @@ const Frame: FC<{
 				direction='column'
 				h='full'
 				gap={3}
-				p={4}
-				bg='bg.panel'
-				borderWidth='1px'
+				p={flatOnPhone ? { base: 0, md: 4 } : 4}
+				bg={flatOnPhone ? { base: 'transparent', md: 'bg.panel' } : 'bg.panel'}
+				borderWidth={flatOnPhone ? { base: 0, md: '1px' } : '1px'}
 				borderStyle={target ? 'dashed' : 'solid'}
 				borderColor={target ? 'fg' : 'border'}
 				borderRadius={radius.CONTAINER}
@@ -514,7 +516,8 @@ const ActionsWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => (
 	<Frame
 		w={w}
 		index={index}
-		editing={editing}>
+		editing={editing}
+		flatOnPhone>
 		<Grid
 			templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', xl: 'repeat(6, minmax(0, 1fr))' }}
 			gap={2}>
@@ -537,7 +540,7 @@ const ActionsWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => (
 						textAlign='center'
 						transition='background-color 120ms, border-color 120ms'
 						_hover={{ bg: 'bg.muted', borderColor: 'border.emphasized' }}>
-						<Icon
+						<LucideIcon
 							name={a.icon || 'arrow-right'}
 							size={20}
 						/>
