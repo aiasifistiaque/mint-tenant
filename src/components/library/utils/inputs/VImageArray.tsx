@@ -8,7 +8,7 @@ import {
 	GridProps,
 	FlexProps,
 	ImageProps,
-	Wrap,
+	Grid,
 	Box,
 } from '@chakra-ui/react';
 
@@ -101,7 +101,9 @@ const VImageArray: FC<FormDataType> = ({
 		<FormControl isRequired={isRequired}>
 			<Stack w='full'>
 				<Label>{label}</Label>
-				<Wrap gap={2}>
+				<Grid
+					gap={2}
+					templateColumns={{ base: 'repeat(2, minmax(0, 1fr))', md: 'repeat(auto-fill, 200px)' }}>
 					{value?.map((image: string, i: number) => (
 						<Box
 							key={i}
@@ -172,7 +174,7 @@ const VImageArray: FC<FormDataType> = ({
 							/>
 						</Center>
 					)}
-				</Wrap>
+				</Grid>
 
 				{helper && <HelperText>{helper}</HelperText>}
 			</Stack>
@@ -181,8 +183,10 @@ const VImageArray: FC<FormDataType> = ({
 };
 
 const containerCSS: any = {
-	h: '200px',
-	w: '200px',
+	// Phones: two square tiles a row; larger screens: fixed 200px tiles.
+	h: { base: 'auto', md: '200px' },
+	w: { base: 'full', md: '200px' },
+	aspectRatio: { base: '1 / 1', md: 'auto' },
 	bg: 'transparent',
 	position: 'relative',
 };
