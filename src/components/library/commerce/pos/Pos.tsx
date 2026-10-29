@@ -1,8 +1,10 @@
 'use client';
 
 import { FC, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Box, Button, Center, Field, Flex, Grid, IconButton, Image, Input, SegmentGroup, Skeleton, Spinner, Text } from '@chakra-ui/react';
-import { Clock, Minus, Pause, Percent, Plus, Printer, ScanBarcode, Tag, Trash2, User, X } from 'lucide-react';
+import { Badge, Box, Button, Center, Drawer, Field, Flex, Grid, IconButton, Image, Input, Portal, SegmentGroup, Skeleton, Spinner, Text } from '@chakra-ui/react';
+import { Clock, Minus, Pause, Percent, Plus, Printer, ScanBarcode, ShoppingBag, Tag, Trash2, User, X } from 'lucide-react';
+import { useIsMobile } from '../../hooks';
+import { DrawerContentContainer } from '../../components/table/table-components/pop-modals';
 import { Dialog, DialogBody, DialogCloseButton, DialogFooter, DialogHeader, DiscardButton } from '../..';
 import { styles } from '../../config';
 import { getProjectSlug } from '../../config/lib/constants/panel';
@@ -171,7 +173,7 @@ const CustomerDialog: FC<{ open: boolean; onClose: () => void; route: string; on
 							<Field.Label fontSize='13px'>Name</Field.Label>
 							<Input
 								size='sm'
-								autoFocus
+								autoFocus={!isMobile}
 								value={name}
 								onChange={e => setName(e.target.value)}
 							/>
@@ -591,7 +593,7 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 		setCouponInput('');
 		setOrderDiscount(null);
 		setHeldId(null);
-		scan.current?.focus();
+		if (window.innerWidth >= 800) scan.current?.focus();
 	};
 
 	// Enter in the search box: a barcode or SKU adds its item; one match adds it.
@@ -643,194 +645,20 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 		setHeldId(o._id);
 	};
 
+	const isMobile = useIsMobile();
+	const [basketOpen, setBasketOpen] = useState(false);
+	const count = lines.reduce((n, l) => n + l.quantity, 0);
 	const discountLine = discountFor && discountFor !== 'order' ? lines.find(l => l.variant === discountFor) : null;
 	const products = cat?.doc || [];
 	const heldCount = held?.docs?.length || 0;
 
-	return (
-		<Flex
-			direction='column'
-			flex={1}
-			minH={0}>
-			{/* The register's bar */}
-			<Flex
-				px={4}
-				py={2}
-				gap={2}
-				align='center'
-				wrap='wrap'
-				borderBottomWidth='1px'
-				borderColor='border'>
-				{picker}
-				{setup.shift && (
-					<Button
-						size='sm'
-						variant='ghost'
-						onClick={() => setDialog('shift')}>
-						<Clock size={14} /> Shift since {new Date(setup.shift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-					</Button>
-				)}
-				<Box flex={1} />
-				<GuideLink section='store-selling' />
-				{has('held') && (
-					<Button
-						size='sm'
-						variant='outline'
-						onClick={() => setDialog('held')}>
-						Held sales{heldCount ? ` (${heldCount})` : ''}
-					</Button>
-				)}
-			</Flex>
-
-			<Flex
-				flex={1}
-				minH={0}
-				direction={{ base: 'column', lg: 'row' }}
-				overflowY={{ base: 'auto', lg: 'hidden' }}>
-				{/* Items */}
-				<Flex
-					direction='column'
-					flex={1}
-					minW={0}
-					minH={{ base: '420px', lg: 0 }}
-					p={4}
-					gap={3}>
-					<Flex
-						align='center'
-						gap={2}
-						borderWidth='1px'
-						borderColor='border'
-						borderRadius='md'
-						px={2.5}
-						bg='bg.panel'>
-						<ScanBarcode size={16} />
-						<Input
-							ref={scan}
-							size='md'
-							border='none'
-							px={0}
-							autoFocus
-							_focusVisible={{ outline: 'none' }}
-							value={q}
-							placeholder='Scan a barcode, or find by name or SKU'
-							onChange={e => setQ(e.target.value)}
-							onKeyDown={onScan}
-						/>
-						{q && (
-							<IconButton
-								aria-label='Clear search'
-								size='xs'
-								variant='ghost'
-								onClick={() => setQ('')}>
-								<X size={14} />
-							</IconButton>
-						)}
-					</Flex>
-					{!!cats?.doc?.length && (
-						<Flex
-							gap={1.5}
-							wrap='wrap'>
-							{[{ _id: '', name: 'All' }, ...cats.doc].map((c: any) => (
-								<Button
-									key={c._id}
-									size='xs'
-									variant={category === c._id ? 'solid' : 'outline'}
-									onClick={() => setCategory(c._id)}>
-									{c.name}
-								</Button>
-							))}
-						</Flex>
-					)}
-					<Box
-						flex={1}
-						minH={0}
-						overflowY='auto'>
-						{isFetching && !products.length ? (
-							<Skeleton h='200px' />
-						) : !products.length ? (
-							<Text {...help}>{search ? `Nothing matches “${search}”.` : 'No products for sale yet — add them on the Products page.'}</Text>
-						) : (
-							<Grid
-								templateColumns='repeat(auto-fill, minmax(150px, 1fr))'
-								gap={2.5}>
-								{products.map(p => {
-									const live = p.variants.filter(v => v.active);
-									const prices = live.map(v => v.price);
-									const low = Math.min(...prices);
-									const one = live.length === 1 ? live[0] : null;
-									const stock = live.reduce((s, v) => s + (v.onHand || 0), 0);
-									return (
-										<Flex
-											key={p._id}
-											asChild
-											direction='column'
-											align='stretch'
-											textAlign='left'
-											borderWidth='1px'
-											borderColor='border'
-											borderRadius='lg'
-											overflow='hidden'
-											bg='bg.panel'
-											opacity={live.length ? 1 : 0.5}
-											_hover={{ borderColor: 'fg.muted' }}>
-											<button
-												type='button'
-												disabled={!live.length}
-												onClick={() => pickProduct(p)}>
-												{p.image ? (
-													<Image
-														src={p.image}
-														alt=''
-														h='90px'
-														w='full'
-														objectFit='cover'
-													/>
-												) : (
-													<Center
-														h='60px'
-														bg='bg.muted'
-														fontSize='20px'
-														fontWeight='700'
-														color='fg.muted'>
-														{p.name.slice(0, 2).toUpperCase()}
-													</Center>
-												)}
-												<Box p={2.5}>
-													<Text
-														fontSize='13px'
-														fontWeight='600'
-														lineClamp={2}>
-														{p.name}
-													</Text>
-													<Text fontSize='13px'>
-														{live.length > 1 && prices.some(x => x !== low) ? 'from ' : ''}
-														{m(low)}
-													</Text>
-													{p.trackStock && (
-														<Text
-															{...help}
-															mt={0.5}
-															color={stock > 0 ? 'fg.muted' : 'red.fg'}>
-															{stock > 0 ? `${stock} here` : 'None here'}
-															{!one && live.length > 1 ? ` · ${live.length} options` : ''}
-														</Text>
-													)}
-												</Box>
-											</button>
-										</Flex>
-									);
-								})}
-							</Grid>
-						)}
-					</Box>
-				</Flex>
-
-				{/* The basket */}
+	const basketPane = (
 				<Flex
 					direction='column'
 					w={{ base: 'full', lg: '400px' }}
+					flex={{ base: 1, lg: 'none' }}
 					flexShrink={0}
-					minH={{ base: '480px', lg: 0 }}
+					minH={0}
 					borderLeftWidth={{ base: 0, lg: '1px' }}
 					borderTopWidth={{ base: '1px', lg: 0 }}
 					borderColor='border'
@@ -1089,13 +917,248 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 								size='lg'
 								flex={1}
 								disabled={!canPay || (setup.pos.customerRequired && !customer)}
-								onClick={() => setDialog('pay')}>
+								onClick={() => {
+									setBasketOpen(false);
+									setDialog('pay');
+								}}>
 								Pay {m(quote?.total ?? 0)}
 							</Button>
 						</Flex>
 					</Box>
 				</Flex>
+	);
+
+	return (
+		<Flex
+			direction='column'
+			flex={1}
+			minH={0}>
+			{/* The register's bar */}
+			<Flex
+				px={4}
+				py={2}
+				gap={2}
+				align='center'
+				wrap='wrap'
+				borderBottomWidth='1px'
+				borderColor='border'>
+				{picker}
+				{setup.shift && (
+					<Button
+						size='sm'
+						variant='ghost'
+						onClick={() => setDialog('shift')}>
+						<Clock size={14} /> Shift since {new Date(setup.shift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+					</Button>
+				)}
+				<Box flex={1} />
+				<GuideLink section='store-selling' />
+				{has('held') && (
+					<Button
+						size='sm'
+						variant='outline'
+						onClick={() => setDialog('held')}>
+						Held sales{heldCount ? ` (${heldCount})` : ''}
+					</Button>
+				)}
 			</Flex>
+
+			<Flex
+				flex={1}
+				minH={0}
+				direction={{ base: 'column', lg: 'row' }}
+				overflowY='hidden'>
+				{/* Items */}
+				<Flex
+					direction='column'
+					flex={1}
+					minW={0}
+					minH={0}
+					p={{ base: 3, lg: 4 }}
+					gap={3}>
+					<Flex
+						align='center'
+						gap={2}
+						borderWidth='1px'
+						borderColor='border'
+						borderRadius='md'
+						px={2.5}
+						bg='bg.panel'>
+						<ScanBarcode size={16} />
+						<Input
+							ref={scan}
+							size='md'
+							border='none'
+							px={0}
+							autoFocus
+							_focusVisible={{ outline: 'none' }}
+							value={q}
+							placeholder='Scan a barcode, or find by name or SKU'
+							onChange={e => setQ(e.target.value)}
+							onKeyDown={onScan}
+						/>
+						{q && (
+							<IconButton
+								aria-label='Clear search'
+								size='xs'
+								variant='ghost'
+								onClick={() => setQ('')}>
+								<X size={14} />
+							</IconButton>
+						)}
+					</Flex>
+					{!!cats?.doc?.length && (
+						<Flex
+							gap={1.5}
+							wrap={{ base: 'nowrap', lg: 'wrap' }}
+							overflowX={{ base: 'auto', lg: 'visible' }}
+							flexShrink={0}
+							css={{ scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+							{[{ _id: '', name: 'All' }, ...cats.doc].map((c: any) => (
+								<Button
+									key={c._id}
+									size='xs'
+									flexShrink={0}
+									variant={category === c._id ? 'solid' : 'outline'}
+									onClick={() => setCategory(c._id)}>
+									{c.name}
+								</Button>
+							))}
+						</Flex>
+					)}
+					<Box
+						flex={1}
+						minH={0}
+						overflowY='auto'>
+						{isFetching && !products.length ? (
+							<Skeleton h='200px' />
+						) : !products.length ? (
+							<Text {...help}>{search ? `Nothing matches “${search}”.` : 'No products for sale yet — add them on the Products page.'}</Text>
+						) : (
+							<Grid
+								templateColumns='repeat(auto-fill, minmax(150px, 1fr))'
+								gap={2.5}>
+								{products.map(p => {
+									const live = p.variants.filter(v => v.active);
+									const prices = live.map(v => v.price);
+									const low = Math.min(...prices);
+									const one = live.length === 1 ? live[0] : null;
+									const stock = live.reduce((s, v) => s + (v.onHand || 0), 0);
+									return (
+										<Flex
+											key={p._id}
+											asChild
+											direction='column'
+											align='stretch'
+											textAlign='left'
+											borderWidth='1px'
+											borderColor='border'
+											borderRadius='lg'
+											overflow='hidden'
+											bg='bg.panel'
+											opacity={live.length ? 1 : 0.5}
+											_hover={{ borderColor: 'fg.muted' }}>
+											<button
+												type='button'
+												disabled={!live.length}
+												onClick={() => pickProduct(p)}>
+												{p.image ? (
+													<Image
+														src={p.image}
+														alt=''
+														h='90px'
+														w='full'
+														objectFit='cover'
+													/>
+												) : (
+													<Center
+														h='60px'
+														bg='bg.muted'
+														fontSize='20px'
+														fontWeight='700'
+														color='fg.muted'>
+														{p.name.slice(0, 2).toUpperCase()}
+													</Center>
+												)}
+												<Box p={2.5}>
+													<Text
+														fontSize='13px'
+														fontWeight='600'
+														lineClamp={2}>
+														{p.name}
+													</Text>
+													<Text fontSize='13px'>
+														{live.length > 1 && prices.some(x => x !== low) ? 'from ' : ''}
+														{m(low)}
+													</Text>
+													{p.trackStock && (
+														<Text
+															{...help}
+															mt={0.5}
+															color={stock > 0 ? 'fg.muted' : 'red.fg'}>
+															{stock > 0 ? `${stock} here` : 'None here'}
+															{!one && live.length > 1 ? ` · ${live.length} options` : ''}
+														</Text>
+													)}
+												</Box>
+											</button>
+										</Flex>
+									);
+								})}
+							</Grid>
+						)}
+					</Box>
+				</Flex>
+
+				{!isMobile && basketPane}
+			</Flex>
+
+			{isMobile && (
+				<>
+					<Flex
+						flexShrink={0}
+						align='center'
+						gap={3}
+						px={4}
+						pt={3}
+						pb='max(12px, env(safe-area-inset-bottom))'
+						borderTopWidth='1px'
+						borderColor='border'
+						bg='bg.panel'>
+						<Box flex={1} minW={0}>
+							<Text fontSize='12px' color='fg.muted'>
+								{count} item{count === 1 ? '' : 's'}
+							</Text>
+							<Text fontSize='17px' fontWeight='700'>
+								{m(quote?.total ?? 0)}
+							</Text>
+						</Box>
+						<Button
+							size='lg'
+							{...(styles.MODAL_BUTTON as any)}
+							onClick={() => setBasketOpen(true)}>
+							<ShoppingBag size={16} /> {lines.length ? 'View basket' : 'Basket'}
+						</Button>
+					</Flex>
+					<Drawer.Root
+						lazyMount
+						unmountOnExit
+						placement='bottom'
+						open={basketOpen}
+						onOpenChange={d => setBasketOpen(d.open)}>
+						<Portal>
+							<Drawer.Backdrop />
+							<Drawer.Positioner>
+								<DrawerContentContainer h='92dvh' maxH='92dvh'>
+									<Flex direction='column' flex={1} minH={0}>
+										{basketPane}
+									</Flex>
+								</DrawerContentContainer>
+							</Drawer.Positioner>
+						</Portal>
+					</Drawer.Root>
+				</>
+			)}
 
 			<VariantDialog
 				product={variantsOf}
