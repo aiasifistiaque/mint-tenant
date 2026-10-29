@@ -238,7 +238,7 @@ export type StoreOrderRow = StoreOrder & {
 	itemCount: number;
 };
 export type StoreList<T, V extends string> = { doc: T[]; total: number; page: number; limit: number; views: Record<V, number> };
-export type StoreOrderQuery = { view?: StoreOrderView; q?: string; scope?: 'pos' | 'website'; area?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
+export type StoreOrderQuery = { [filter: string]: any; view?: StoreOrderView; q?: string; scope?: 'pos' | 'website'; area?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
 /** A field people added to a store model, with the record's value (the "More details" card). */
 export type StoreExtraField = { key: string; label: string; kind: string; value: any };
 

@@ -1,13 +1,21 @@
 'use client';
 
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Box, Button, Flex, IconButton, Input, Text } from '@chakra-ui/react';
-import { ChevronLeft, ChevronRight, ScanBarcode, Search } from 'lucide-react';
-import { ConsoleTabs, DataTable, Dropdown, EmptyState, ErrorState, PageHeader, Panel, TableSkeleton, dateTime } from '../../cl';
+import { Box, Button, Flex, Text } from '@chakra-ui/react';
+import { ScanBarcode } from 'lucide-react';
+import { ConsoleTabs, DataTable, EmptyState, ErrorState, PageHeader, Panel, TableSkeleton, dateTime } from '../../cl';
+import { useAppDispatch, useAppSelector, useIsMobile, useTableUrlSync } from '../../hooks';
+import { setCurrentPath, updateTable } from '../../store/slices/tableSlice';
+import DynamicFilters from '../../dynamic-filters/DynamicFilters';
+import FilterContainer from '../../components/table/table-components/tool-bar/table-toolbar/FIlterContainer';
+import TableSearch from '../../components/table/table-components/tool-bar/table-toolbar/TableSearch';
+import TableRefresh from '../../components/table/table-components/tool-bar/table-toolbar/TableRefresh';
+import TableSearchContainer from '../../components/table/table-components/tool-bar/table-toolbar/TableSearchContainer';
+import TableSettingsMenuContainer from '../../components/table/table-components/tool-bar/table-toolbar/TableSettingsMenuContainer';
+import ResultContainer from '../../components/table/table-components/pagination/ResultContainer';
 import type { Column } from '../../cl';
 import { projectHref } from '../../config/lib/constants/panel';
-import { useGetAllQuery } from '../../store/services/commonApi';
 import { useGetStoreOrdersQuery } from '../../store/services/commerceApi';
 import type { CommerceView, StoreOrderRow, StoreOrderView } from '../../store/services/commerceApi';
 import GuideLink from '../../tenant/GuideLink';
@@ -28,7 +36,6 @@ const VIEWS: { value: StoreOrderView; label: string }[] = [
 	{ value: 'returns', label: 'With returns' },
 	{ value: 'cancelled', label: 'Cancelled' },
 ];
-const LIMIT = 25;
 
 const WEBSITE_VIEWS: { value: StoreOrderView; label: string }[] = [
 	{ value: 'all', label: 'All' },
@@ -45,26 +52,32 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 	const router = useRouter();
 	const params = useSearchParams();
 	const m = moneyFor(store.answers.store.currency);
+	const dispatch = useAppDispatch();
+	const isMobile = useIsMobile();
+	// Filters, search and paging are the same ones every table uses (the table slice), so the
+	// Order filters set in the builder, the search box and the pager behave as they do there.
+	const { page, limit, search, filters } = useAppSelector((st: any) => st.table);
+	const route = store.installed.order?.route || 'orders';
 	const [view, setView] = useState<StoreOrderView>((params.get('view') as StoreOrderView) || 'all');
-	const [typed, setTyped] = useState('');
-	const [q, setQ] = useState('');
-	const [channel, setChannel] = useState('');
-	const [outlet, setOutlet] = useState('');
-	const [page, setPage] = useState(1);
-
-	// Search as you type, once the typing stops.
 	useEffect(() => {
-		const t = setTimeout(() => setQ(typed.trim()), 300);
-		return () => clearTimeout(t);
-	}, [typed]);
-	useEffect(() => setPage(1), [view, q, channel, outlet]);
+		dispatch(setCurrentPath(route));
+	}, [route]);
+	useTableUrlSync(route);
 
-	const { data, isLoading, isFetching, error, refetch } = useGetStoreOrdersQuery({ view, q, channel, outlet, page, limit: LIMIT, scope: website ? 'website' : 'pos' });
+	const query = useMemo(() => {
+		const f: Record<string, any> = {};
+		for (const [k, v] of Object.entries(filters || {})) if (v !== '' && v != null && !(Array.isArray(v) && !v.length) && typeof v !== 'object') f[k] = v;
+		for (const [k, v] of Object.entries(filters || {})) if (Array.isArray(v) && v.length) f[k] = v.join(',');
+		return f;
+	}, [filters]);
+	const q = String(search || '').trim();
+	const { data, isLoading, isFetching, error, refetch } = useGetStoreOrdersQuery({ ...query, view, q, page, limit, scope: website ? 'website' : 'pos' });
 	const views = website ? WEBSITE_VIEWS : VIEWS;
-	const outletRoute = store.installed.outlet?.route;
-	const { data: outlets } = useGetAllQuery({ path: outletRoute, limit: 50, sort: 'name' }, { skip: !outletRoute });
-	const outletItems = [{ value: '', label: 'All outlets' }, ...((outlets?.doc || []) as any[]).map(o => ({ value: o._id, label: o.name }))];
 	const open = (id: string) => router.push(projectHref(`/store/orders/${id}`));
+	const changeView = (v: string) => {
+		setView(v as StoreOrderView);
+		dispatch(updateTable({ page: 1 }));
+	};
 
 	const websiteColumns: Column<StoreOrderRow>[] = [
 		{
@@ -183,12 +196,58 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 	];
 
 	const total = data?.total ?? 0;
-	const from = total ? (page - 1) * LIMIT + 1 : 0;
-	const to = Math.min(total, page * LIMIT);
-	const filtered = !!(q || channel || outlet);
+	const filtered = !!(q || Object.keys(query).length);
+
+	const card = (o: StoreOrderRow) => (
+		<Box
+			key={o._id}
+			as='button'
+			textAlign='left'
+			w='full'
+			p={4}
+			borderWidth='1px'
+			borderRadius='lg'
+			bg='bg.panel'
+			onClick={() => open(o._id)}>
+			<Flex justify='space-between' align='baseline' gap={3}>
+				<Text fontWeight='600' fontFamily='mono' fontSize='13px'>
+					{o.code || o._id.slice(-6)}
+				</Text>
+				<Text fontWeight='600'>{m(o.total)}</Text>
+			</Flex>
+			<Text fontSize='12px' color='fg.muted'>
+				{dateTime(o.createdAt)} · {o.itemCount} item{o.itemCount === 1 ? '' : 's'}
+			</Text>
+			<Text mt={2} fontWeight='500'>
+				{o.delivery?.name || o.customerInfo?.name || 'Walk-in'}
+			</Text>
+			<Text fontSize='12px' color='fg.muted' truncate>
+				{[o.delivery?.phone || o.customerInfo?.phone, o.email].filter(Boolean).join(' · ') || '—'}
+			</Text>
+			{website ? (
+				<Text mt={1} fontSize='13px' lineClamp={2}>
+					{[o.delivery?.address, o.delivery?.landmark && `near ${o.delivery.landmark}`, o.delivery?.area].filter(Boolean).join(', ') || '—'}
+					{o.slot ? ` · ${o.slot}` : ''}
+				</Text>
+			) : (
+				<Text mt={1} fontSize='12px' color='fg.muted'>
+					{[CHANNEL[o.channel] || o.channel, o.outletInfo?.name].filter(Boolean).join(' · ')}
+				</Text>
+			)}
+			<Flex mt={3} gap={2} wrap='wrap' align='center'>
+				{o.status === 'cancelled' ? <OrderStatusBadge value='cancelled' /> : <PaymentBadge value={o.paymentStatus} />}
+				{o.status !== 'cancelled' && <FulfilmentBadge value={o.fulfilment} />}
+				{website && (
+					<Text fontSize='12px' color='fg.muted'>
+						{o.paymentMethod === 'cod' || !o.paymentMethod ? 'Cash on delivery' : o.paymentMethod}
+					</Text>
+				)}
+			</Flex>
+		</Box>
+	);
 
 	return (
-		<Box>
+		<Box pb={{ base: 16, md: 14 }}>
 			<PageHeader
 				breadcrumbs={[{ href: projectHref('/'), title: 'Store' }]}
 				title={website ? 'Website orders' : 'Orders'}
@@ -211,76 +270,41 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 			<ConsoleTabs
 				tabs={views.map(v => ({ value: v.value, label: data?.views ? `${v.label} · ${data.views[v.value] ?? 0}` : v.label }))}
 				value={view}
-				onChange={v => setView(v as StoreOrderView)}>
-				<Panel
-					flush
-					title={
-						<Flex
-							gap={2}
-							wrap='wrap'
-							align='center'>
-							<Flex
-								align='center'
-								gap={2}
-								borderWidth='1px'
-								borderRadius='md'
-								px={2}
-								h='32px'
-								w={{ base: 'full', md: '280px' }}>
-								<Search
-									size={14}
-									color='var(--chakra-colors-fg-muted)'
-								/>
-								<Input
-									size='sm'
-									border='none'
-									px={0}
-									_focusVisible={{ outline: 'none' }}
-									placeholder={website ? 'Order number, name, phone, address or email' : 'Order number, customer or phone'}
-									value={typed}
-									onChange={e => setTyped(e.target.value)}
-								/>
-							</Flex>
-							{!website && (
-								<Box w='170px'>
-									<Dropdown
-										size='sm'
-										value={channel}
-										onChange={setChannel}
-										items={[{ value: '', label: 'All origins' }, ...Object.entries(CHANNEL).filter(([value]) => value !== 'website').map(([value, label]) => ({ value, label }))]}
-									/>
-								</Box>
-							)}
-							{outletItems.length > 2 && (
-								<Box w='170px'>
-									<Dropdown
-										size='sm'
-										value={outlet}
-										onChange={setOutlet}
-										items={outletItems}
-									/>
-								</Box>
-							)}
-						</Flex>
-					}>
-					{isLoading ? (
-						<Box p={4}>
-							<TableSkeleton
-								rows={8}
-								cols={6}
-							/>
-						</Box>
-					) : error ? (
-						<ErrorState
-							error={error as any}
-							onRetry={refetch}
+				onChange={changeView}>
+				<Box mb={3}>
+					<TableSettingsMenuContainer>
+						<FilterContainer>
+							<DynamicFilters path={route} />
+						</FilterContainer>
+						<TableSearchContainer>
+							<TableSearch />
+							<TableRefresh />
+						</TableSearchContainer>
+					</TableSettingsMenuContainer>
+				</Box>
+				{isLoading ? (
+					<Box p={isMobile ? 0 : 4}>
+						<TableSkeleton
+							rows={8}
+							cols={6}
 						/>
-					) : !data?.doc.length ? (
-						<EmptyState
-							title={filtered || view !== 'all' ? 'No orders match' : 'No orders yet'}
-							description={filtered || view !== 'all' ? 'Try another filter or search.' : website ? 'Orders placed on your website show up here.' : 'Sales made at the POS and orders taken by phone show up here.'}
-						/>
-					) : (
+					</Box>
+				) : error ? (
+					<ErrorState
+						error={error as any}
+						onRetry={refetch}
+					/>
+				) : !data?.doc.length ? (
+					<EmptyState
+						title={filtered || view !== 'all' ? 'No orders match' : 'No orders yet'}
+						description={filtered || view !== 'all' ? 'Try another filter or search.' : website ? 'Orders placed on your website show up here.' : 'Sales made at the POS and orders taken by phone show up here.'}
+					/>
+				) : isMobile ? (
+					<Flex direction='column' gap={3} opacity={isFetching ? 0.6 : 1}>
+						{data.doc.map(card)}
+					</Flex>
+				) : (
+					<Panel flush>
 						<Box opacity={isFetching ? 0.6 : 1}>
 							<DataTable
 								columns={website ? websiteColumns : columns}
@@ -289,41 +313,10 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 								onRowClick={o => open(o._id)}
 							/>
 						</Box>
-					)}
-					{total > LIMIT && (
-						<Flex
-							justify='space-between'
-							align='center'
-							px={4}
-							py={3}
-							borderTopWidth='1px'>
-							<Text
-								fontSize='13px'
-								color='fg.muted'>
-								{from}–{to} of {total}
-							</Text>
-							<Flex gap={1}>
-								<IconButton
-									size='xs'
-									variant='outline'
-									aria-label='Newer'
-									disabled={page <= 1}
-									onClick={() => setPage(p => p - 1)}>
-									<ChevronLeft size={14} />
-								</IconButton>
-								<IconButton
-									size='xs'
-									variant='outline'
-									aria-label='Older'
-									disabled={to >= total}
-									onClick={() => setPage(p => p + 1)}>
-									<ChevronRight size={14} />
-								</IconButton>
-							</Flex>
-						</Flex>
-					)}
-				</Panel>
+					</Panel>
+				)}
 			</ConsoleTabs>
+			<ResultContainer data={{ totalDocs: total, totalPages: Math.max(1, Math.ceil(total / (limit || 25))) }} />
 		</Box>
 	);
 };

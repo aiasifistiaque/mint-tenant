@@ -79,6 +79,8 @@ const Filter: FC<FilterProps> = ({ children, isActive = false, onCancel, ...prop
 				outlineColor: 'field.focusRing',
 				outlineOffset: '1px',
 			}}
+			// The page's global `span` colour/size would otherwise paint the label light-on-light when the chip is inverted.
+			css={{ '& span': { color: 'inherit', fontSize: 'inherit' } }}
 			{...(isActive ? active : idle)}
 			fontSize='12px'
 			h={sizes.SEARCH_BAR_HEIGHT}
