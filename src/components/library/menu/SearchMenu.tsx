@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, Fragment, ReactNode } from 'react';
 import { Dialog, useDisclosure, Flex, Input, Text, FlexProps, TextProps, Portal, Box, Kbd, Spinner } from '@chakra-ui/react';
-import { CornerDownLeft, Search, SearchX } from 'lucide-react';
+import { ArrowLeft, CornerDownLeft, Search, SearchX } from 'lucide-react';
 
 import { MenuIconContainer } from '.';
 import { Icon, LucideIcon } from '../icon';
@@ -292,23 +292,36 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 					{/* Pinned: the same distance from the top whatever the list holds. */}
 					<Dialog.Positioner
 						alignItems='flex-start'
-						pt={{ base: 3, md: '12vh' }}
-						px={{ base: 3, md: 4 }}>
+						pt={{ base: 0, md: '12vh' }}
+						px={{ base: 0, md: 4 }}>
+						{/* A phone gets a full screen that reads as a page of its own; Esc / the back arrow returns to where you were. */}
 						<ModalContentContainer
-							borderRadius={radius.MODAL}
+							borderRadius={{ base: 0, md: radius.MODAL }}
 							px={0}
 							gap={0}
 							my={0}
 							maxH='none'
+							h={{ base: '100dvh', md: 'auto' }}
 							w='full'>
 							<Flex
 								align='center'
 								gap={2.5}
 								px={4}
 								h='56px'
+								flexShrink={0}
 								borderBottomWidth='1px'
 								borderColor='border'>
 								<Box
+									display={{ base: 'flex', md: 'none' }}
+									as='button'
+									aria-label='Back'
+									color='fg'
+									flexShrink={0}
+									onClick={onClose}>
+									<ArrowLeft size={20} />
+								</Box>
+								<Box
+									display={{ base: 'none', md: 'block' }}
 									color='fg.muted'
 									flexShrink={0}>
 									<Search size={18} />
@@ -335,6 +348,7 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 									/>
 								)}
 								<Kbd
+									display={{ base: 'none', md: 'inline-flex' }}
 									size='sm'
 									cursor='pointer'
 									flexShrink={0}
@@ -347,7 +361,9 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 								ref={listRef}
 								overflowY='auto'
 								overscrollBehavior='contain'
-								maxH={{ base: 'calc(100dvh - 96px)', md: 'min(60vh, 520px)' }}
+								flex={{ base: 1, md: 'none' }}
+								minH={0}
+								maxH={{ base: 'none', md: 'min(60vh, 520px)' }}
 								px={2}
 								py={2}>
 								{projectsFirst && projectList()}
