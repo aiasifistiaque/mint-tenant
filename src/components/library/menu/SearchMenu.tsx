@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, Fragment, ReactNode } from 'react';
 import { Dialog, useDisclosure, Flex, Input, Text, FlexProps, TextProps, Portal, Box, Kbd, Spinner } from '@chakra-ui/react';
-import { ArrowLeft, CornerDownLeft, Search, SearchX } from 'lucide-react';
+import { ArrowLeft, CornerDownLeft, Search, SearchX, X } from 'lucide-react';
 
 import { MenuIconContainer } from '.';
 import { Icon, LucideIcon } from '../icon';
