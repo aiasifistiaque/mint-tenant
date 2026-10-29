@@ -236,13 +236,19 @@ const MemberRow: FC<{ m: Member; me: boolean; canManage: boolean; roles: { value
 
 	return (
 		<Flex
-			align='center'
+			direction={{ base: 'column', md: 'row' }}
+			align={{ base: 'stretch', md: 'center' }}
 			gap={3}
 			px={4}
 			py={3}
 			borderTopWidth='1px'
 			borderColor='border.muted'
 			_first={{ borderTopWidth: 0 }}>
+			<Flex
+				flex={1}
+				minW={0}
+				align={{ base: 'flex-start', md: 'center' }}
+				gap={3}>
 			<Center
 				boxSize='32px'
 				flexShrink={0}
@@ -258,11 +264,12 @@ const MemberRow: FC<{ m: Member; me: boolean; canManage: boolean; roles: { value
 				flex={1}>
 				<Flex
 					align='center'
-					gap={2}>
+					gap={2}
+					wrap='wrap'>
 					<Text
 						fontSize='13.5px'
 						fontWeight='600'
-						truncate>
+						wordBreak='break-word'>
 						{m.user?.name}
 					</Text>
 					{me && (
@@ -291,8 +298,12 @@ const MemberRow: FC<{ m: Member; me: boolean; canManage: boolean; roles: { value
 				<Text
 					fontSize='12.5px'
 					color='fg.muted'
-					truncate>
-					{m.user?.email} · joined {date(m.joinedAt)}
+					wordBreak='break-word'>
+					{m.user?.email}
+					<Text as='span' display={{ base: 'block', md: 'inline' }} fontSize='inherit' color='inherit'>
+						<Text as='span' display={{ base: 'none', md: 'inline' }} fontSize='inherit' color='inherit'> · </Text>
+						joined {date(m.joinedAt)}
+					</Text>
 				</Text>
 				{canManage && !everything ? (
 					<Button
@@ -315,16 +326,21 @@ const MemberRow: FC<{ m: Member; me: boolean; canManage: boolean; roles: { value
 						color='fg.muted'
 						display='flex'
 						alignItems='center'
-						gap={1}
-						truncate>
+						gap={1}>
 						<FolderKanban size={12} />
 						{access}
 					</Text>
 				)}
 			</Box>
+			</Flex>
+			<Flex
+				align='center'
+				gap={3}
+				pl={{ base: '44px', md: 0 }}>
 			<Box
-				w={{ base: '120px', md: '160px' }}
-				flexShrink={0}>
+				flex={{ base: 1, md: 'none' }}
+				w={{ base: 'auto', md: '160px' }}
+				minW={0}>
 				{canManage && !owner ? (
 					<Dropdown
 						size='sm'
@@ -352,8 +368,9 @@ const MemberRow: FC<{ m: Member; me: boolean; canManage: boolean; roles: { value
 					{me ? <UserMinus size={15} /> : <Trash2 size={15} />}
 				</Button>
 			) : (
-				<Box w='32px' />
+				<Box w={{ base: 0, md: '32px' }} />
 			)}
+			</Flex>
 			<PromptDialog
 				open={confirm}
 				onClose={() => setConfirm(false)}
@@ -400,7 +417,8 @@ const Invitations: FC = () => {
 			{list.map(i => (
 				<Flex
 					key={i._id}
-					align='center'
+					direction={{ base: 'column', md: 'row' }}
+					align={{ base: 'stretch', md: 'center' }}
 					gap={3}
 					px={4}
 					py={3}
@@ -413,7 +431,7 @@ const Invitations: FC = () => {
 						<Text
 							fontSize='13.5px'
 							fontWeight='600'
-							truncate>
+							wordBreak='break-word'>
 							{i.email}
 						</Text>
 						<Text
@@ -425,6 +443,7 @@ const Invitations: FC = () => {
 							{i.invitedBy ? ` · by ${i.invitedBy.name}` : ''}
 						</Text>
 					</Box>
+					<Flex gap={1} ml={{ base: -2, md: 0 }}>
 					<Button
 						size='xs'
 						variant='ghost'
@@ -440,6 +459,7 @@ const Invitations: FC = () => {
 						onClick={() => cancel(i._id)}>
 						Cancel
 					</Button>
+					</Flex>
 				</Flex>
 			))}
 		</Panel>
