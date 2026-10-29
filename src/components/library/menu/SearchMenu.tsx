@@ -53,12 +53,19 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 	const { open: isOpen, onOpen, onClose: closeModal } = useDisclosure();
 	const [search, setSearch] = useState('');
 
-	const initialRef = useRef(null);
+	const initialRef = useRef<HTMLInputElement>(null);
 	const finalRef = useRef(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	// The list as last drawn: the keys read it, so Enter opens what's on screen after the results change.
 	const dataRef = useRef<{ href: string; go?: () => void }[]>([]);
+
+	// The box takes focus as the window opens (the dialog's own initial focus is skipped on some phones).
+	useEffect(() => {
+		if (!isOpen) return;
+		const t = [0, 60, 250].map(ms => setTimeout(() => initialRef.current?.focus(), ms));
+		return () => t.forEach(clearTimeout);
+	}, [isOpen]);
 
 	const onClose = () => {
 		closeModal();
@@ -308,6 +315,7 @@ const SearchMenu = ({ sidebarData, iconSize, iconColor }: { sidebarData: Sidebar
 								</Box>
 								<Input
 									ref={initialRef}
+									autoFocus
 									variant='flushed'
 									border='none'
 									px={0}
