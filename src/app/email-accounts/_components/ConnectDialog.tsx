@@ -2,7 +2,7 @@
 
 import { FC, useEffect, useState } from 'react';
 import { Box, Button, Dialog, Field, Flex, Grid, Input, Portal, Text } from '@chakra-ui/react';
-import { CircleCheck, CircleX } from 'lucide-react';
+import { ArrowLeft, CircleCheck, CircleX } from 'lucide-react';
 import { ModalFooter, radius } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -44,9 +44,11 @@ type Props = {
 	ports: number[];
 	projectName: string;
 	onClose: () => void;
+	/** Drawn as the page's own content, not in a window (a phone's "Connect"). */
+	asPage?: boolean;
 };
 
-const ConnectDialog: FC<Props> = ({ open, account, ports, projectName, onClose }) => {
+const ConnectDialog: FC<Props> = ({ open, account, ports, projectName, onClose, asPage }) => {
 	const [add, adding] = useAddMailAccountMutation();
 	const [update, updating] = useUpdateMailAccountMutation();
 	const [test, testing] = useTestMailAccountMutation();
@@ -93,39 +95,8 @@ const ConnectDialog: FC<Props> = ({ open, account, ports, projectName, onClose }
 		}
 	};
 
-	return (
-		<Dialog.Root
-			placement='center'
-			size='lg'
-			open={open}
-			onOpenChange={e => !e.open && onClose()}>
-			<Portal>
-				<Dialog.Backdrop />
-				<Dialog.Positioner>
-					<Dialog.Content
-						borderRadius={radius.MODAL}
-						bg='bg.panel'
-						borderWidth='1px'
-						borderColor='border'>
-						<Dialog.Header
-							px={{ base: 4, md: 6 }}
-							pt={{ base: 4, md: 5 }}
-							pb={{ base: 3, md: 4 }}>
-							<Flex
-								align='center'
-								justify='space-between'
-								gap={3}
-								pr={2}
-								w='full'>
-								<Dialog.Title fontSize='16px'>{account ? `Edit ${account.name}` : 'Connect an email account'}</Dialog.Title>
-								<GuideLink section='connect-email' />
-							</Flex>
-						</Dialog.Header>
-
-						<Dialog.Body
-							px={{ base: 4, md: 6 }}
-							pt={0}
-							pb={{ base: 4, md: 5 }}>
+	const title = account ? `Edit ${account.name}` : 'Connect an email account';
+	const fields = (
 							<Flex
 								direction='column'
 								gap={4}>
@@ -277,6 +248,94 @@ const ConnectDialog: FC<Props> = ({ open, account, ports, projectName, onClose }
 									</Text>
 								)}
 							</Flex>
+	);
+
+	if (asPage)
+		return (
+			<Flex
+				direction='column'
+				gap={4}>
+				<Flex
+					align='center'
+					gap={3}>
+					<Box
+						as='button'
+						aria-label='Back'
+						onClick={onClose}>
+						<ArrowLeft size={20} />
+					</Box>
+					<Text
+						flex={1}
+						fontSize='18px'
+						fontWeight='600'>
+						{title}
+					</Text>
+					<GuideLink section='connect-email' />
+				</Flex>
+				{fields}
+				<Flex
+					position='sticky'
+					bottom={0}
+					zIndex={2}
+					gap={2}
+					justify='flex-end'
+					py={3}
+					bg='bg.panel'
+					borderTopWidth='1px'
+					borderColor='border'>
+					<Button
+						size='sm'
+						variant='outline'
+						px={3}
+						onClick={onClose}>
+						Cancel
+					</Button>
+					<Button
+						size='sm'
+						px={3}
+						loading={adding.isLoading || updating.isLoading}
+						disabled={!filled}
+						onClick={save}>
+						{account ? 'Save' : 'Connect'}
+					</Button>
+				</Flex>
+			</Flex>
+		);
+
+	return (
+		<Dialog.Root
+			placement='center'
+			size='lg'
+			open={open}
+			onOpenChange={e => !e.open && onClose()}>
+			<Portal>
+				<Dialog.Backdrop />
+				<Dialog.Positioner>
+					<Dialog.Content
+						borderRadius={radius.MODAL}
+						bg='bg.panel'
+						borderWidth='1px'
+						borderColor='border'>
+						<Dialog.Header
+							px={{ base: 4, md: 6 }}
+							pt={{ base: 4, md: 5 }}
+							pb={{ base: 3, md: 4 }}>
+							<Flex
+								align='center'
+								justify='space-between'
+								gap={3}
+								pr={2}
+								w='full'>
+								<Dialog.Title fontSize='16px'>{title}</Dialog.Title>
+								<GuideLink section='connect-email' />
+							</Flex>
+						</Dialog.Header>
+
+						<Dialog.Body
+							px={{ base: 4, md: 6 }}
+							pt={0}
+							pb={{ base: 4, md: 5 }}>
+							{fields}
 						</Dialog.Body>
 
 						<ModalFooter>

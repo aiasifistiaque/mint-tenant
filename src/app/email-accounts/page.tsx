@@ -1,9 +1,11 @@
 'use client';
 
 import { FC, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Flex, IconButton, Input, Menu, Portal, Skeleton, Table, Text } from '@chakra-ui/react';
 import { Ellipsis, Mail, Plus } from 'lucide-react';
-import { Layout, PromptDialog } from '@/components/library';
+import { Layout, PromptDialog, useIsMobile } from '@/components/library';
+import { projectHref } from '@/components/library/config/lib/constants/panel';
 import { Dropdown, EmptyState, Panel } from '@/components/library/cl';
 import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
@@ -183,6 +185,10 @@ const Accounts: FC<{ accounts: MailAccount[]; ports: number[]; fallback: string 
 	const [testing, setTesting] = useState<MailAccount | null>(null);
 	const [to, setTo] = useState('');
 	const defaultAccount = accounts.find(a => a.isDefault);
+	const router = useRouter();
+	const isMobile = useIsMobile();
+	// A phone connects on a page of its own; a bigger screen in the window. Editing stays in the window.
+	const connectNew = () => (isMobile ? router.push(projectHref('/email-accounts/connect')) : setConnect({ account: null }));
 
 	const makeDefault = async (id: string) => {
 		try {
@@ -206,7 +212,7 @@ const Accounts: FC<{ accounts: MailAccount[]; ports: number[]; fallback: string 
 					<Button
 						size='sm'
 						px={3}
-						onClick={() => setConnect({ account: null })}>
+						onClick={connectNew}>
 						<Plus size={14} />
 						Connect an account
 					</Button>
@@ -235,7 +241,7 @@ const Accounts: FC<{ accounts: MailAccount[]; ports: number[]; fallback: string 
 					<Button
 						size='sm'
 						px={3}
-						onClick={() => setConnect({ account: null })}>
+						onClick={connectNew}>
 						<Plus size={14} />
 						Connect an account
 					</Button>
