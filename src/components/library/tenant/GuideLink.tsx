@@ -151,6 +151,16 @@ const GUIDE_OF: Record<string, string> = {
 	'store-orders': 'store',
 	'store-order': 'store',
 	'store-returns-page': 'store',
+	// Couriers (backend docs/couriers CR-07): each store's own courier accounts and its parcels.
+	'store-couriers': 'store',
+	'store-courier-steadfast': 'store',
+	'store-courier-pathao': 'store',
+	'store-courier-redx': 'store',
+	'store-courier-manual': 'store',
+	'store-send-to-courier': 'store',
+	'store-delivery-card': 'store',
+	'store-deliveries': 'store',
+	'store-delivery-risk': 'store',
 	start: 'site-builder',
 };
 

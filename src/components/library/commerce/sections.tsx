@@ -444,7 +444,7 @@ export const Delivery: FC<SectionProps<'delivery'>> = ({ value, onChange, offere
 					<Text
 						{...help}
 						mb={2}>
-						An order’s page gets <b>Send to courier</b> for the couriers you use — the parcel is booked with them and tracked. You connect your courier account after setup.
+						An order’s page gets <b>Send to courier</b> for the couriers you use — the parcel is booked with them and tracked. You connect your own account with each courier below (after setup, on Delivery settings).
 					</Text>
 					{offered.couriers.length ? (
 						<Choices

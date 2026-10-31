@@ -3,7 +3,7 @@
 import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, Flex, Grid, Menu, Portal, Table, Text, Textarea } from '@chakra-ui/react';
-import { Ban, ChevronDown, CreditCard, Printer, Truck, Undo2 } from 'lucide-react';
+import { Ban, ChevronDown, CreditCard, Printer, Send, Truck, Undo2 } from 'lucide-react';
 import { DetailRow, DetailSkeleton, EmptyState, ErrorState, PageHeader, Panel, dateTime } from '../../cl';
 import { PromptDialog } from '../..';
 import { projectHref } from '../../config/lib/constants/panel';
@@ -15,6 +15,9 @@ import { PayDialog } from '../pos/pay';
 import { ReturnDialog } from './ReturnDialog';
 import { moneyFor, printReceipt, receiptHtml } from '../pos/receipt';
 import { CHANNEL, FULFIL_NEXT, FulfilmentBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, showValue, storeRoutes } from './common';
+import DeliveryCard from '../couriers/DeliveryCard';
+import SendToCourier from '../couriers/SendToCourier';
+import { ENDED } from '../couriers/common';
 
 /**
  * An order's own page (backend docs/ecommerce EC19, EC-09): its lines with
@@ -65,6 +68,7 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 	const [returnOpen, setReturnOpen] = useState(false);
 	const [payOpen, setPayOpen] = useState(false);
 	const [cancelOpen, setCancelOpen] = useState(false);
+	const [sendOpen, setSendOpen] = useState(false);
 	const [reason, setReason] = useState('');
 
 	// The Orders table's row actions open the page with the dialog up.
@@ -72,6 +76,7 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 		const a = params.get('action');
 		if (a === 'pay') setPayOpen(true);
 		if (a === 'cancel') setCancelOpen(true);
+		if (a === 'send') setSendOpen(true);
 	}, [params]);
 
 	if (isLoading) return <DetailSkeleton rows={10} />;
@@ -96,6 +101,11 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 	const next = cancelled ? [] : FULFIL_NEXT[o.fulfilment || 'unfulfilled'] || [];
 	const canCancel = !cancelled && !['shipped', 'delivered'].includes(o.fulfilment) && !(Number(o.returnedItems) > 0);
 	const returnsOn = !!store.installed.return && (store.answers.returns.allowed || d.returns.length > 0);
+	// Parcels with couriers (backend docs/couriers): one on its way at a time; a failed or finished one can be sent again.
+	const deliveries = d.deliveries || [];
+	const current = deliveries[0];
+	const delivering = store.answers.delivery?.enabled || deliveries.length > 0;
+	const canSend = !!store.answers.delivery?.enabled && !cancelled && !['delivered', 'returned'].includes(o.fulfilment) && (!current || current.status === 'error' || (ENDED.includes(current.status) && !['delivered', 'partly-delivered'].includes(current.status)));
 
 	const run = async (p: Promise<any>, ok: string) => {
 		try {
@@ -189,6 +199,14 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 									</Menu.Positioner>
 								</Portal>
 							</Menu.Root>
+						)}
+						{canSend && !current && (
+							<Button
+								size='sm'
+								variant='outline'
+								onClick={() => setSendOpen(true)}>
+								<Send size={15} /> Send to courier
+							</Button>
 						)}
 						{!cancelled && balance > 0 && (
 							<Button
@@ -540,21 +558,17 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 						</Panel>
 					)}
 
-					{o.courier?.provider && (
-						<Panel title='Courier'>
-							<DetailRow
-								label='Courier'
-								value={o.courier.provider}
-							/>
-							<DetailRow
-								label='Tracking'
-								value={o.courier.tracking || o.courier.consignment || '—'}
-							/>
-							<DetailRow
-								label='Status'
-								value={o.courier.status || '—'}
-							/>
-						</Panel>
+					{delivering && (
+						<DeliveryCard
+							deliveries={deliveries}
+							items={(o.items || []) as any}
+							currency={store.answers.store.currency}
+							shop={d.outlet?.name || ''}
+							orderCode={o.code}
+							routes={routes}
+							canSend={canSend}
+							onSend={() => setSendOpen(true)}
+						/>
 					)}
 
 					<Panel title='Details'>
@@ -608,6 +622,15 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 					credit={d.customer ? Number(d.customer.storeCredit) || 0 : null}
 					busy={paying.isLoading}
 					onPay={onPay}
+				/>
+			)}
+			{delivering && (
+				<SendToCourier
+					open={sendOpen}
+					onClose={() => setSendOpen(false)}
+					orderId={id}
+					currency={store.answers.store.currency}
+					routes={routes}
 				/>
 			)}
 			<ReturnDialog

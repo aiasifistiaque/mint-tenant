@@ -2,8 +2,8 @@
 
 import { FC, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Box, Button, Flex, Text } from '@chakra-ui/react';
-import { ScanBarcode } from 'lucide-react';
+import { Box, Button, Checkbox, Flex, Text } from '@chakra-ui/react';
+import { ScanBarcode, Send } from 'lucide-react';
 import { ConsoleTabs, DataTable, EmptyState, ErrorState, PageHeader, Panel, TableSkeleton, dateTime } from '../../cl';
 import { useAppDispatch, useAppSelector, useIsMobile, useTableUrlSync } from '../../hooks';
 import { setCurrentPath, updateTable } from '../../store/slices/tableSlice';
@@ -20,7 +20,8 @@ import { useGetStoreOrdersQuery } from '../../store/services/commerceApi';
 import type { CommerceView, StoreOrderRow, StoreOrderView } from '../../store/services/commerceApi';
 import GuideLink from '../../tenant/GuideLink';
 import { moneyFor } from '../pos/receipt';
-import { CHANNEL, FulfilmentBadge, OrderStatusBadge, PaymentBadge } from './common';
+import { CHANNEL, FulfilmentBadge, OrderStatusBadge, PaymentBadge, storeRoutes } from './common';
+import BulkSend from '../couriers/BulkSend';
 
 /**
  * The store's Orders page (backend docs/ecommerce EC19, EC-09): every sale and
@@ -77,6 +78,29 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 	const changeView = (v: string) => {
 		setView(v as StoreOrderView);
 		dispatch(updateTable({ page: 1 }));
+	};
+
+	// Several orders sent to a courier at once (backend docs/couriers CR-12): only orders that can still go.
+	const delivering = !!store.answers.delivery?.enabled;
+	const [picked, setPicked] = useState<string[]>([]);
+	const [bulkOpen, setBulkOpen] = useState(false);
+	useEffect(() => setPicked([]), [view, page, q]);
+	const sendable = (o: StoreOrderRow) => o.status !== 'cancelled' && !['shipped', 'delivered', 'returned', 'cancelled'].includes(o.fulfilment) && !!(o.delivery?.address || o.delivery?.phone) && !(o as any).courier?.delivery;
+	const pickColumn: Column<StoreOrderRow> = {
+		key: 'pick',
+		label: '',
+		render: o =>
+			sendable(o) ? (
+				<Box onClick={e => e.stopPropagation()}>
+					<Checkbox.Root
+						size='sm'
+						checked={picked.includes(o._id)}
+						onCheckedChange={() => setPicked(p => (p.includes(o._id) ? p.filter(x => x !== o._id) : [...p, o._id]))}>
+						<Checkbox.HiddenInput />
+						<Checkbox.Control />
+					</Checkbox.Root>
+				</Box>
+			) : null,
 	};
 
 	const websiteColumns: Column<StoreOrderRow>[] = [
@@ -271,6 +295,30 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 				tabs={views.map(v => ({ value: v.value, label: data?.views ? `${v.label} · ${data.views[v.value] ?? 0}` : v.label }))}
 				value={view}
 				onChange={changeView}>
+				{picked.length > 0 && (
+					<Flex
+						mb={3}
+						p={2}
+						px={3}
+						gap={3}
+						align='center'
+						borderWidth='1px'
+						borderRadius='md'
+						bg='bg.muted'>
+						<Text fontSize='13px'>{picked.length} selected</Text>
+						<Button
+							size='xs'
+							onClick={() => setBulkOpen(true)}>
+							<Send size={13} /> Send to courier
+						</Button>
+						<Button
+							size='xs'
+							variant='ghost'
+							onClick={() => setPicked([])}>
+							Clear
+						</Button>
+					</Flex>
+				)}
 				<Box mb={3}>
 					<TableSettingsMenuContainer>
 						<FilterContainer>
@@ -307,7 +355,7 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 					<Panel flush>
 						<Box opacity={isFetching ? 0.6 : 1}>
 							<DataTable
-								columns={website ? websiteColumns : columns}
+								columns={[...(delivering ? [pickColumn] : []), ...(website ? websiteColumns : columns)]}
 								rows={data.doc}
 								rowKey={o => o._id}
 								onRowClick={o => open(o._id)}
@@ -317,6 +365,15 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 				)}
 			</ConsoleTabs>
 			<ResultContainer data={{ totalDocs: total, totalPages: Math.max(1, Math.ceil(total / (limit || 25))) }} />
+			{delivering && (
+				<BulkSend
+					open={bulkOpen}
+					onClose={() => setBulkOpen(false)}
+					orders={(data?.doc || []).filter(o => picked.includes(o._id)).map(o => ({ _id: o._id, code: o.code }))}
+					routes={storeRoutes(store)}
+					onDone={failed => setPicked(failed)}
+				/>
+			)}
 		</Box>
 	);
 };

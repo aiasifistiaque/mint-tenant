@@ -227,6 +227,8 @@ export type StoreOrderDetail = {
 	customer: { _id: string; name: string; phone?: string; email?: string; address?: string; storeCredit?: number } | null;
 	outlet: { _id: string; name: string; outletCode: string; address?: string; phone?: string; receiptHeader?: string } | null;
 	extra?: StoreExtraField[];
+	/** Its parcels sent to couriers, current first (backend docs/couriers CR-05). */
+	deliveries?: import('./courierApi').StoreDelivery[];
 };
 
 /* ------------------------------------------- Orders and Returns pages (EC-09) */
