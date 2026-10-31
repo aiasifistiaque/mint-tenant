@@ -9,7 +9,7 @@ import { toaster } from '@/components/ui/toaster';
 import { projectHref } from '../config/lib/constants/panel';
 import { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } from '../store/services/commerceApi';
 import type { CommerceSection } from '../store/services/commerceApi';
-import { SECTIONS, help } from './sections';
+import { SECTIONS, PRINTER, Pos, help } from './sections';
 
 /**
  * Store settings (backend docs/ecommerce EC-04): the setup wizard's sections
@@ -18,10 +18,12 @@ import { SECTIONS, help } from './sections';
  * server says why). Outlets are kept on their own page once the store is built.
  */
 
-const Card: FC<{ k: CommerceSection }> = ({ k }) => {
+type Def = { key: CommerceSection; title: string; intro: string; anchor: string; Editor: FC<any> };
+
+const Card: FC<{ k: CommerceSection; def?: Def }> = ({ k, def }) => {
 	const { data } = useGetCommerceSettingsQuery();
 	const [save, saving] = useSaveCommerceSettingsMutation();
-	const section = SECTIONS.find(s => s.key === k)!;
+	const section = def || SECTIONS.find(s => s.key === k)!;
 	const [value, setValue] = useState<any>(null);
 	const [problems, setProblems] = useState<string[]>([]);
 	useEffect(() => {
@@ -93,10 +95,23 @@ const Card: FC<{ k: CommerceSection }> = ({ k }) => {
 	);
 };
 
-const StoreSettings: FC = () => {
+/** The settings pages: each a menu item of its own, over the wizard's sections. */
+export type SettingsPage = 'store' | 'products' | 'delivery' | 'pos' | 'printer' | 'payments';
+
+const PAGES: Record<SettingsPage, { intro: string; keys: (CommerceSection | 'printer' | 'pos-till')[] }> = {
+	store: { intro: 'The money it sells in, how orders are numbered, your outlets and returns.', keys: ['store', 'outlets', 'returns'] },
+	products: { intro: 'Whether products come in variations, and how they’re scanned and counted.', keys: ['products'] },
+	delivery: { intro: 'Shipping charges and the couriers you send orders with.', keys: ['delivery'] },
+	pos: { intro: 'The till: shifts, holding sales, discounts and tax.', keys: ['pos-till'] },
+	printer: { intro: 'The receipt: paper size and the lines printed on it.', keys: ['printer'] },
+	payments: { intro: 'How customers pay you — at the counter and online.', keys: ['payments'] },
+};
+
+const StoreSettings: FC<{ page?: SettingsPage }> = ({ page = 'store' }) => {
 	const { data, isLoading } = useGetCommerceSettingsQuery();
 	if (isLoading || !data) return <Skeleton h='320px' />;
 	const outlets = data.installed.outlet?.route;
+	const { intro, keys } = PAGES[page];
 	return (
 		<Flex
 			direction='column'
@@ -106,14 +121,14 @@ const StoreSettings: FC = () => {
 				justify='space-between'
 				align='baseline'
 				gap={3}>
-				<Text {...help}>What your store was set up with. Switching something on shows its pages; switching it off hides them — not while it still holds what it made.</Text>
+				<Text {...help}>{intro}</Text>
 				<GuideLink section='store-settings' />
 			</Flex>
-			{SECTIONS.map(s =>
-				s.key === 'outlets' ? (
+			{keys.map(k =>
+				k === 'outlets' ? (
 					<Panel
-						key={s.key}
-						id={s.anchor}
+						key={k}
+						id='store-outlets'
 						title='Outlets'
 						subtitle='Your shops and warehouses, each with its own stock.'>
 						<Flex
@@ -136,10 +151,22 @@ const StoreSettings: FC = () => {
 							)}
 						</Flex>
 					</Panel>
+				) : k === 'printer' ? (
+					<Card
+						key={k}
+						k='pos'
+						def={PRINTER}
+					/>
+				) : k === 'pos-till' ? (
+					<Card
+						key={k}
+						k='pos'
+						def={{ ...SECTIONS.find(s => s.key === 'pos')!, intro: 'Shifts, holding sales, discounts, coupons and tax.', Editor: Pos }}
+					/>
 				) : (
 					<Card
-						key={s.key}
-						k={s.key}
+						key={k}
+						k={k}
 					/>
 				)
 			)}

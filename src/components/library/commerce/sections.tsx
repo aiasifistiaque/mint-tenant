@@ -461,10 +461,9 @@ export const Delivery: FC<SectionProps<'delivery'>> = ({ value, onChange, offere
 	</Stack>
 );
 
-export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange }) => {
-	const tax = value.tax;
-	return (
-		<Stack>
+/** Printer settings: the receipt's paper and its top and bottom lines (kept in the POS answers). */
+export const Printer: FC<SectionProps<'pos'>> = ({ value, onChange }) => (
+	<Stack>
 			<Box>
 				<Text {...labelCss}>Receipts</Text>
 				<SegmentGroup.Root
@@ -507,6 +506,13 @@ export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange }) => {
 					</Field.Root>
 				</Grid>
 			</Box>
+	</Stack>
+);
+
+export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange }) => {
+	const tax = value.tax;
+	return (
+		<Stack>
 			<OnSwitch
 				checked={value.shifts}
 				onChange={shifts => onChange({ ...value, shifts })}
@@ -603,6 +609,14 @@ export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange }) => {
 };
 
 /** Each section: its title, what it's for, its editor and its guide anchor. */
+/** The setup wizard keeps the till and its printer in one step; settings pages split them. */
+const PosAndPrinter: FC<SectionProps<'pos'>> = props => (
+	<Stack>
+		<Printer {...props} />
+		<Pos {...props} />
+	</Stack>
+);
+
 export const SECTIONS: { key: CommerceSection; title: string; intro: string; anchor: string; Editor: FC<SectionProps<any>> }[] = [
 	{ key: 'store', title: 'Your store', intro: 'The money it sells in, how orders are numbered, and whether stock may go below zero.', anchor: 'store-basics', Editor: StoreBasics },
 	{ key: 'outlets', title: 'Outlets', intro: 'Where you sell from and keep stock.', anchor: 'store-outlets', Editor: Outlets },
@@ -610,5 +624,8 @@ export const SECTIONS: { key: CommerceSection; title: string; intro: string; anc
 	{ key: 'payments', title: 'Payments', intro: 'How customers pay you — at the counter and online.', anchor: 'store-payments', Editor: Payments },
 	{ key: 'returns', title: 'Returns & refunds', intro: 'Whether items can come back, for how long, and how money goes back.', anchor: 'store-returns', Editor: Returns },
 	{ key: 'delivery', title: 'Delivery', intro: 'Orders sent to customers: shipping charges and couriers.', anchor: 'store-delivery', Editor: Delivery },
-	{ key: 'pos', title: 'POS', intro: 'The till: receipts, shifts, holding sales, discounts and tax.', anchor: 'store-pos', Editor: Pos },
+	{ key: 'pos', title: 'POS', intro: 'The till: receipts, shifts, holding sales, discounts and tax.', anchor: 'store-pos', Editor: PosAndPrinter },
 ];
+
+/** Printer settings is a page of its own over the POS answers. */
+export const PRINTER = { key: 'pos' as CommerceSection, title: 'Printer', intro: 'The receipt: paper size and the lines printed at its top and bottom.', anchor: 'store-printer', Editor: Printer };
