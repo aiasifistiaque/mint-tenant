@@ -96,7 +96,7 @@ const WorkspaceSwitcher: FC = () => {
 			<Portal>
 				<Drawer.Backdrop />
 				<Drawer.Positioner>
-					<DrawerContentContainer>
+					<DrawerContentContainer h='85dvh'>
 						<Drawer.Header px={4} pt={4} pb={3} gap={1} flexDir='column' alignItems='flex-start' borderBottomWidth='1px' borderColor='border.muted'>
 							<Drawer.Title fontWeight='600' fontSize='16px' letterSpacing='-0.01em' lineHeight='1.4' pr={8}>{project ? project.name : organization.name}</Drawer.Title>
 						</Drawer.Header>
