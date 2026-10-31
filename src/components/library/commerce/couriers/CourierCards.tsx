@@ -5,6 +5,7 @@ import { Box, Button, Flex, Input, Link, Text, Textarea } from '@chakra-ui/react
 import { CircleCheck, CircleAlert, ExternalLink, RefreshCw } from 'lucide-react';
 import { CopyValue, Dropdown, dateTime } from '../../cl';
 import { PromptDialog } from '../..';
+import { PasswordInput } from '@/components/ui/password-input';
 import { toaster } from '@/components/ui/toaster';
 import {
 	useDisconnectStoreCourierMutation,
@@ -199,14 +200,24 @@ export const CourierForm: FC<{ c: CourierCard }> = ({ c }) => {
 									mb={1}>
 									{f.label}
 								</Text>
-								<Input
-									size='sm'
-									type={f.secret ? 'password' : f.kind === 'email' ? 'email' : 'text'}
-									autoComplete='off'
-									placeholder={f.secret && conn?.keys?.[f.key]?.set ? '•••••••• saved — type to replace' : ''}
-									value={keys[f.key] ?? ''}
-									onChange={e => setKeys(k => ({ ...k, [f.key]: e.target.value }))}
-								/>
+								{/* Secrets get an eye to check what was typed; saved ones are never sent back. */}
+								{f.secret ? (
+									<PasswordInput
+										size='sm'
+										autoComplete='off'
+										placeholder={conn?.keys?.[f.key]?.set ? '•••••••• saved — type to replace' : ''}
+										value={keys[f.key] ?? ''}
+										onChange={e => setKeys(k => ({ ...k, [f.key]: e.target.value }))}
+									/>
+								) : (
+									<Input
+										size='sm'
+										type={f.kind === 'email' ? 'email' : 'text'}
+										autoComplete='off'
+										value={keys[f.key] ?? ''}
+										onChange={e => setKeys(k => ({ ...k, [f.key]: e.target.value }))}
+									/>
+								)}
 								{f.helper && (
 									<Text
 										fontSize='12px'
