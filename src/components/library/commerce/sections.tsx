@@ -397,7 +397,7 @@ export const Returns: FC<SectionProps<'returns'>> = ({ value, onChange, offered 
 	</Stack>
 );
 
-export const Delivery: FC<SectionProps<'delivery'>> = ({ value, onChange, offered }) => (
+export const Delivery: FC<SectionProps<'delivery'>> = ({ value, onChange, offered, built }) => (
 	<Stack>
 		<OnSwitch
 			checked={value.enabled}
@@ -439,23 +439,25 @@ export const Delivery: FC<SectionProps<'delivery'>> = ({ value, onChange, offere
 						)}
 					/>
 				</Box>
+				{built ? null : (
 				<Box>
-					<Text {...labelCss}>Couriers</Text>
-					<Text
-						{...help}
-						mb={2}>
-						An order’s page gets <b>Send to courier</b> for the couriers you use — the parcel is booked with them and tracked. You connect your own account with each courier below (after setup, on Delivery settings).
-					</Text>
-					{offered.couriers.length ? (
-						<Choices
-							items={offered.couriers.map(c => ({ id: c.id, label: c.name }))}
-							value={value.couriers}
-							onChange={couriers => onChange({ ...value, couriers })}
-						/>
-					) : (
-						<Text {...help}>No couriers are connected for your country yet — orders can still be marked shipped and delivered by hand.</Text>
-					)}
-				</Box>
+						<Text {...labelCss}>Couriers</Text>
+						<Text
+							{...help}
+							mb={2}>
+							An order’s page gets <b>Send to courier</b> for the couriers you use — the parcel is booked with them and tracked. You connect your own account with each courier below (after setup, on Delivery settings).
+						</Text>
+						{offered.couriers.length ? (
+							<Choices
+								items={offered.couriers.map(c => ({ id: c.id, label: c.name }))}
+								value={value.couriers}
+								onChange={couriers => onChange({ ...value, couriers })}
+							/>
+						) : (
+							<Text {...help}>No couriers are connected for your country yet — orders can still be marked shipped and delivered by hand.</Text>
+						)}
+					</Box>
+				)}
 			</>
 		)}
 	</Stack>

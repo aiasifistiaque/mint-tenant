@@ -1,11 +1,10 @@
 'use client';
 
 import { FC, ReactNode, useEffect, useState } from 'react';
-import { Box, Button, Flex, Input, Link, Skeleton, Text, Textarea } from '@chakra-ui/react';
+import { Box, Button, Flex, Input, Link, Text, Textarea } from '@chakra-ui/react';
 import { CircleCheck, CircleAlert, ExternalLink, RefreshCw } from 'lucide-react';
-import { CopyValue, Dropdown, Panel, dateTime } from '../../cl';
+import { CopyValue, Dropdown, dateTime } from '../../cl';
 import { PromptDialog } from '../..';
-import GuideLink from '../../tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
 import {
 	useDisconnectStoreCourierMutation,
@@ -25,8 +24,8 @@ import type { CourierCard } from '../../store/services/courierApi';
  * secret to paste back into that panel. Keys are never shown back.
  */
 
-const errText = (e: any) => e?.data?.message || e?.message || 'Something went wrong';
-const ext = (href: string, children: ReactNode) => (
+export const errText = (e: any) => e?.data?.message || e?.message || 'Something went wrong';
+export const ext = (href: string, children: ReactNode) => (
 	<Link
 		href={href}
 		target='_blank'
@@ -116,7 +115,7 @@ const SettingInput: FC<{ c: CourierCard; field: CourierCard['fields']['settings'
 	);
 };
 
-const CourierPanel: FC<{ c: CourierCard }> = ({ c }) => {
+export const CourierForm: FC<{ c: CourierCard }> = ({ c }) => {
 	const [save, saving] = useSaveStoreCourierMutation();
 	const [test, testing] = useTestStoreCourierMutation();
 	const [renew, renewing] = useRenewStoreCourierSecretMutation();
@@ -134,24 +133,6 @@ const CourierPanel: FC<{ c: CourierCard }> = ({ c }) => {
 		setMode(conn?.mode || (c.sandbox ? 'test' : 'live'));
 	}, [c.id, conn?.updatedAt]);
 
-	const anchor = `store-courier-${c.id}`;
-	if (!c.on)
-		return (
-			<Panel
-				id={anchor}
-				title={c.name}
-				subtitle='Turned off'
-				actions={<GuideLink section={anchor} />}>
-				<Text
-					p={4}
-					fontSize='13px'
-					color='fg.muted'>
-					Turn {c.name} on under Delivery above, save, and its card to connect your account appears here.
-					{conn ? ' Your keys are kept meanwhile.' : ''}
-				</Text>
-			</Panel>
-		);
-
 	const run = async (p: Promise<any>, ok: (r: any) => string) => {
 		try {
 			const r = await p;
@@ -166,15 +147,10 @@ const CourierPanel: FC<{ c: CourierCard }> = ({ c }) => {
 	const status = conn?.test;
 
 	return (
-		<Panel
-			id={anchor}
-			title={c.name}
-			subtitle={conn?.tested ? status?.message : conn ? 'Not connected yet' : 'Connect your own account'}
-			actions={<GuideLink section={anchor} />}>
+		<>
 			<Flex
 				direction='column'
-				gap={4}
-				p={4}>
+				gap={4}>
 				<Box
 					as='ol'
 					pl={5}
@@ -442,43 +418,7 @@ const CourierPanel: FC<{ c: CourierCard }> = ({ c }) => {
 				confirmLabel='Disconnect'
 				loading={disconnecting.isLoading}
 			/>
-		</Panel>
+		</>
 	);
 };
 
-/** The courier cards under Delivery settings. */
-const CourierCards: FC = () => {
-	const { data, isLoading, error } = useGetStoreCouriersQuery();
-	if (isLoading) return <Skeleton h='200px' />;
-	if (error || !data) return null;
-	const list = [...data.couriers].sort((a, b) => Number(b.on) - Number(a.on));
-	return (
-		<Flex
-			direction='column'
-			gap={4}
-			id='store-couriers'>
-			<Flex
-				justify='space-between'
-				align='baseline'
-				gap={3}>
-				<Box>
-					<Text fontWeight='600'>Your courier accounts</Text>
-					<Text
-						fontSize='13px'
-						color='fg.muted'>
-						Each courier is your own merchant account: they bill you and pay your cash on delivery straight to you.
-					</Text>
-				</Box>
-				<GuideLink section='store-couriers' />
-			</Flex>
-			{list.map(c => (
-				<CourierPanel
-					key={c.id}
-					c={c}
-				/>
-			))}
-		</Flex>
-	);
-};
-
-export default CourierCards;

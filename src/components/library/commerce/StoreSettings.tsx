@@ -10,7 +10,7 @@ import { projectHref } from '../config/lib/constants/panel';
 import { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } from '../store/services/commerceApi';
 import type { CommerceSection } from '../store/services/commerceApi';
 import { SECTIONS, PRINTER, Pos, help } from './sections';
-import CourierCards from './couriers/CourierCards';
+import CourierList from './couriers/CourierList';
 
 /**
  * Store settings (backend docs/ecommerce EC-04): the setup wizard's sections
@@ -171,7 +171,7 @@ const StoreSettings: FC<{ page?: SettingsPage }> = ({ page = 'store' }) => {
 					/>
 				)
 			)}
-			{page === 'delivery' && data.answers.delivery.enabled && <CourierCards />}
+			{page === 'delivery' && data.answers.delivery.enabled && <CourierList />}
 		</Flex>
 	);
 };
