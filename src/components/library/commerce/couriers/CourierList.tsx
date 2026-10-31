@@ -77,7 +77,9 @@ const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void 
 		<Box
 			id={`store-courier-${c.id}`}
 			borderWidth='1px'
-			borderRadius='lg'
+			borderColor='border'
+			borderRadius={radius.CONTAINER}
+			bg='bg.panel'
 			p={4}>
 			<Flex
 				justify='space-between'
