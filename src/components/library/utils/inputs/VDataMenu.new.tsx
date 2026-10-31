@@ -1,8 +1,9 @@
 'use client';
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Combobox, createListCollection, Flex, Portal } from '@chakra-ui/react';
+import { Box, Button, Combobox, createListCollection, Drawer, Flex, Input, Portal, Text } from '@chakra-ui/react';
 import { MdClose } from 'react-icons/md';
-import { CreateModal, FormControl, Icon, useGetAllQuery } from '../..';
+import { CreateModal, FormControl, Icon, useGetAllQuery, useIsMobile } from '../..';
+import { DrawerContentContainer } from '../../components/table/table-components/pop-modals';
 import { VDataMenuProps } from './VDataMenu/types';
 import { humanizeKey, optionPrefill, optionQuery } from '../../functions/optionFilters';
 import QuickAdd from './QuickAdd';
@@ -42,6 +43,17 @@ const VDataMenu: FC<VDataMenuProps> = ({
 }: any) => {
 	const [search, setSearch] = useState('');
 	const [open, setOpen] = useState(false);
+	// On a phone, a field on a page (not in a modal) picks from a bottom sheet
+	// with its own search, instead of the dropdown under the field.
+	const isMobile = useIsMobile();
+	const holder = useRef<HTMLDivElement>(null);
+	const [onPage, setOnPage] = useState(false);
+	useEffect(() => {
+		setOnPage(!holder.current?.closest('[role="dialog"]'));
+	}, []);
+	const sheet = isMobile && onPage;
+	const [sheetOpen, setSheetOpen] = useState(false);
+	const [q, setQ] = useState('');
 
 	// Which records are offered (schema.optionFilters): a query on the linked
 	// model, some of it read from this form — a project picker narrowed to the
@@ -50,7 +62,7 @@ const VDataMenu: FC<VDataMenuProps> = ({
 	// After a pick the input shows the record's name, which arrives here as a
 	// search — it isn't one: the list stays whole and a stale choice can clear.
 	const pickedLabel = useRef('');
-	const typed = search && search !== pickedLabel.current ? search : '';
+	const typed = sheet ? q.trim() : search && search !== pickedLabel.current ? search : '';
 	const { data, currentData, isFetching } = useGetAllQuery(
 		{ path: model, limit: '999', sort: menuKey, search: typed, filters: params },
 		{ skip: !model || !!waitingFor }
@@ -113,6 +125,15 @@ const VDataMenu: FC<VDataMenuProps> = ({
 	};
 
 	const handleUnselect = () => emitSelection({ name: '', _id: undefined });
+	// The search is dropped on close: the list is whole again, so the picked record's name still shows.
+	const closeSheet = () => {
+		setSheetOpen(false);
+		setQ('');
+	};
+	const pickInSheet = (doc: any) => {
+		emitSelection(doc);
+		closeSheet();
+	};
 
 	const closeAnd = (fn: () => void) => () => {
 		fn();
@@ -133,6 +154,7 @@ const VDataMenu: FC<VDataMenuProps> = ({
 
 	return (
 		<Flex
+			ref={holder}
 			w='full'
 			direction='column'>
 			{dataModel && (
@@ -160,6 +182,135 @@ const VDataMenu: FC<VDataMenuProps> = ({
 					<Box
 						flex='1'
 						minW={0}>
+						{sheet ? (
+							<>
+								<Button
+									w='full'
+									variant='outline'
+									colorPalette='gray'
+									boxShadow='none'
+									justifyContent='space-between'
+									textAlign='left'
+									size='sm'
+									fontSize='13px'
+									fontWeight={selectedItem ? '400' : '500'}
+									pl={3}
+									pr={2}
+									bg='field.bg'
+									borderColor='field.border'
+									color={selectedItem ? 'fg' : 'field.placeholder'}
+									disabled={disabled}
+									onClick={() => {
+										setQ('');
+										setSheetOpen(true);
+									}}>
+									<Text
+										truncate
+										minW={0}>
+										{selectedItem ? nameOf(selectedItem) : placeholder || `Select ${label}`}
+									</Text>
+									<Icon
+										name='select'
+										size={16}
+									/>
+								</Button>
+								<Drawer.Root
+									lazyMount
+									unmountOnExit
+									placement='bottom'
+									open={sheetOpen}
+									onOpenChange={d => (d.open ? setSheetOpen(true) : closeSheet())}>
+									<Portal>
+										<Drawer.Backdrop />
+										<Drawer.Positioner>
+											{/* A fixed height: fewer results leave empty room, the sheet never shrinks. */}
+											<DrawerContentContainer
+												h='75dvh'
+												maxH='75dvh'>
+												<Flex
+													direction='column'
+													flex={1}
+													minH={0}
+													p={4}
+													gap={3}>
+													<Text
+														fontWeight='600'
+														fontSize='15px'>
+														{label}
+													</Text>
+													<Input
+														size='sm'
+														placeholder='Search'
+														value={q}
+														onChange={e => setQ(e.target.value)}
+													/>
+													<Box
+														flex={1}
+														minH={0}
+														overflowY='auto'>
+														{dataModel && (
+															<Box
+																{...rowCss}
+																onClick={() => {
+																	closeSheet();
+																	btnRef.current?.click();
+																}}>
+																Add new {model}
+															</Box>
+														)}
+														{unselect && selectedItem && (
+															<Box
+																{...rowCss}
+																color='fg.muted'
+																onClick={() => {
+																	handleUnselect();
+																	closeSheet();
+																}}>
+																<i>Unselect</i>
+															</Box>
+														)}
+														{waitingFor || !docs.length ? (
+															<Text
+																fontSize='13px'
+																color='fg.muted'
+																px={2}
+																py={3}>
+																{waitingFor ? `Pick ${humanizeKey(waitingFor).toLowerCase()} first` : isFetching ? 'Loading…' : 'No results'}
+															</Text>
+														) : (
+															docs.map((doc: any) => (
+																<Flex
+																	key={doc?.[dataKey]}
+																	{...rowCss}
+																	py={2.5}
+																	align='center'
+																	gap={2}
+																	onClick={() => pickInSheet(doc)}>
+																	<Box
+																		flex='1'
+																		minW={0}>
+																		<Text>
+																			{nameOf(doc)} {menuAddOnKey && `(${doc?.[menuAddOnKey]})`}
+																		</Text>
+																		{detailsOf(doc)}
+																	</Box>
+																	{String(doc?.[dataKey]) === String(current) && (
+																		<Icon
+																			name='check'
+																			size={16}
+																		/>
+																	)}
+																</Flex>
+															))
+														)}
+													</Box>
+												</Flex>
+											</DrawerContentContainer>
+										</Drawer.Positioner>
+									</Portal>
+								</Drawer.Root>
+							</>
+						) : (
 						<Combobox.Root
 							lazyMount
 							collection={collection}
@@ -226,6 +377,7 @@ const VDataMenu: FC<VDataMenuProps> = ({
 								</Combobox.Positioner>
 							</Portal>
 						</Combobox.Root>
+						)}
 					</Box>
 					{item?.addItem && (
 						<QuickAdd
