@@ -1,9 +1,11 @@
 'use client';
 
 import { FC, ReactNode } from 'react';
-import { Box, Button, Checkbox, Field, Flex, Grid, IconButton, Input, SegmentGroup, Switch, Text, Textarea } from '@chakra-ui/react';
+import NextLink from 'next/link';
+import { Box, Button, Checkbox, Field, Flex, Grid, IconButton, Input, Link, SegmentGroup, Switch, Text, Textarea } from '@chakra-ui/react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Dropdown } from '../cl';
+import { projectHref } from '../config/lib/constants/panel';
 import type { CommerceAnswers, CommerceOffered, CommerceSection } from '../store/services/commerceApi';
 
 /**
@@ -511,7 +513,7 @@ export const Printer: FC<SectionProps<'pos'>> = ({ value, onChange }) => (
 	</Stack>
 );
 
-export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange }) => {
+export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange, built }) => {
 	const tax = value.tax;
 	return (
 		<Stack>
@@ -568,7 +570,19 @@ export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange }) => {
 						? 'Tax is added on top of prices at the till.'
 						: 'Nothing is added and receipts show no tax.'}
 				</Text>
-				{tax.mode !== 'none' && (
+				{tax.mode !== 'none' && built && (
+					<Text {...help}>
+						Your rates live on the{' '}
+						<Link
+							asChild
+							color='blue.fg'>
+							<NextLink href={projectHref('/tax-rates')}>
+							Tax rates page</NextLink>
+						</Link>
+						. Each category, product and variant picks one (a variant uses its own, else its product’s); anything without a tax uses the default rate.
+					</Text>
+				)}
+				{tax.mode !== 'none' && !built && (
 					<Box mt={3}>
 						<Rows
 							rows={tax.rates}
