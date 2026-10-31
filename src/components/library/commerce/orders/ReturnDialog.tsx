@@ -1,7 +1,7 @@
 'use client';
 
 import { FC, useEffect, useState } from 'react';
-import { Box, Checkbox, Flex, Input, Text, Textarea } from '@chakra-ui/react';
+import { Box, Checkbox, Flex, Text, Textarea } from '@chakra-ui/react';
 import { Dialog, DialogBody, DialogCloseButton, DialogFooter, DialogHeader, DiscardButton } from '../..';
 import { Button } from '@chakra-ui/react';
 import { Dropdown } from '../../cl';
@@ -89,16 +89,14 @@ export const ReturnDialog: FC<{
 											{left(it)} of {it.quantity} can come back · {m((Number(it.total) || 0) / Math.max(1, Number(it.quantity) || 1))} each
 										</Text>
 									</Box>
-									<Input
-										w='80px'
-										size='sm'
-										type='number'
-										min={0}
-										max={left(it)}
-										placeholder='0'
-										value={row(i).qty}
-										onChange={e => set(i, { qty: e.target.value })}
-									/>
+									<Box w='90px'>
+										<Dropdown
+											size='sm'
+											value={row(i).qty || '0'}
+											onChange={v => set(i, { qty: v })}
+											items={Array.from({ length: left(it) + 1 }, (_, n) => ({ value: String(n), label: String(n) }))}
+										/>
+									</Box>
 								</Flex>
 								{Number(row(i).qty) > 0 && (
 									<Flex
