@@ -312,6 +312,10 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: ({ routes, ...body }) => ({ url: 'commerce/stock/set', method: 'POST', body }),
 			invalidatesTags: (_r, _e, { routes }) => ['store-stock', ...routeTags(...routes)],
 		}),
+		receiveStoreStock: builder.mutation<{ code: string; id: string; units: number; items: number }, { outlet: string; date?: string; note?: string; lines: { product?: string; variant?: string; quantity: number }[] }>({
+			query: body => ({ url: 'commerce/stock/receive', method: 'POST', body }),
+			invalidatesTags: ['store-stock', ...routeTags('stock-in', 'stock', 'stock-movements', 'products', 'variants')],
+		}),
 		applyStoreAdjustment: builder.mutation<{ applied: number }, { id: string; routes: string[] }>({
 			query: ({ id }) => ({ url: `commerce/adjustments/${id}/apply`, method: 'POST', body: {} }),
 			invalidatesTags: (_r, _e, { routes }) => ['store-stock', ...routeTags(...routes)],
@@ -427,6 +431,7 @@ export const {
 	useGetStoreProductStockQuery,
 	useSyncStoreVariantsMutation,
 	useSetStoreStockMutation,
+	useReceiveStoreStockMutation,
 	useApplyStoreAdjustmentMutation,
 	useStoreTransferActionMutation,
 	useGetPosSetupQuery,
