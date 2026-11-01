@@ -42,8 +42,9 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 	const last = s.lastStatus;
 	return (
 		<Flex
-			align='center'
-			gap={4}
+			direction={{ base: 'column', md: 'row' }}
+			align={{ base: 'stretch', md: 'center' }}
+			gap={{ base: 3, md: 4 }}
 			px={4}
 			py={3.5}
 			borderTopWidth='1px'
@@ -58,7 +59,8 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 					<Text
 						fontSize='14px'
 						fontWeight='600'
-						truncate>
+						minW={0}
+						wordBreak='break-word'>
 						{a.name}
 					</Text>
 					{a.system && (
@@ -87,7 +89,8 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 					align='center'
 					gap={2}
 					fontSize='12px'
-					color='fg.muted'>
+					color='fg.muted'
+					flexWrap='wrap'>
 					{s.lastRunAt ? (
 						<>
 							<StatusDot
@@ -112,6 +115,11 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 					</Text>
 				)}
 			</Box>
+			<Flex
+				align='center'
+				justify={{ base: 'space-between', md: 'flex-end' }}
+				gap={4}
+				flexShrink={0}>
 			<Switch.Root
 				size='sm'
 				checked={a.enabled}
@@ -152,6 +160,7 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 						</IconButton>
 					</>
 				)}
+			</Flex>
 			</Flex>
 		</Flex>
 	);
