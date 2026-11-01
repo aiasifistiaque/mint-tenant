@@ -76,6 +76,15 @@ export const bulkApi = mainApi.injectEndpoints({
 			query: ({ path, ...body }) => ({ url: `${path}/bulk/status`, method: 'POST', body }),
 			invalidatesTags: (r, e, { path }) => routeTags(path, 'history'),
 		}),
+		/** One record put into (or taken out of) these records' many-link field — a collection's products. */
+		bulkLink: builder.mutation<
+			{ changed: number; skipped: StatusSkip[] },
+			{ path: string; ids: string[]; field: string; to: string; remove?: boolean }
+		>({
+			query: ({ path, ...body }) => ({ url: `${path}/bulk/link`, method: 'POST', body }),
+			// 'config': the view tab listing them, and the record's tab counts.
+			invalidatesTags: (r, e, { path }) => [...routeTags(path, 'history'), 'config'],
+		}),
 		mergePreview: builder.query<
 			{ links: MergeLink[]; total: number; editable: string[] },
 			{ path: string; keep: string; merge: string[] }
@@ -126,6 +135,7 @@ export const {
 	useBulkDuplicateMutation,
 	useBulkArchiveMutation,
 	useBulkStatusMutation,
+	useBulkLinkMutation,
 	useBulkPublishRowsMutation,
 	useMergePreviewQuery,
 	useMergeMutation,

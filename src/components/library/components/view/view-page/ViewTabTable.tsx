@@ -3,8 +3,8 @@
 import { FC, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Button, Center, Flex, Grid, Image, Input, InputGroup, Spinner, Text } from '@chakra-ui/react';
-import { ImageOff, Plus, Search, X } from 'lucide-react';
+import { Box, Button, Center, Flex, Grid, Image, Input, InputGroup, Link as ChakraLink, Spinner, Text } from '@chakra-ui/react';
+import { ExternalLink, ImageOff, Link2, Plus, Search, X } from 'lucide-react';
 import { useGetConfigQuery, useGetViewTabQuery } from '../../../store';
 import { BackendCreateModal } from '../../../modals';
 import { defaultAddLabel } from './addLabel';
@@ -12,7 +12,11 @@ import Panel from '../../../cl/Panel';
 import DataTable from '../../../cl/DataTable';
 import { EmptyState, ErrorState, TableSkeleton } from '../../../cl/States';
 import { cellNode, cellText, firstImage, isImageKind } from './cells';
-import { pagePath, projectHref } from '../../../config/lib/constants/panel';
+import { docsPath, pagePath, projectHref } from '../../../config/lib/constants/panel';
+import { toaster } from '@/components/ui/toaster';
+import { useBulkLinkMutation } from '../../../store/services/bulkApi';
+import { BulkDialog, CancelButton, COMPACT, errorOf } from '../../table/table-components/bulk/shared';
+import VDataTags from '../../../utils/inputs/VDataTags.new';
 
 /**
  * One tab of a view page after Overview: the records of another route linked
@@ -173,6 +177,118 @@ const AddButton: FC<{
 	);
 };
 
+/**
+ * A many-link tab (a collection's products): "Add existing" picks records already there and puts this one in
+ * their link field — POST /<related>/bulk/link, saved like an edit (History, automations).
+ */
+const LinkExisting: FC<{ route: string; field: string; id: string; name: string }> = ({ route, field, id, name }) => {
+	const [open, setOpen] = useState(false);
+	const [picked, setPicked] = useState<string[]>([]);
+	const [link, { isLoading }] = useBulkLinkMutation();
+	const close = () => {
+		setOpen(false);
+		setPicked([]);
+	};
+	const run = async () => {
+		try {
+			const r = await link({ path: route, ids: picked, field, to: id }).unwrap();
+			const skipped = r.skipped.filter(x => x.why !== 'already linked');
+			toaster.create({
+				type: skipped.length ? 'warning' : 'success',
+				title: `${r.changed} ${r.changed === 1 ? 'record' : 'records'} added`,
+				description: skipped.length ? skipped.map(x => `${x.name}: ${x.why}`).join(' · ') : undefined,
+			});
+			close();
+		} catch (e) {
+			toaster.create({ type: 'error', title: 'Could not add them', description: errorOf(e, '') });
+		}
+	};
+	return (
+		<>
+			<Button
+				size='xs'
+				variant='outline'
+				onClick={() => setOpen(true)}>
+				<Link2 size={14} />
+				Add existing
+			</Button>
+			<BulkDialog
+				open={open}
+				onClose={close}
+				busy={isLoading}
+				title={`Add existing ${name.toLowerCase()}`}
+				footer={
+					<>
+						<ChakraLink
+							href={docsPath('/docs/builder#view-tab-link')}
+							target='_blank'
+							rel='noopener noreferrer'
+							mr='auto'
+							display='inline-flex'
+							alignItems='center'
+							gap={1}
+							fontSize='xs'
+							color='fg.muted'
+							_hover={{ color: 'fg', textDecoration: 'underline' }}>
+							How it works
+							<ExternalLink size={11} />
+						</ChakraLink>
+						<CancelButton
+							onClick={close}
+							disabled={isLoading}
+						/>
+						<Button
+							{...COMPACT}
+							loading={isLoading}
+							disabled={!picked.length}
+							onClick={run}>
+							Add {picked.length || ''}
+						</Button>
+					</>
+				}>
+				<Text
+					fontSize='sm'
+					color='fg.muted'
+					mb={3}>
+					Pick the {name.toLowerCase()} to add here. Each one keeps the others it’s in.
+				</Text>
+				<VDataTags
+					label={name}
+					model={route}
+					// Only the ones not here yet.
+					item={{ optionFilters: [{ field, op: 'ne', value: id }] }}
+					value={picked}
+					onChange={(e: any) => setPicked(Array.isArray(e.target.value) ? e.target.value : [])}
+				/>
+			</BulkDialog>
+		</>
+	);
+};
+
+/** A row's "Remove" on a many-link tab: takes this record out of its link field; the row itself stays. */
+const RemoveLink: FC<{ route: string; field: string; id: string; row: any }> = ({ route, field, id, row }) => {
+	const [link, { isLoading }] = useBulkLinkMutation();
+	const run = async (e: any) => {
+		e.stopPropagation();
+		try {
+			await link({ path: route, ids: [row._id], field, to: id, remove: true }).unwrap();
+			toaster.create({ type: 'success', title: 'Removed from here', description: 'The record itself is kept.' });
+		} catch (err) {
+			toaster.create({ type: 'error', title: 'Could not remove it', description: errorOf(err, '') });
+		}
+	};
+	return (
+		<Button
+			size='xs'
+			variant='ghost'
+			loading={isLoading}
+			title='Take it out of this one — the record itself is kept'
+			onClick={run}>
+			Remove
+		</Button>
+	);
+};
+
 const ViewTabTable: FC<Props> = ({ path, id, index, title }) => {
 	const router = useRouter();
 	const [page, setPage] = useState(1);
@@ -261,6 +377,14 @@ const ViewTabTable: FC<Props> = ({ path, id, index, title }) => {
 							Open {name} →
 						</Text>
 					</Link>
+					{add?.link?.allowed && !add.nested && (
+						<LinkExisting
+							route={data.route}
+							field={add.field}
+							id={id}
+							name={name}
+						/>
+					)}
 					{add && (
 						<AddButton
 							label={add.label || defaultAddLabel(name)}
@@ -349,6 +473,18 @@ const ViewTabTable: FC<Props> = ({ path, id, index, title }) => {
 							rows={rows}
 							rowKey={(r: any) => r._id}
 							onRowClick={open}
+							rowActions={
+								add?.link?.allowed && !add.nested
+									? (r: any) => (
+											<RemoveLink
+												route={data.route}
+												field={add.field}
+												id={id}
+												row={r}
+											/>
+										)
+									: undefined
+							}
 						/>
 					)}
 					{totalPages > 1 && (
