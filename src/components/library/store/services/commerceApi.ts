@@ -297,6 +297,10 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: id => `commerce/taxes/${id}/usage`,
 			providesTags: [TAG],
 		}),
+		/** How many of a category's products saving this tax would change — the category form's note. */
+		getTaxPreview: builder.query<{ products: number; on: boolean }, { category: string; tax: string }>({
+			query: ({ category, tax }) => ({ url: 'commerce/tax-preview', params: { category, tax } }),
+		}),
 		/** Moves everything holding a tax to another, active one. */
 		replaceTax: builder.mutation<{ moved: number }, { id: string; to: string }>({
 			query: ({ id, to }) => ({ url: `commerce/taxes/${id}/replace`, method: 'POST', body: { to } }),
@@ -432,6 +436,7 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 });
 
 export const {
+	useGetTaxPreviewQuery,
 	useGetTaxUsageQuery,
 	useReplaceTaxMutation,
 	useGetCommerceSettingsQuery,

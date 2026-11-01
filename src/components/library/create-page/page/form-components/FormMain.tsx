@@ -12,6 +12,7 @@ import { hiddenFormFields } from '../../../functions/formRules';
 import { withFormulaValues } from '../../../functions/formula';
 import { useLinkedFormulaValues } from './LinkedFormulaValues';
 import LinkedFiller from './LinkedFiller';
+import TaxNote from './TaxNote';
 import LinkedPreview from './LinkedPreview';
 import { meets } from '../../../functions/fieldLocks';
 
@@ -139,6 +140,10 @@ const FormMain: FC<FormMainType> = ({
 			formData={formData}
 			setFormData={setFormData}
 			setChangedData={setChangedData}
+		/>
+		<TaxNote
+			fields={fields}
+			formData={formData}
 		/>
 		<Accordion.Root
 			display='flex'
