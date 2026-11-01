@@ -112,12 +112,16 @@ export type AutomationAction =
 	| { type: 'email'; to: { people?: string[]; actor?: boolean; fields?: string[]; emails?: string[] }; subject: string; body: string; design?: string; attach?: string[] }
 	| { type: 'webhook'; url: string }
 	| { type: 'update'; target: string; set: AutomationSet[] }
+	| { type: 'updateLinked'; route: string; via: string; set: AutomationSet[]; when?: AutomationCondition[]; match?: 'all' | 'any' }
 	| { type: 'create'; route: string; set: AutomationSet[] };
 export type Automation = {
 	_id: string;
 	name: string;
 	description?: string;
 	enabled: boolean;
+	/** Installed by the platform (a store's tax automations): only the on/off switch is the owner's. */
+	system?: string;
+	key?: string;
 	route: string;
 	on: AutomationEvent[];
 	changed: string[];
@@ -130,7 +134,7 @@ export type Automation = {
 	createdAt?: string;
 	updatedAt?: string;
 };
-export type AutomationInput = Omit<Automation, '_id' | 'stats' | 'secret' | 'createdAt' | 'updatedAt'>;
+export type AutomationInput = Omit<Automation, '_id' | 'stats' | 'secret' | 'createdAt' | 'updatedAt' | 'system' | 'key'>;
 export type AutomationStep = { type: string; ok: boolean; detail: string };
 export type AutomationRun = {
 	/** The emails its email actions sent (first attempts; a resend shows on its failed one). */

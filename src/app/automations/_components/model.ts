@@ -69,6 +69,7 @@ export const ACTION_LABEL: Record<AutomationAction['type'], string> = {
 	email: 'Send an email',
 	webhook: 'Call a webhook',
 	update: 'Update a record',
+	updateLinked: 'Update the records that pick this one',
 	create: 'Create a record',
 };
 
@@ -77,6 +78,7 @@ export const ACTION_HINT: Record<AutomationAction['type'], string> = {
 	email: 'Through the project’s default email account (Project → Email), or the organization’s server if it has none.',
 	webhook: 'POSTs the record to your server, signed with this automation’s secret.',
 	update: 'Change fields of this record, or of a record it links to.',
+	updateLinked: 'Change fields of every record on another page that picks this one — a category’s products, a client’s open projects.',
 	create: 'Add a record to another page — a task for a new order, a log line.',
 };
 
@@ -90,6 +92,8 @@ export const newAction = (type: AutomationAction['type']): AutomationAction => {
 			return { type, url: '' };
 		case 'update':
 			return { type, target: 'this', set: [{ field: '', value: '' }] };
+		case 'updateLinked':
+			return { type, route: '', via: '', set: [{ field: '', value: '' }], when: [], match: 'all' };
 		case 'create':
 			return { type, route: '', set: [{ field: '', value: '' }] };
 	}

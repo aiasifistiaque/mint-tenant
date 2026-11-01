@@ -52,12 +52,31 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 			<Box
 				flex={1}
 				minW={0}>
-				<Text
-					fontSize='14px'
-					fontWeight='600'
-					truncate>
-					{a.name}
-				</Text>
+				<Flex
+					align='center'
+					gap={2}>
+					<Text
+						fontSize='14px'
+						fontWeight='600'
+						truncate>
+						{a.name}
+					</Text>
+					{a.system && (
+						<Text
+							as='span'
+							fontSize='11px'
+							fontWeight='600'
+							color='fg.muted'
+							borderWidth='1px'
+							borderColor='border'
+							borderRadius='full'
+							px={2}
+							flexShrink={0}
+							title='Installed by your store. You can switch it on or off; it can’t be changed or deleted.'>
+							System
+						</Text>
+					)}
+				</Flex>
 				<Text
 					fontSize='12.5px'
 					color='fg.muted'>
@@ -115,20 +134,24 @@ const Row: FC<{ a: Automation; pages: Page[]; onEdit: () => void; onTry: () => v
 					onClick={onTry}>
 					<FlaskConical size={14} />
 				</IconButton>
-				<IconButton
-					aria-label='Edit'
-					size='xs'
-					variant='ghost'
-					onClick={onEdit}>
-					<Pencil size={14} />
-				</IconButton>
-				<IconButton
-					aria-label='Delete'
-					size='xs'
-					variant='ghost'
-					onClick={onDelete}>
-					<Trash2 size={14} />
-				</IconButton>
+				{!a.system && (
+					<>
+						<IconButton
+							aria-label='Edit'
+							size='xs'
+							variant='ghost'
+							onClick={onEdit}>
+							<Pencil size={14} />
+						</IconButton>
+						<IconButton
+							aria-label='Delete'
+							size='xs'
+							variant='ghost'
+							onClick={onDelete}>
+							<Trash2 size={14} />
+						</IconButton>
+					</>
+				)}
 			</Flex>
 		</Flex>
 	);
@@ -153,6 +176,8 @@ export default function AutomationsPage() {
 	const [update, updating] = useUpdateAutomationMutation();
 	const [remove, removing] = useDeleteAutomationMutation();
 	const list = data?.doc || [];
+	const own = list.filter(a => !a.system);
+	const system = list.filter(a => a.system);
 
 	const close = () => {
 		setEditing(null);
@@ -216,18 +241,52 @@ export default function AutomationsPage() {
 							{isLoading ? (
 								<Skeleton h='160px' />
 							) : list.length ? (
-								<Panel flush>
-									{list.map(a => (
-										<Row
-											key={a._id}
-											a={a}
-											pages={pages}
-											onEdit={() => setEditing(a._id)}
-											onTry={() => setTrying(a)}
-											onDelete={() => setDeleting(a)}
-										/>
-									))}
-								</Panel>
+								<Flex
+									direction='column'
+									gap={5}>
+									{own.length > 0 && (
+										<Panel flush>
+											{own.map(a => (
+												<Row
+													key={a._id}
+													a={a}
+													pages={pages}
+													onEdit={() => setEditing(a._id)}
+													onTry={() => setTrying(a)}
+													onDelete={() => setDeleting(a)}
+												/>
+											))}
+										</Panel>
+									)}
+									{system.length > 0 && (
+										<Box>
+											<Text
+												fontSize='13px'
+												fontWeight='600'
+												mb={0.5}>
+												System automations
+											</Text>
+											<Text
+												fontSize='12.5px'
+												color='fg.muted'
+												mb={2}>
+												Installed by your store to keep taxes and prices in step. You can switch them on or off; they can’t be changed or deleted.
+											</Text>
+											<Panel flush>
+												{system.map(a => (
+													<Row
+														key={a._id}
+														a={a}
+														pages={pages}
+														onEdit={() => {}}
+														onTry={() => setTrying(a)}
+														onDelete={() => {}}
+													/>
+												))}
+											</Panel>
+										</Box>
+									)}
+								</Flex>
 							) : (
 								<EmptyState
 									title='No automations yet'

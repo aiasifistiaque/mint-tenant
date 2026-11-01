@@ -7,7 +7,8 @@ import { Dropdown } from '@/components/library/cl';
 import { useGetMailDesignsQuery } from '@/components/library/store/services/tenantApi';
 import { useGetPdfTemplatesQuery } from '@/components/library/store/services/pdfTemplatesApi';
 import type { AutomationAction, AutomationSet } from '@/components/library/store/services/tenantApi';
-import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, pageOfRef, placeholdersOf, writable } from './model';
+import ConditionsEditor from '@/app/builder/_components/ConditionsEditor';
+import { ACTION_HINT, ACTION_LABEL, Page, REFERENCE_KINDS, addressSources, conditionFields, pageOfRef, placeholdersOf, writable } from './model';
 import { insertToken } from './textEdit';
 import MessageEditor from './MessageEditor';
 
@@ -530,6 +531,68 @@ const ActionEditor: FC<{
 						pages={pages}
 					/>
 				</Part>
+			</>
+		);
+	} else if (a.type === 'updateLinked') {
+		// The pages with a field that picks this page's records.
+		const pickers = pages.filter(p => p.fields.some(f => REFERENCE_KINDS.includes(f.kind) && pageOfRef(pages, f.ref)?.route === page?.route));
+		const target = pages.find(p => p.route === a.route);
+		const vias = (target?.fields || []).filter(f => REFERENCE_KINDS.includes(f.kind) && pageOfRef(pages, f.ref)?.route === page?.route);
+		body = (
+			<>
+				<Part
+					label='Records on'
+					error={err('route')}>
+					<Dropdown
+						size='sm'
+						value={a.route}
+						placeholder='Choose a page'
+						aria-label='Page whose records pick this one'
+						items={pickers.map(p => ({ value: p.route, label: p.title }))}
+						onChange={v => onChange({ ...a, route: v, via: pages.find(p => p.route === v)?.fields.find(f => REFERENCE_KINDS.includes(f.kind) && pageOfRef(pages, f.ref)?.route === page?.route)?.key || '', set: [{ field: '', value: '' }], when: [] })}
+					/>
+				</Part>
+				{target && (
+					<>
+						<Part
+							label={`That pick this ${page?.noun || 'record'} in`}
+							error={err('via')}>
+							<Dropdown
+								size='sm'
+								value={a.via}
+								aria-label='Field that picks this record'
+								items={vias.map(f => ({ value: f.key, label: f.label }))}
+								onChange={v => onChange({ ...a, via: v })}
+							/>
+						</Part>
+						<Part
+							label={`Only the ${target.title.toLowerCase()} where`}
+							hint='Leave empty for all of them.'
+							error={err('when')}>
+							<ConditionsEditor
+								fields={conditionFields(target)}
+								where={(a.when || []) as any}
+								onChange={w => onChange({ ...a, when: w as any })}
+								match={a.match || 'all'}
+								onMatch={m => onChange({ ...a, match: m })}
+								hint='Checked on each record before it is changed.'
+								emptyHint='All of them.'
+							/>
+						</Part>
+						<Part label={`Set on each ${target.noun}`}>
+							<SetRows
+								set={a.set}
+								onChange={s => onChange({ ...a, set: s })}
+								source={page}
+								target={target}
+								allowClear
+								errorAt={errorAt}
+								at={`${at}.set`}
+								pages={pages}
+							/>
+						</Part>
+					</>
+				)}
 			</>
 		);
 	} else if (a.type === 'create') {
