@@ -24,6 +24,7 @@ const GUIDE_OF: Record<string, string> = {
 	'project-comments': 'projects',
 	automations: 'automations',
 	'automation-trigger': 'automations',
+	'automation-date': 'automations',
 	'automation-conditions': 'automations',
 	'automation-actions': 'automations',
 	'automation-try': 'automations',

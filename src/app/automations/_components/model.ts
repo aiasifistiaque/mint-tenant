@@ -62,7 +62,23 @@ export const conditionFields = (p?: Page): ModelField[] =>
 			...(['references', 'multiselect', 'tags'].includes(f.kind) && { isArray: true }),
 		}));
 
-export const EVENT_WORD: Record<AutomationEvent, string> = { create: 'created', update: 'changed', delete: 'deleted' };
+export const EVENT_WORD: Record<AutomationEvent, string> = { create: 'created', update: 'changed', delete: 'deleted', date: 'reaches a date' };
+
+/** Kinds a "when a date is reached" automation can watch. */
+export const DATE_KINDS = ['date', 'dateformula'];
+export const DATE_UNITS = [
+	{ value: 'minutes', label: 'minutes' },
+	{ value: 'hours', label: 'hours' },
+	{ value: 'days', label: 'days' },
+];
+
+/** "When a Subscription’s Renews is reached" · "1 day before a Subscription’s Renews". */
+export const dateWords = (d: AutomationInput['date'], page?: Page) => {
+	const label = page?.fields.find(f => f.key === d?.field)?.label || d?.field || '…';
+	const whose = `${page ? `a ${page.noun}` : 'a record'}’s ${label}`;
+	if (!d?.amount) return `When ${whose} is reached`;
+	return `${d.amount} ${d.amount === 1 ? d.unit.replace(/s$/, '') : d.unit} ${d.when} ${whose}`;
+};
 
 export const ACTION_LABEL: Record<AutomationAction['type'], string> = {
 	notify: 'Notify people',
@@ -107,6 +123,7 @@ export const inputOf = (a: Automation): AutomationInput => ({
 	enabled: a.enabled,
 	route: a.route,
 	on: a.on,
+	...(a.on.includes('date') && a.date && { date: a.date }),
 	changed: a.changed || [],
 	when: a.when || [],
 	match: a.match || 'all',
@@ -123,6 +140,7 @@ export const sentence = (a: AutomationInput, pages: Page[]) => {
 	const changed = a.on.includes('update') && a.changed?.length ? ` (${list(a.changed.map(label))})` : '';
 	const conds = a.when?.length ? ` and ${a.when.length === 1 ? 'a condition holds' : `${a.match === 'any' ? 'any' : 'all'} of ${a.when.length} conditions hold`}` : '';
 	const actions = list(a.actions.map(x => ACTION_LABEL[x.type].toLowerCase()), 'and');
+	if (a.on.includes('date')) return `${dateWords(a.date, page)}${conds}: ${actions || '…'}.`;
 	return `When ${page ? `a ${page.noun}` : 'a record'} is ${events || '…'}${changed}${conds}: ${actions || '…'}.`;
 };
 

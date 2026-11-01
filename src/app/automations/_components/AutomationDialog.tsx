@@ -9,16 +9,19 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import ConditionsEditor from '@/app/builder/_components/ConditionsEditor';
 import type { Automation, AutomationAction, AutomationEvent, AutomationInput } from '@/components/library/store/services/tenantApi';
 import ActionEditor, { ErrorLine, Person } from './ActionEditor';
-import { ACTION_LABEL, EMPTY, EVENT_WORD, Page, conditionFields, inputOf, newAction, sentence } from './model';
+import { ACTION_LABEL, DATE_KINDS, DATE_UNITS, EMPTY, EVENT_WORD, Page, conditionFields, inputOf, newAction, sentence } from './model';
 
 /**
  * Adding or changing an automation (backend docs/automations): its name, the
- * trigger (page, events, which changed fields count), conditions, and the
+ * trigger (page, events, which changed fields count — or a date of the record
+ * being reached, EC-42), conditions, and the
  * actions in order. The sentence at the top says what it does. A server
  * refusal carries `on` — the input at fault — and shows under it.
  */
 
 const EVENTS: AutomationEvent[] = ['create', 'update', 'delete'];
+const SAVE_HINT = 'It runs after the record is saved, in the background — the save never waits for it or fails because of it.';
+const DATE_HINT = 'It runs on each record’s date (checked every minute). Saving a record moves its run; clearing the date or deleting the record drops it; a date already passed when it’s saved doesn’t run. The conditions are checked when it runs.';
 
 const Section: FC<{ title: string; hint?: string; guide?: string; children: ReactNode }> = ({ title, hint, guide, children }) => (
 	<Box>
@@ -68,8 +71,9 @@ const AutomationDialog: FC<{
 		setA(x => ({ ...x, ...patch }));
 	};
 	const page = pages.find(p => p.route === a.route);
+	const dateFields = (page?.fields || []).filter(f => DATE_KINDS.includes(f.kind));
 	const errorAt = (path: string) => (error?.on === path ? error.message : undefined);
-	const placed = !!error?.on && /^(name|route|on|changed|when|actions)/.test(error.on);
+	const placed = !!error?.on && /^(name|route|on|date|changed|when|actions)/.test(error.on);
 	const putAction = (i: number, x: AutomationAction) => set({ actions: a.actions.map((y, j) => (j === i ? x : y)) });
 	const move = (i: number, by: -1 | 1) => {
 		const list = [...a.actions];
@@ -133,8 +137,8 @@ const AutomationDialog: FC<{
 
 								<Section
 									title='When'
-									hint='It runs after the record is saved, in the background — the save never waits for it or fails because of it.'
-									guide='automation-trigger'>
+									hint={a.on.includes('date') ? DATE_HINT : SAVE_HINT}
+									guide={a.on.includes('date') ? 'automation-date' : 'automation-trigger'}>
 									<Flex
 										direction='column'
 										gap={3}>
@@ -144,10 +148,20 @@ const AutomationDialog: FC<{
 											placeholder='Choose a page'
 											aria-label='Page'
 											items={pages.map(p => ({ value: p.route, label: `A ${p.noun} is…` }))}
-											onChange={v => set({ route: v, changed: [], when: [], actions: a.actions.map(x => (x.type === 'update' ? { ...x, target: 'this', set: [{ field: '', value: '' }] } : x)) })}
+											onChange={v =>
+												set({
+													route: v,
+													changed: [],
+													when: [],
+													...(a.date && { date: { ...a.date, field: '' } }),
+													actions: a.actions.map(x => (x.type === 'update' ? { ...x, target: 'this', set: [{ field: '', value: '' }] } : x)),
+												})
+											}
 										/>
 										<ErrorLine text={errorAt('route')} />
-										<Flex gap={4}>
+										<Flex
+											gap={4}
+											wrap='wrap'>
 											{EVENTS.map(ev => (
 												<Checkbox.Root
 													key={ev}
@@ -159,8 +173,90 @@ const AutomationDialog: FC<{
 													<Checkbox.Label fontSize='13px'>{EVENT_WORD[ev]}</Checkbox.Label>
 												</Checkbox.Root>
 											))}
+											{/* A date runs on its own: ticking it clears the others, and they clear it. */}
+											<Checkbox.Root
+												size='sm'
+												checked={a.on.includes('date')}
+												onCheckedChange={e =>
+													set(
+														e.checked
+															? { on: ['date'], changed: [], date: a.date || { field: dateFields[0]?.key || '', amount: 0, unit: 'days', when: 'after' } }
+															: { on: ['create'] }
+													)
+												}>
+												<Checkbox.HiddenInput />
+												<Checkbox.Control />
+												<Checkbox.Label fontSize='13px'>{EVENT_WORD.date}</Checkbox.Label>
+											</Checkbox.Root>
 										</Flex>
 										<ErrorLine text={errorAt('on')} />
+										{a.on.includes('date') && page && (
+											<Box>
+												{dateFields.length ? (
+													<Flex
+														gap={2}
+														align='center'
+														wrap='wrap'>
+														<Input
+															size='sm'
+															type='number'
+															min={0}
+															max={1000}
+															w='72px'
+															aria-label='How long'
+															value={a.date?.amount ?? 0}
+															onChange={e => set({ date: { ...a.date!, amount: Math.max(0, Math.floor(Number(e.target.value) || 0)) } })}
+														/>
+														<Box w='110px'>
+															<Dropdown
+																size='sm'
+																aria-label='Unit'
+																value={a.date?.unit || 'days'}
+																items={DATE_UNITS}
+																onChange={v => set({ date: { ...a.date!, unit: v as any } })}
+															/>
+														</Box>
+														<Box w='110px'>
+															<Dropdown
+																size='sm'
+																aria-label='Before or after'
+																value={a.date?.when || 'after'}
+																items={[
+																	{ value: 'after', label: 'after' },
+																	{ value: 'before', label: 'before' },
+																]}
+																onChange={v => set({ date: { ...a.date!, when: v as any } })}
+															/>
+														</Box>
+														<Box
+															flex='1'
+															minW='160px'>
+															<Dropdown
+																size='sm'
+																aria-label='Date field'
+																placeholder='Choose a date field'
+																value={a.date?.field || ''}
+																items={dateFields.map(f => ({ value: f.key, label: `its ${f.label}` }))}
+																onChange={v => set({ date: { ...a.date!, field: v } })}
+															/>
+														</Box>
+													</Flex>
+												) : (
+													<Text
+														fontSize='12.5px'
+														color='fg.muted'>
+														{page.title} has no date field — add one in the model builder first.
+													</Text>
+												)}
+												<Text
+													fontSize='12px'
+													color='fg.subtle'
+													mt={1.5}>
+													0 — on the date itself. A date without a time is the start of that day.
+												</Text>
+												<ErrorLine text={errorAt('date.field') || errorAt('date.amount')} />
+											</Box>
+										)}
 										{a.on.includes('update') && page && (
 											<Box>
 												<Text

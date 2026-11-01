@@ -104,7 +104,9 @@ export type TenantProject = {
 };
 
 /* Automations (backend docs/automations). */
-export type AutomationEvent = 'create' | 'update' | 'delete';
+export type AutomationEvent = 'create' | 'update' | 'delete' | 'date';
+/** "When a date is reached" (EC-42): the record's date field, or `amount` `unit` before / after it. */
+export type AutomationDate = { field: string; amount: number; unit: 'minutes' | 'hours' | 'days'; when: 'before' | 'after' };
 export type AutomationCondition = { field: string; op: string; value?: any };
 export type AutomationSet = { field: string; value?: any; from?: string; clear?: boolean };
 export type AutomationAction =
@@ -124,6 +126,8 @@ export type Automation = {
 	key?: string;
 	route: string;
 	on: AutomationEvent[];
+	/** With on ['date'] (on its own). */
+	date?: AutomationDate;
 	changed: string[];
 	when: AutomationCondition[];
 	match: 'all' | 'any';
