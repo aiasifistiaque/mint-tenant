@@ -513,8 +513,88 @@ export const Printer: FC<SectionProps<'pos'>> = ({ value, onChange }) => (
 	</Stack>
 );
 
-export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange, built }) => {
+/** How tax is charged — none, in the price, or added on top — and the rates. Its own card on the Store settings page; the setup wizard keeps it with the till. */
+export const TaxSetting: FC<SectionProps<'pos'>> = ({ value, onChange, built }) => {
 	const tax = value.tax;
+	return (
+	<Box>
+		<Text {...labelCss}>Tax</Text>
+		<SegmentGroup.Root
+			size='sm'
+			mt={2}
+			value={tax.mode}
+			onValueChange={d => onChange({ ...value, tax: { ...tax, mode: (d.value as any) || 'none', rates: d.value !== 'none' && !tax.rates.length ? [{ name: 'VAT', rate: 15, default: true }] : tax.rates } })}
+			w='fit-content'>
+			<SegmentGroup.Indicator />
+			<SegmentGroup.Items
+				items={[
+					{ value: 'none', label: 'No tax' },
+					{ value: 'inclusive', label: 'In the price' },
+					{ value: 'added', label: 'Added at the till' },
+				]}
+			/>
+		</SegmentGroup.Root>
+		<Text {...help}>
+			{tax.mode === 'inclusive'
+				? 'Prices already include tax; receipts show how much of it was tax.'
+				: tax.mode === 'added'
+				? 'Tax is added on top of prices at the till.'
+				: 'Nothing is added and receipts show no tax.'}
+		</Text>
+		{tax.mode !== 'none' && built && (
+			<Text {...help}>
+				Your rates live on the{' '}
+				<Link
+					asChild
+					color='blue.fg'>
+					<NextLink href={projectHref('/tax-rates')}>
+					Tax rates page</NextLink>
+				</Link>
+				. Each category, product and variant picks one (a variant uses its own, else its product’s); anything without a tax uses the default rate.
+			</Text>
+		)}
+		{tax.mode !== 'none' && !built && (
+			<Box mt={3}>
+				<Rows
+					rows={tax.rates}
+					onChange={rates => onChange({ ...value, tax: { ...tax, rates } })}
+					blank={{ name: '', rate: 0 }}
+					addLabel='Add a tax rate'
+					render={(r, set, i) => (
+						<Grid
+							templateColumns='2fr 1fr auto'
+							gap={2}
+							alignItems='center'>
+							<Input
+								size='sm'
+								value={r.name}
+								placeholder='VAT'
+								onChange={e => set({ ...r, name: e.target.value })}
+							/>
+							<Input
+								size='sm'
+								type='number'
+								value={r.rate}
+								onChange={e => set({ ...r, rate: Number(e.target.value) })}
+							/>
+							<Checkbox.Root
+								size='sm'
+								checked={!!r.default}
+								onCheckedChange={() => onChange({ ...value, tax: { ...tax, rates: tax.rates.map((x, j) => ({ ...x, default: j === i })) } })}>
+								<Checkbox.HiddenInput />
+								<Checkbox.Control />
+								<Checkbox.Label fontSize='12px'>Default</Checkbox.Label>
+							</Checkbox.Root>
+						</Grid>
+					)}
+				/>
+			</Box>
+		)}
+	</Box>
+	);
+};
+
+export const Pos: FC<SectionProps<'pos'> & { noTax?: boolean }> = ({ value, onChange, built, offered, noTax }) => {
 	return (
 		<Stack>
 			<OnSwitch
@@ -546,80 +626,14 @@ export const Pos: FC<SectionProps<'pos'>> = ({ value, onChange, built }) => {
 				label='Every sale needs a customer'
 				hint='Off: walk-in sales without a name are fine.'
 			/>
-			<Box>
-				<Text {...labelCss}>Tax</Text>
-				<SegmentGroup.Root
-					size='sm'
-					mt={2}
-					value={tax.mode}
-					onValueChange={d => onChange({ ...value, tax: { ...tax, mode: (d.value as any) || 'none', rates: d.value !== 'none' && !tax.rates.length ? [{ name: 'VAT', rate: 15, default: true }] : tax.rates } })}
-					w='fit-content'>
-					<SegmentGroup.Indicator />
-					<SegmentGroup.Items
-						items={[
-							{ value: 'none', label: 'No tax' },
-							{ value: 'inclusive', label: 'In the price' },
-							{ value: 'added', label: 'Added at the till' },
-						]}
-					/>
-				</SegmentGroup.Root>
-				<Text {...help}>
-					{tax.mode === 'inclusive'
-						? 'Prices already include tax; receipts show how much of it was tax.'
-						: tax.mode === 'added'
-						? 'Tax is added on top of prices at the till.'
-						: 'Nothing is added and receipts show no tax.'}
-				</Text>
-				{tax.mode !== 'none' && built && (
-					<Text {...help}>
-						Your rates live on the{' '}
-						<Link
-							asChild
-							color='blue.fg'>
-							<NextLink href={projectHref('/tax-rates')}>
-							Tax rates page</NextLink>
-						</Link>
-						. Each category, product and variant picks one (a variant uses its own, else its product’s); anything without a tax uses the default rate.
-					</Text>
-				)}
-				{tax.mode !== 'none' && !built && (
-					<Box mt={3}>
-						<Rows
-							rows={tax.rates}
-							onChange={rates => onChange({ ...value, tax: { ...tax, rates } })}
-							blank={{ name: '', rate: 0 }}
-							addLabel='Add a tax rate'
-							render={(r, set, i) => (
-								<Grid
-									templateColumns='2fr 1fr auto'
-									gap={2}
-									alignItems='center'>
-									<Input
-										size='sm'
-										value={r.name}
-										placeholder='VAT'
-										onChange={e => set({ ...r, name: e.target.value })}
-									/>
-									<Input
-										size='sm'
-										type='number'
-										value={r.rate}
-										onChange={e => set({ ...r, rate: Number(e.target.value) })}
-									/>
-									<Checkbox.Root
-										size='sm'
-										checked={!!r.default}
-										onCheckedChange={() => onChange({ ...value, tax: { ...tax, rates: tax.rates.map((x, j) => ({ ...x, default: j === i })) } })}>
-										<Checkbox.HiddenInput />
-										<Checkbox.Control />
-										<Checkbox.Label fontSize='12px'>Default</Checkbox.Label>
-									</Checkbox.Root>
-								</Grid>
-							)}
-						/>
-					</Box>
-				)}
-			</Box>
+			{!noTax && (
+				<TaxSetting
+					value={value}
+					onChange={onChange}
+					offered={offered}
+					built={built}
+				/>
+			)}
 		</Stack>
 	);
 };

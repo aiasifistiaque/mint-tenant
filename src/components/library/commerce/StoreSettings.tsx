@@ -9,7 +9,7 @@ import { toaster } from '@/components/ui/toaster';
 import { projectHref } from '../config/lib/constants/panel';
 import { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } from '../store/services/commerceApi';
 import type { CommerceSection } from '../store/services/commerceApi';
-import { SECTIONS, PRINTER, Pos, help } from './sections';
+import { SECTIONS, PRINTER, Pos, TaxSetting, help } from './sections';
 import CourierList from './couriers/CourierList';
 
 /**
@@ -99,11 +99,11 @@ const Card: FC<{ k: CommerceSection; def?: Def }> = ({ k, def }) => {
 /** The settings pages: each a menu item of its own, over the wizard's sections. */
 export type SettingsPage = 'store' | 'products' | 'delivery' | 'pos' | 'printer' | 'payments';
 
-const PAGES: Record<SettingsPage, { intro: string; keys: (CommerceSection | 'printer' | 'pos-till')[] }> = {
-	store: { intro: 'The money it sells in, how orders are numbered, your outlets and returns.', keys: ['store', 'outlets', 'returns'] },
+const PAGES: Record<SettingsPage, { intro: string; keys: (CommerceSection | 'printer' | 'pos-till' | 'tax')[] }> = {
+	store: { intro: 'The money it sells in, how tax is charged, how orders are numbered, your outlets and returns.', keys: ['store', 'tax', 'outlets', 'returns'] },
 	products: { intro: 'Whether products come in variations, and how they’re scanned and counted.', keys: ['products'] },
 	delivery: { intro: 'Shipping charges and the couriers you send orders with.', keys: ['delivery'] },
-	pos: { intro: 'The till: shifts, holding sales, discounts and tax.', keys: ['pos-till'] },
+	pos: { intro: 'The till: shifts, holding sales, discounts and coupons.', keys: ['pos-till'] },
 	printer: { intro: 'The receipt: paper size and the lines printed on it.', keys: ['printer'] },
 	payments: { intro: 'How customers pay you — at the counter and online.', keys: ['payments'] },
 };
@@ -158,11 +158,17 @@ const StoreSettings: FC<{ page?: SettingsPage }> = ({ page = 'store' }) => {
 						k='pos'
 						def={PRINTER}
 					/>
+				) : k === 'tax' ? (
+					<Card
+						key={k}
+						k='pos'
+						def={{ key: 'pos', title: 'Tax', intro: 'No tax, tax already in the price, or added on top — and the rates.', anchor: 'store-tax', Editor: TaxSetting }}
+					/>
 				) : k === 'pos-till' ? (
 					<Card
 						key={k}
 						k='pos'
-						def={{ ...SECTIONS.find(s => s.key === 'pos')!, intro: 'Shifts, holding sales, discounts, coupons and tax.', Editor: Pos }}
+						def={{ ...SECTIONS.find(s => s.key === 'pos')!, intro: 'Shifts, holding sales, discounts and coupons.', Editor: (p: any) => <Pos {...p} noTax /> }}
 					/>
 				) : (
 					<Card
