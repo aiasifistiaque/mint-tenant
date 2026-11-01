@@ -1,9 +1,14 @@
 'use client';
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Combobox, createListCollection, Drawer, Flex, Input, Portal, Text } from '@chakra-ui/react';
+import { Box, Button, Combobox, createListCollection, Flex, Input, Portal, Text } from '@chakra-ui/react';
 import { MdClose } from 'react-icons/md';
-import { CreateModal, FormControl, Icon, useGetAllQuery, useIsMobile } from '../..';
-import { DrawerContentContainer } from '../../components/table/table-components/pop-modals';
+import { CreateModal, FormControl, Icon, radius, useGetAllQuery, useIsMobile } from '../..';
+import {
+	MenuModal,
+	MenuModalBody,
+	MenuModalCloseButton,
+	MenuModalHeader,
+} from '../../components/table/table-components/menu-modals';
 import { VDataMenuProps } from './VDataMenu/types';
 import { humanizeKey, optionPrefill, optionQuery } from '../../functions/optionFilters';
 import QuickAdd from './QuickAdd';
@@ -189,6 +194,8 @@ const VDataMenu: FC<VDataMenuProps> = ({
 									variant='outline'
 									colorPalette='gray'
 									boxShadow='none'
+									borderRadius={radius.INPUT}
+									_hover={{ borderColor: 'field.borderHover', bg: 'field.bg' }}
 									justifyContent='space-between'
 									textAlign='left'
 									size='sm'
@@ -214,40 +221,27 @@ const VDataMenu: FC<VDataMenuProps> = ({
 										size={16}
 									/>
 								</Button>
-								<Drawer.Root
-									lazyMount
-									unmountOnExit
-									placement='bottom'
-									open={sheetOpen}
-									onOpenChange={d => (d.open ? setSheetOpen(true) : closeSheet())}>
-									<Portal>
-										<Drawer.Backdrop />
-										<Drawer.Positioner>
-											{/* A fixed height: fewer results leave empty room, the sheet never shrinks. */}
-											<DrawerContentContainer
-												h='75dvh'
-												maxH='75dvh'>
-												<Flex
-													direction='column'
-													flex={1}
-													minH={0}
-													p={4}
-													gap={3}>
-													<Text
-														fontWeight='600'
-														fontSize='15px'>
-														{label}
-													</Text>
-													<Input
-														size='sm'
-														placeholder='Search'
-														value={q}
-														onChange={e => setQ(e.target.value)}
-													/>
-													<Box
-														flex={1}
-														minH={0}
-														overflowY='auto'>
+								<MenuModal
+									isOpen={sheetOpen}
+									onClose={closeSheet}>
+									<MenuModalHeader>{label}</MenuModalHeader>
+									<MenuModalCloseButton />
+									<MenuModalBody>
+										{/* A fixed height: fewer results leave empty room, the sheet never shrinks. */}
+										<Flex
+											direction='column'
+											h='60dvh'
+											gap={3}>
+											<Input
+												size='sm'
+												placeholder='Search'
+												value={q}
+												onChange={e => setQ(e.target.value)}
+											/>
+											<Box
+												flex={1}
+												minH={0}
+												overflowY='auto'>
 														{dataModel && (
 															<Box
 																{...rowCss}
@@ -303,12 +297,10 @@ const VDataMenu: FC<VDataMenuProps> = ({
 																</Flex>
 															))
 														)}
-													</Box>
-												</Flex>
-											</DrawerContentContainer>
-										</Drawer.Positioner>
-									</Portal>
-								</Drawer.Root>
+											</Box>
+										</Flex>
+									</MenuModalBody>
+								</MenuModal>
 							</>
 						) : (
 						<Combobox.Root
