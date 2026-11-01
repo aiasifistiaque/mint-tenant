@@ -292,6 +292,16 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			invalidatesTags: [TAG, ...SIDEBAR_TAGS],
 		}),
 		/* ------------------------------------------- catalogue and stock (EC-05) */
+		/** Who holds a tax (categories, products, variants) — for the delete refusal and the inactive notice. */
+		getTaxUsage: builder.query<{ usage: { categories: number; products: number; variants: number; total: number }; text: string; inactive: boolean }, string>({
+			query: id => `commerce/taxes/${id}/usage`,
+			providesTags: [TAG],
+		}),
+		/** Moves everything holding a tax to another, active one. */
+		replaceTax: builder.mutation<{ moved: number }, { id: string; to: string }>({
+			query: ({ id, to }) => ({ url: `commerce/taxes/${id}/replace`, method: 'POST', body: { to } }),
+			invalidatesTags: [TAG, 'store-stock'],
+		}),
 		getStoreCatalogue: builder.query<StoreCatalogue, { outlet?: string; q?: string; category?: string; page?: number; all?: boolean; limit?: number }>({
 			query: ({ outlet, q, category, page, all, limit }) => ({ url: 'commerce/catalogue', params: { ...(outlet && { outlet }), ...(q && { q }), ...(category && { category }), ...(page && { page }), ...(all && { all: '1' }), ...(limit && { limit }) } }),
 			providesTags: ['store-stock'],
@@ -422,6 +432,8 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 });
 
 export const {
+	useGetTaxUsageQuery,
+	useReplaceTaxMutation,
 	useGetCommerceSettingsQuery,
 	useSaveCommerceSettingsMutation,
 	useStartCommerceSetupMutation,

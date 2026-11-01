@@ -18,6 +18,7 @@ import {
 	useBulkStatusMutation,
 } from '../../../../store/services/bulkApi';
 import { useAppSelector } from '../../../../hooks/useReduxHooks';
+import ReplaceTax from './ReplaceTax';
 import { BulkDialog, BulkProps, COMPACT, CancelButton, errorOf, rows, useClearSelection } from './shared';
 
 /* ------------------------------------------------------------------ delete */
@@ -28,6 +29,8 @@ export const DeleteRows: FC<BulkProps> = ({ path, items, title }) => {
 	const [del, { isLoading }] = useBulkDeleteMutation();
 	const [restore] = useBulkRestoreMutation();
 	const clear = useClearSelection();
+	// A tax categories or products still hold: offered a way to move them (Replace with…).
+	const [inUse, setInUse] = useState<string | null>(null);
 
 	const run = async () => {
 		try {
@@ -51,13 +54,25 @@ export const DeleteRows: FC<BulkProps> = ({ path, items, title }) => {
 					},
 				},
 			});
-		} catch (e) {
+		} catch (e: any) {
+			if (e?.data?.code === 'tax_in_use' && e?.data?.tax) {
+				setOpen(false);
+				return setInUse(String(e.data.tax));
+			}
 			toaster.create({ type: 'error', title: 'Could not delete', description: errorOf(e, '') });
 		}
 	};
 
 	return (
 		<>
+			{inUse && (
+				<ReplaceTax
+					open
+					taxId={inUse}
+					path={path}
+					onClose={() => setInUse(null)}
+				/>
+			)}
 			<MenuItem
 				color='red.500'
 				onClick={() => setOpen(true)}>
