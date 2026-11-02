@@ -22,6 +22,13 @@ import {
 	Trash2,
 } from 'lucide-react';
 import { inputDataOptions, radius } from '@/components/library';
+import { useIsMobile } from '@/components/library/hooks';
+import {
+	MenuModal,
+	MenuModalBody,
+	MenuModalCloseButton,
+	MenuModalHeader,
+} from '@/components/library/components/table/table-components/menu-modals';
 import { TABLE_CELLS } from '@/components/library/fields/registry/tableCells';
 import { ModelField } from './filterTypes';
 import { Dropdown } from '@/components/library/cl';
@@ -320,6 +327,20 @@ const COLS = { name: '220px', input: '190px' };
 const INTERACTIVE = 'input, textarea, select, button, a, label, [role="combobox"], [role="switch"], [role="listbox"], [role="menu"]';
 
 /** A row's ⋯ menu: move, put back, copy the API name, duplicate (a field from linked records), remove. */
+/** A field's open settings: below the row on a computer, a bottom sheet (like the other drawers) on a phone. */
+const FieldSheet: FC<{ mobile: boolean; title: string; onClose: () => void; children: any }> = ({ mobile, title, onClose, children }) =>
+	mobile ? (
+		<MenuModal
+			isOpen
+			onClose={onClose}>
+			<MenuModalHeader>{title}</MenuModalHeader>
+			<MenuModalCloseButton />
+			<MenuModalBody>{children}</MenuModalBody>
+		</MenuModal>
+	) : (
+		children
+	);
+
 const RowMenu: FC<{
 	f: SettingsField;
 	first: boolean;
@@ -436,6 +457,7 @@ const FieldRow = memo(function FieldRow({
 	model,
 	actions,
 }: RowProps) {
+	const isMobile = useIsMobile();
 	const [advanced, setAdvanced] = useState(false);
 	const sensitive = SENSITIVE.test(f.key);
 	const changed = !code || JSON.stringify(code) !== JSON.stringify(f);
@@ -743,13 +765,17 @@ const FieldRow = memo(function FieldRow({
 			</Flex>
 
 			{isOpen && (
+				<FieldSheet
+					mobile={isMobile}
+					title={f.title || f.key}
+					onClose={() => actions.toggle(f.key)}>
 				<Flex
 					direction='column'
 					gap={5}
-					p={4}
+					p={{ base: 0, md: 4 }}
 					pb={3}
 					pl={{ md: readOnly ? 12 : 16 }}
-					borderTopWidth='1px'
+					borderTopWidth={{ base: 0, md: '1px' }}
 					borderColor='blue.muted'>
 					{f.rollup && (
 						<Group
@@ -1105,6 +1131,7 @@ const FieldRow = memo(function FieldRow({
 						</Button>
 					</Flex>
 				</Flex>
+				</FieldSheet>
 			)}
 		</Box>
 	);
