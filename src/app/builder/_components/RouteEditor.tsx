@@ -962,6 +962,10 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 
 				{hasSettings && (
 					<Panel
+						// On a phone the field cards sit straight on the page: a box around boxes crowds them.
+						borderWidth={{ base: 0, md: '1px' }}
+						bg={{ base: 'transparent', md: 'bg.panel' }}
+						bodyProps={{ p: { base: 0, md: 4 }, pt: { base: 3, md: 4 } }}
 						title={
 							<ToneTitle
 								icon={ListChecks}

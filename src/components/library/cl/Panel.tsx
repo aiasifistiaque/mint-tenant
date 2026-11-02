@@ -14,6 +14,8 @@ type PanelProps = Omit<BoxProps, 'title'> & {
 	children: ReactNode;
 	/** For a table, which brings its own row padding. */
 	flush?: boolean;
+	/** Styles for the padded body, e.g. to drop its padding on small screens. */
+	bodyProps?: BoxProps;
 };
 
 /**
@@ -23,7 +25,7 @@ type PanelProps = Omit<BoxProps, 'title'> & {
  * to make an admin look a decade old, and a rule separates two regions just as
  * well at a fraction of the visual weight.
  */
-const Panel: FC<PanelProps> = ({ title, subtitle, actions, children, flush, ...props }) => (
+const Panel: FC<PanelProps> = ({ title, subtitle, actions, children, flush, bodyProps, ...props }) => (
 	<Box
 		borderWidth='1px'
 		borderColor='border'
@@ -72,7 +74,11 @@ const Panel: FC<PanelProps> = ({ title, subtitle, actions, children, flush, ...p
 			</Flex>
 		)}
 
-		<Box p={flush ? 0 : 4}>{children}</Box>
+		<Box
+			p={flush ? 0 : 4}
+			{...bodyProps}>
+			{children}
+		</Box>
 	</Box>
 );
 

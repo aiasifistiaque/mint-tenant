@@ -521,7 +521,8 @@ const FieldRow = memo(function FieldRow({
 
 				{/* The name people see, with the API name under it. */}
 				<Box
-					w={COLS.name}
+					w={{ base: 'auto', md: COLS.name }}
+					flex={{ base: 1, md: 'none' }}
 					minW={0}>
 					{locked ? (
 						<Text
@@ -581,7 +582,8 @@ const FieldRow = memo(function FieldRow({
 				</Box>
 
 				{/* How it's asked for: the input — or, calculated, its formula; or the fixed link of a system field. */}
-				<Box w={COLS.input}>
+				{/* On a phone the type has a row of its own; the rules and the menu follow on the next. */}
+				<Box w={{ base: 'full', md: COLS.input }}>
 					{link ? (
 						<Flex
 							h={8}
