@@ -14,6 +14,8 @@ export type TableField = {
 	input?: string;
 	options?: any[];
 	default?: boolean;
+	/** Autofill (docs/autofill): a read-only one is previewed as a muted copy. */
+	readonlyFill?: boolean;
 };
 
 type Props = {

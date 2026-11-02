@@ -170,18 +170,6 @@ registerFieldType({
 	storage: 'string',
 });
 
-// Autofill (docs/autofill) reaches the form as the input of the value it holds (convertToFormFields);
-// registered as text for a config that still names it.
-registerFieldType({
-	id: 'autofill',
-	family: 'text',
-	input: StringInput,
-	changeMode: 'event',
-	emptyValue: () => '',
-	table: { type: 'text', cell: NotYetImplementedCell },
-	view: { type: 'string', render: NotYetImplementedView, layout: 'inline' },
-	storage: 'string',
-});
 
 registerFieldType({
 	id: 'text',

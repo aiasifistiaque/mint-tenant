@@ -204,6 +204,8 @@ const SchemaJson: FC<{ value: any; onChange: (v: any) => void; disabled?: boolea
 type RowActions = {
 	set: (key: string, patch: any) => void;
 	setSchema: (key: string, patch: any) => void;
+	/** Autofill (docs/autofill): the field's `fillFrom`; a read-only one is never changeable or required. */
+	setFill: (key: string, fillFrom: any) => void;
 	pickInput: (key: string, input: string) => void;
 	pickType: (key: string, type: string) => void;
 	reset: (key: string, code: SettingsField) => void;
@@ -270,7 +272,7 @@ const ruleLock = (f: SettingsField, code: SettingsField | undefined, prop: strin
 	if (system) return 'Fixed: this field is filled in by the system';
 	if (f.rollup && prop !== 'exclude') return 'Worked out from linked records when read — never typed, stored, searched or sorted';
 	if (isFormulaType(f.schema?.type) && (prop === 'edit' || prop === 'required')) return 'A calculated field is worked out, never typed';
-	if (f.schema?.type === 'autofillreadonly' && (prop === 'edit' || prop === 'required')) return 'Copied from the linked record by the server, never typed';
+	if (f.schema?.fillFrom?.readonly && (prop === 'edit' || prop === 'required')) return 'Copied from the linked record by the server, never typed';
 	if (unsafe(f, code, prop, !on)) return 'Not allowed on a field holding a secret — it can only be made stricter';
 	return '';
 };
@@ -297,6 +299,24 @@ const Switchy: FC<{ on: boolean; disabled?: boolean; label: string; title?: stri
 );
 
 /** A heading inside a field's details. */
+/** Inputs that can autofill from a picked record (docs/autofill D11): plain values, choices and links. */
+const AUTOFILL_INPUTS = ['text', 'textarea', 'number', 'slider', 'date', 'time', 'checkbox', 'switch', 'select', 'select-tag', 'tag', 'case-tag', 'data-menu', 'data-select', 'nested-data-menu'];
+/** What an input stores, for the autofill's "does the copy fit" note. */
+const holdsOf = (input: string, type?: string): 'text' | 'number' | 'date' | 'boolean' | 'choice' | 'link' | undefined =>
+	['number', 'slider'].includes(input) || type === 'number'
+		? 'number'
+		: input === 'date' || type === 'date'
+		? 'date'
+		: ['checkbox', 'switch'].includes(input) || type === 'boolean'
+		? 'boolean'
+		: ['select', 'select-tag', 'tag', 'case-tag'].includes(input)
+		? 'choice'
+		: ['data-menu', 'data-select', 'nested-data-menu'].includes(input)
+		? 'link'
+		: ['text', 'textarea'].includes(input)
+		? 'text'
+		: undefined;
+
 const Group: FC<{ title: string; hint?: string; children: any }> = ({ title, hint, children }) => (
 	<Box>
 		<Text
@@ -466,8 +486,8 @@ const FieldRow = memo(function FieldRow({
 	const dateFormula = isDateFormulaSchema(f.schema);
 	const input = formula ? (dateFormula ? 'dateformula' : 'formula') : inputOf(f);
 	const locked = readOnly || system;
-	// Autofill / Autofill (read-only): a copy of a field of the record picked in another field (docs/autofill).
-	const autofill = f.schema?.type === 'autofill' || f.schema?.type === 'autofillreadonly';
+	// Autofill is a setting on a plain field: not a calculated one, a section, a file or a secret.
+	const autofillable = AUTOFILL_INPUTS.includes(input);
 	// Off goes back to however the settings file says it — explicit false or
 	// absent — so on-then-off isn't a change.
 	const flip = (prop: string) =>
@@ -977,28 +997,6 @@ const FieldRow = memo(function FieldRow({
 						</Group>
 					)}
 
-					{!RECORD_INPUTS.includes(f.schema?.type) && !formula && !f.rollup && !system && (
-						<Group
-							title={autofill ? 'Copies from a linked record' : 'Filled in from a linked record'}
-							hint={
-								autofill
-									? f.schema?.type === 'autofillreadonly'
-										? 'Picking a record on the form fills this in, and the server keeps it in step: it changes when the record’s field changes, and nobody can type in it.'
-										: 'Picking a record on the form fills this in — a customer’s phone. It can then be typed over for this record; picking another record fills it again.'
-									: 'Picking a record on the form fills this in — a payment’s amount from the bill it pays: the bill’s total, or a formula like total - paid.'
-							}>
-							<FillFromEditor
-								fieldKey={f.key}
-								fillFrom={f.schema?.fillFrom}
-								formFields={formFields}
-								disabled={locked}
-								always={autofill}
-								holds={autofill ? f.schema?.fills : undefined}
-								onChange={fillFrom => actions.setSchema(f.key, { fillFrom })}
-							/>
-						</Group>
-					)}
-
 					{RECORD_INPUTS.includes(f.schema?.type) && (
 						<Group title='Picking a linked record'>
 							<LinkedRecordsEditor
@@ -1030,6 +1028,21 @@ const FieldRow = memo(function FieldRow({
 								pl={3}
 								borderLeftWidth='2px'
 								borderColor='border.muted'>
+								{(autofillable || f.schema?.fillFrom) && !formula && !f.rollup && !system && (
+									<Group
+										title='Autofill'
+										hint='Picking a record on the form fills this in — a customer’s phone into an order, a payment’s amount from the bill it pays. The field stays what it is; this only says where its value comes from.'>
+										<FillFromEditor
+											fieldKey={f.key}
+											fillFrom={f.schema?.fillFrom}
+											formFields={formFields}
+											thisFields={lockFields}
+											disabled={locked}
+											holds={holdsOf(input, f.type)}
+											onChange={fillFrom => actions.setFill(f.key, fillFrom)}
+										/>
+									</Group>
+								)}
 								<Grid
 									templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }}
 									gap={3}>
@@ -1206,6 +1219,17 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 		setSchemaRev(r => r + 1);
 	};
 
+	const setFill = (key: string, fillFrom: any) => {
+		const f = fields.find(x => x.key === key)!;
+		const readonly = fillFrom?.readonly === true;
+		set(key, {
+			// A read-only autofill is the server's: never changeable, never required.
+			...(readonly && { edit: undefined, required: undefined }),
+			schema: clean({ ...(f.schema || {}), fillFrom, ...(readonly && { isRequired: undefined }) }),
+		});
+		setSchemaRev(r => r + 1);
+	};
+
 	/** A new input, and the data type it stores when that differs — images are a list, a checkbox a boolean. */
 	const pickInput = (key: string, input: string) => {
 		const f = fields.find(x => x.key === key)!;
@@ -1250,27 +1274,11 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 			setSectionFor(key);
 			return;
 		}
-		if (input === 'autofill' || input === 'autofillreadonly') {
-			// A copy of a field of the record picked in another field. It holds what the model stores
-			// there (text, a number, a date, yes/no); the read-only one is set by the server.
-			const stored = modelByKey.get(key)?.instance;
-			const fills = stored === 'Number' || f.type === 'number' ? 'number' : stored === 'Date' || f.type === 'date' || f.type === 'date-only' ? 'date' : stored === 'Boolean' || f.type === 'boolean' ? 'boolean' : 'text';
-			const { formula: _a, returns: _b, calc: _c, ...was } = f.schema || {};
-			const kind = fills === 'boolean' ? 'checkbox' : fills === 'text' ? 'string' : fills;
-			set(key, {
-				...(input === 'autofillreadonly' && { edit: undefined, required: undefined }),
-				schema: clean({ ...was, type: input, fills, tableType: kind, viewType: kind, ...(input === 'autofillreadonly' && { isRequired: undefined }) }),
-			});
-			setSchemaRev(r => r + 1);
-			return;
-		}
-		const { formula: _dropped, returns: _returns, calc: _calc, fills: _fills, ...schema } = f.schema || {};
+		const { formula: _dropped, returns: _returns, calc: _calc, ...schema } = f.schema || {};
 		set(key, {
 			schema: clean({
 				...schema,
 				type: input || undefined,
-				// The cells an Autofill set, not a choice of their own.
-				...((f.schema?.type === 'autofill' || f.schema?.type === 'autofillreadonly') && { tableType: undefined, viewType: undefined }),
 				// The number cells a formula set, not a choice of their own.
 				...(isFormulaType(f.schema?.type) && { tableType: undefined, viewType: undefined }),
 			}),
@@ -1349,12 +1357,13 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 
 	// The rows get one actions object for good: it reads the latest render's
 	// handlers through a ref, so memoized rows never see a stale `fields`.
-	const latest = useRef({ set, setSchema, pickInput, pickType, drop, fields, onChange, taken: (k: string) => present.has(k) || modelByKey.has(k) });
-	latest.current = { set, setSchema, pickInput, pickType, drop, fields, onChange, taken: (k: string) => present.has(k) || modelByKey.has(k) };
+	const latest = useRef({ set, setSchema, setFill, pickInput, pickType, drop, fields, onChange, taken: (k: string) => present.has(k) || modelByKey.has(k) });
+	latest.current = { set, setSchema, setFill, pickInput, pickType, drop, fields, onChange, taken: (k: string) => present.has(k) || modelByKey.has(k) };
 	const actions = useMemo<RowActions>(
 		() => ({
 			set: (key, patch) => latest.current.set(key, patch),
 			setSchema: (key, patch) => latest.current.setSchema(key, patch),
+			setFill: (key, fillFrom) => latest.current.setFill(key, fillFrom),
 			pickInput: (key, input) => latest.current.pickInput(key, input),
 			pickType: (key, type) => latest.current.pickType(key, type),
 			reset: (key, code) => {

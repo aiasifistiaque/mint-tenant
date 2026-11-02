@@ -53,6 +53,19 @@ const optionLabels = (f: EditableField) => (f.options || []).filter(o => o.value
 
 const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> = ({ f, targetTitle }) => {
 	const opts = optionLabels(f);
+	// A read-only autofill is a muted copy of what it follows, whatever its kind (docs/autofill).
+	if (f.fillFrom?.readonly && f.fillFrom.from)
+		return (
+			<Box_ muted>
+				<Text
+					fontSize='inherit'
+					color='fg.muted'
+					truncate>
+					{`from ${f.fillFrom.from}${f.fillFrom.formula ? ` › ${f.fillFrom.formula}` : ''}`}
+				</Text>
+				<Link2 {...ICON} />
+			</Box_>
+		);
 	switch (f.kind) {
 		case 'textarea':
 		case 'editor':
@@ -192,19 +205,6 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 						truncate>
 						{f.from ? `made from ${f.from} — my-first-post` : 'my-first-post'}
 					</Text>
-				</Box_>
-			);
-		case 'autofill':
-		case 'autofillreadonly':
-			return (
-				<Box_ muted={f.kind === 'autofillreadonly'}>
-					<Text
-						fontSize='inherit'
-						color='fg.muted'
-						truncate>
-						{f.fillFrom?.from ? `from ${f.fillFrom.from}${f.fillFrom.formula ? ` › ${f.fillFrom.formula}` : ''}` : 'copied from a link'}
-					</Text>
-					<Link2 {...ICON} />
 				</Box_>
 			);
 		case 'formula':

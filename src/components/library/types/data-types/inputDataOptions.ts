@@ -20,9 +20,6 @@ export const inputDataOptions = [
 	'formula',
 	// A date worked out by a formula (settings `schema.formula`) — Formula (date), docs/date-formulas.
 	'dateformula',
-	// Copied from a record picked in another field (settings `schema.fillFrom`) — docs/autofill.
-	'autofill',
-	'autofillreadonly',
 	// Worked out from linked records when read (settings `rollup`); shown, never typed.
 	'rollup',
 	'editor',

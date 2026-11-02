@@ -30,6 +30,8 @@ export type ModelField = {
 	ref?: string;
 	enum?: any[];
 	isArray?: boolean;
+	/** Shown instead of the key in a field picker (the autofill's `Customer › type`). */
+	label?: string;
 };
 
 export const FILTER_TYPES: { value: FilterType; label: string; hint: string }[] = [

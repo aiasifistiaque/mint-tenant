@@ -107,10 +107,11 @@ registerFieldType({
 });
 
 /**
- * An Autofill (read-only) field (`autofillreadonly`, docs/autofill): a copy of
- * a field of the record picked in another field — set by the server on every
- * save and following that record, so it only shows here. The form fills it the
- * moment the record is picked (LinkedFiller).
+ * A read-only autofill (`fillFrom.readonly`, docs/autofill): a copy of a field
+ * of the record picked in another field — set by the server on every save and
+ * following that record, so it only shows here. The field keeps its own kind;
+ * the form draws it with this input (`lockedFills`) and fills it the moment the
+ * record is picked (LinkedFiller).
  */
 const AutofillReadOnlyInput = ({ item, value, ...props }: any) => {
 	const empty = value === null || value === undefined || value === '';
@@ -126,6 +127,8 @@ const AutofillReadOnlyInput = ({ item, value, ...props }: any) => {
 		? value
 			? 'Yes'
 			: 'No'
+		: typeof value === 'object'
+		? String(value.name ?? value.title ?? value.label ?? value._id ?? '')
 		: String(value);
 	return (
 		<VMuted

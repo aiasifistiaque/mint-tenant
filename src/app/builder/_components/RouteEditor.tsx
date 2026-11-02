@@ -271,6 +271,7 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 		input: f.schema?.type,
 		options: f.schema?.options || f.options,
 		default: !!f.schema?.default,
+		readonlyFill: !!f.schema?.fillFrom?.readonly,
 	}));
 	const modelFields: ModelField[] = data?.fields || [];
 	const codeFilters: any[] = codeConfig.filters || [];

@@ -256,7 +256,7 @@ const ConditionsEditor: FC<{
 								<option
 									key={f.key}
 									value={f.key}>
-									{f.key}
+									{f.label || f.key}
 								</option>
 							))}
 						</Dropdown>

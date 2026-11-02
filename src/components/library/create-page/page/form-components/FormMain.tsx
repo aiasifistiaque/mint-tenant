@@ -15,6 +15,7 @@ import LinkedFiller from './LinkedFiller';
 import TaxNote from './TaxNote';
 import LinkedPreview from './LinkedPreview';
 import { meets } from '../../../functions/fieldLocks';
+import { lockedFills } from '../../../functions/linkedFill';
 
 type FormMainType = {
 	fields: any;
@@ -25,12 +26,14 @@ type FormMainType = {
 };
 
 const FormMain: FC<FormMainType> = ({
-	fields,
+	fields: rawFields,
 	formData,
 	setFormData,
 	setChangedData,
 	isModal = false,
 }) => {
+	// Read-only autofills (fillFrom.readonly) are drawn as a muted copy of what they follow; the field keeps its own kind.
+	const fields = useMemo(() => lockedFills(rawFields), [rawFields]);
 	const sections = useMemo(() => {
 		let section: any[] = [];
 		let sections: any[][] = [];
