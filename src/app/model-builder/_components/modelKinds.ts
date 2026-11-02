@@ -17,6 +17,8 @@ export type FieldKind =
 	| 'number'
 	| 'formula'
 	| 'dateformula'
+	| 'autofill'
+	| 'autofillreadonly'
 	| 'boolean'
 	| 'date'
 	| 'select'
@@ -71,6 +73,18 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 		hint: 'A date worked out from other fields — e.g. due = addDays(invoiceDate, 30), or a renewal’s new expiry. Read-only',
 		group: 'Values',
 	},
+	{
+		value: 'autofill',
+		label: 'Autofill',
+		hint: 'Filled in when a linked record is picked — an order’s customer phone. Can be changed for this record',
+		group: 'Values',
+	},
+	{
+		value: 'autofillreadonly',
+		label: 'Autofill (read-only)',
+		hint: 'A copy of a field of the picked record, kept in step by the server — nobody types it, and it changes when the record does',
+		group: 'Values',
+	},
 	// One entry in the kind picker: "Options". Whether one or several can be
 	// picked is a switch beside it — multiselect is the "several" form.
 	{ value: 'select', label: 'Options', hint: 'A choice from a list you type in, like Draft / Sent / Paid', group: 'Choices' },
@@ -121,6 +135,12 @@ export const KINDS: { value: FieldKind; label: string; hint: string; group: stri
 	},
 ];
 
+/** Kinds copying a field of the record picked in another field of the same model (docs/autofill). */
+export const AUTOFILL_KINDS: FieldKind[] = ['autofill', 'autofillreadonly'];
+export const isAutofillKind = (kind?: string) => AUTOFILL_KINDS.includes(kind as FieldKind);
+/** What an Autofill holds: the kind of the value it copies. */
+export type FillsKind = 'text' | 'number' | 'date' | 'boolean';
+
 export const KIND_GROUPS = ['Text', 'Values', 'Choices', 'Media', 'Links', 'Sections'];
 
 /** Kinds made of fields of their own, chosen in the section's field builder. */
@@ -162,6 +182,9 @@ export const COMPONENT_KINDS: FieldKind[] = [
 /** Kinds that give a component fields of its own fields — one with any of them can't go inside another component. */
 export const NESTING_KINDS: FieldKind[] = ['section', 'sectionlist', 'component', 'blocks'];
 
+/** A list's rows may also link to records and autofill from them (docs/autofill D8). */
+export const ROW_KINDS: FieldKind[] = [...SUB_KINDS, 'reference', 'autofill', 'autofillreadonly'];
+
 export const kindLabel = (kind?: string) => KINDS.find(k => k.value === kind)?.label || kind || '—';
 
 /** Kinds that can name a record when it's linked from elsewhere. */
@@ -172,12 +195,12 @@ export const ENUM_KINDS: FieldKind[] = ['text', 'number', 'select', 'multiselect
 export const NEEDS_OPTIONS: FieldKind[] = ['select', 'multiselect'];
 /** Kinds stored as a list — their default is a list too. */
 export const ARRAY_KINDS: FieldKind[] = ['multiselect', 'tags', 'images', 'files', 'references'];
-export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'dateformula', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks', 'seo'];
+export const NO_DEFAULT_KINDS: FieldKind[] = ['reference', 'references', 'formula', 'dateformula', 'autofill', 'autofillreadonly', 'section', 'sectionlist', 'password', 'uid', 'component', 'blocks', 'seo'];
 /** What an address (uid) can be made from — the same list as the backend's UID_SOURCES. */
 export const UID_SOURCES: FieldKind[] = ['text', 'email', 'url', 'select', 'textarea'];
 /** Shown as dots — its key may say what it holds (password, pin, token). Same as the backend's SECRET_KINDS. */
 export const SECRET_KINDS: FieldKind[] = ['password'];
-const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'dateformula', 'password', 'component', 'blocks', 'seo', ...ARRAY_KINDS, ...SECTION_KINDS];
+const CANT_BE_UNIQUE: FieldKind[] = ['boolean', 'editor', 'textarea', 'formula', 'dateformula', 'autofill', 'autofillreadonly', 'password', 'component', 'blocks', 'seo', ...ARRAY_KINDS, ...SECTION_KINDS];
 export const canBeUnique = (kind: FieldKind) => !CANT_BE_UNIQUE.includes(kind);
 /** Kinds worked out by a formula, never typed: a number and a date (docs/date-formulas). */
 export const FORMULA_KINDS: FieldKind[] = ['formula', 'dateformula'];
@@ -218,6 +241,10 @@ export type EditableField = {
 	helper?: string;
 	/** The formula kind's calculation, e.g. `total - paid`. */
 	formula?: string;
+	/** An Autofill kind: the link of this model (or row) it copies from, and what to take — a field, or a formula over its numbers. */
+	fillFrom?: { from: string; formula: string };
+	/** An Autofill kind: the kind of value it holds, from the field it copies. */
+	fills?: FillsKind;
 	/** A Date formula worked out once (when the record is added) and kept, instead of on every save. */
 	calc?: 'once';
 	/** A section's own fields (SUB_KINDS only). */
@@ -329,6 +356,14 @@ export const toServer = (fields: EditableField[]): any[] =>
 		}
 		if (f.kind === 'uid') out.unique = true;
 		if (f.kind !== 'dateformula' || out.calc !== 'once') delete out.calc;
+		if (isAutofillKind(f.kind)) {
+			out.fills = out.fills || 'text';
+			if (f.kind === 'autofillreadonly') {
+				delete out.required;
+				delete out.unique;
+			}
+		} else delete out.fills;
+		if (!out.fillFrom?.from) delete out.fillFrom;
 		if (!isFormulaKind(f.kind)) delete out.formula;
 		else {
 			// Calculated, never typed.
@@ -355,7 +390,7 @@ const defaultValues = (f: EditableField): string[] =>
 	f.default === undefined || f.default === null || f.default === '' ? [] : (Array.isArray(f.default) ? f.default : [f.default]).map(String);
 
 /** Which input a field problem is about — where it's shown, and which input turns red. */
-export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields' | 'from' | 'component';
+export type FieldErrorOn = 'key' | 'ref' | 'options' | 'default' | 'range' | 'formula' | 'fields' | 'from' | 'component' | 'fill';
 export type FieldError = { message: string; on: FieldErrorOn };
 
 /** A model's numbers, dates (`date`) and short texts (`text`), as a link to it offers them to formulas: `tax.amount`, `plan.unit`. */
@@ -367,7 +402,8 @@ export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbe
 	fields
 		.filter(f => f.key)
 		.flatMap((f): FieldInfo[] => {
-			const numeric = (k: FieldKind) => k === 'number' || k === 'formula';
+			// A number a formula can use: a number, a formula, or an autofill copying a number.
+			const numeric = (x: Pick<EditableField, 'kind' | 'fills'>) => x.kind === 'number' || x.kind === 'formula' || (isAutofillKind(x.kind) && x.fills === 'number');
 			const subs = (f.fields || []).filter(x => x.key);
 			// A link: itself (not a number), and the linked record's numbers as `tax.amount`.
 			if (f.kind === 'reference')
@@ -385,17 +421,17 @@ export const formulaFieldsOf = (fields: EditableField[], numbersOf?: LinkedNumbe
 			if (f.kind === 'sectionlist')
 				return [
 					{ key: f.key, label: f.label, numeric: false, list: true },
-					...subs.map(x => ({ key: `${f.key}.${x.key}`, label: x.label, numeric: numeric(x.kind), inList: f.key })),
+					...subs.map(x => ({ key: `${f.key}.${x.key}`, label: x.label, numeric: numeric(x), inList: f.key })),
 				];
 			// A section: its values as `address.zip`.
 			if (f.kind === 'section')
-				return subs.map(x => ({ key: `${f.key}.${x.key}`, label: `${f.label || f.key} › ${x.label || x.key}`, numeric: numeric(x.kind) }));
+				return subs.map(x => ({ key: `${f.key}.${x.key}`, label: `${f.label || f.key} › ${x.label || x.key}`, numeric: numeric(x) }));
 			return [
 				{
 					key: f.key,
 					label: f.label,
-					numeric: numeric(f.kind),
-					...(DATE_KINDS.includes(f.kind) && { date: true }),
+					numeric: numeric(f),
+					...((DATE_KINDS.includes(f.kind) || (isAutofillKind(f.kind) && f.fills === 'date')) && { date: true }),
 					...(isFormulaKind(f.kind) && { formula: f.formula }),
 					// What it can be compared with in a condition.
 					...(f.kind === 'boolean' && { yesNo: true }),
@@ -473,6 +509,13 @@ export const validateFields = (
 		if (f.kind === 'uid' && f.from) {
 			const src = fields.find(x => x.key === f.from);
 			if (!src || !UID_SOURCES.includes(src.kind)) return fail(f.uid, 'from', 'Make it from a text field of this model, or let it be typed');
+		}
+		if (isAutofillKind(f.kind)) {
+			const link = f.fillFrom?.from ? fields.find(x => x.key === f.fillFrom!.from) : undefined;
+			if (!f.fillFrom?.from) return fail(f.uid, 'fill', 'Pick the link it copies from');
+			if (!link || link.kind !== 'reference') return fail(f.uid, 'fill', `“${f.fillFrom.from}” isn’t a link field${sub ? ' of this row' : ' of this model'}`);
+			if (!f.fillFrom.formula?.trim()) return fail(f.uid, 'fill', 'Pick what to take from it');
+			if (SENSITIVE.test(f.fillFrom.formula)) return fail(f.uid, 'fill', 'A hidden field can’t be copied');
 		}
 		if (isFormulaKind(f.kind)) {
 			if (!f.formula?.trim()) return fail(f.uid, 'formula', 'Write its formula');

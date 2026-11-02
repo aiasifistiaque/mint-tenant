@@ -55,6 +55,8 @@ const INPUT_ICON: Record<string, LucideIcon> = {
 	number: Hash,
 	formula: Calculator,
 	dateformula: CalendarClock,
+	autofill: Link2,
+	autofillreadonly: Link2,
 	slider: SlidersHorizontal,
 	checkbox: ToggleRight,
 	switch: ToggleRight,
@@ -145,6 +147,8 @@ export const DATA_TYPE_LABEL: Record<string, string> = {
 	profit: 'Profit',
 	formula: 'Formula (number)',
 	dateformula: 'Formula (date)',
+	autofill: 'Autofill',
+	autofillreadonly: 'Autofill (read-only)',
 };
 
 /**

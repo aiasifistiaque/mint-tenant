@@ -18,6 +18,9 @@ export const INPUTS: { value: string; label: string; group: string; data?: strin
 	{ value: 'number', label: 'Number', group: 'Values', data: 'number' },
 	{ value: 'formula', label: 'Formula (number)', group: 'Values', data: 'number' },
 	{ value: 'dateformula', label: 'Formula (date)', group: 'Values', data: 'date' },
+	// A copy of a field of the record picked in another field; its value kind follows the field (docs/autofill).
+	{ value: 'autofill', label: 'Autofill', group: 'Values' },
+	{ value: 'autofillreadonly', label: 'Autofill (read-only)', group: 'Values' },
 	{ value: 'slider', label: 'Slider', group: 'Values', data: 'number' },
 	{ value: 'checkbox', label: 'Checkbox', group: 'Values', data: 'boolean' },
 	{ value: 'switch', label: 'Switch', group: 'Values', data: 'boolean' },

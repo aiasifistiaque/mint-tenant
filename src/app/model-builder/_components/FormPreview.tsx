@@ -2,7 +2,7 @@
 
 import { FC, ReactNode } from 'react';
 import { Badge, Box, Flex, Grid, Text } from '@chakra-ui/react';
-import { Calculator, Calendar, ChevronDown, Lock, Plus, Upload, CalendarClock } from 'lucide-react';
+import { Calculator, Calendar, ChevronDown, Link2, Lock, Plus, Upload, CalendarClock } from 'lucide-react';
 import { EditableField, REFERENCE_KINDS, SELF, kindLabel } from './modelKinds';
 
 /**
@@ -192,6 +192,19 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 						truncate>
 						{f.from ? `made from ${f.from} — my-first-post` : 'my-first-post'}
 					</Text>
+				</Box_>
+			);
+		case 'autofill':
+		case 'autofillreadonly':
+			return (
+				<Box_ muted={f.kind === 'autofillreadonly'}>
+					<Text
+						fontSize='inherit'
+						color='fg.muted'
+						truncate>
+						{f.fillFrom?.from ? `from ${f.fillFrom.from}${f.fillFrom.formula ? ` › ${f.fillFrom.formula}` : ''}` : 'copied from a link'}
+					</Text>
+					<Link2 {...ICON} />
 				</Box_>
 			);
 		case 'formula':

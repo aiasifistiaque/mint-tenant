@@ -9,7 +9,8 @@ import { fillValue, linkedId } from '../../../functions/linkedFill';
  * `schema.fillFrom`) when that record is picked: choosing a bill sets the
  * payment's amount to the bill's total. Only on a change made in the form —
  * opening a saved record never overwrites what it holds — and the filled
- * value stays editable. Renders nothing.
+ * value stays editable (Autofill) or locked (Autofill (read-only), which also
+ * empties when the pick is cleared; docs/autofill). Renders nothing.
  */
 
 type Props = {
@@ -38,6 +39,16 @@ const LinkedFiller: FC<Props> = ({ fields, formData, setFormData, setChangedData
 			const before = seen.current[from];
 			seen.current[from] = id;
 			if (loaded && formData?._id) continue;
+			// The link was cleared: the read-only copies of it go (an editable one keeps what was typed).
+			if (!id && before) {
+				const gone = fills.filter((f: any) => f.fillFrom.from === from && f.type === 'autofillreadonly');
+				if (gone.length) {
+					const empty = Object.fromEntries(gone.map((f: any) => [f.name, null]));
+					setFormData((p: any) => ({ ...p, ...empty }));
+					setChangedData?.((p: any) => ({ ...(p || {}), ...empty }));
+				}
+				continue;
+			}
 			if (!id || id === before) continue;
 			const route = routeOf(from);
 			if (!route) continue;
@@ -50,6 +61,8 @@ const LinkedFiller: FC<Props> = ({ fields, formData, setFormData, setChangedData
 					for (const f of fills.filter((x: any) => x.fillFrom.from === from)) {
 						const v = fillValue(f.fillFrom.formula, linked);
 						if (v !== undefined && v !== null) values[f.name] = v;
+						// Nothing to copy: a read-only copy empties with it (a customer without an email).
+						else if (f.type === 'autofillreadonly') values[f.name] = null;
 					}
 					if (!Object.keys(values).length) return;
 					setFormData((p: any) => ({ ...p, ...values }));

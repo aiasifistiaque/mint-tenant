@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { VInput } from '@/components/library/utils/inputs';
 import VMuted from '@/components/library/utils/inputs/VMuted';
-import { CalendarClock, Calculator } from 'lucide-react';
+import { CalendarClock, Calculator, Link2 } from 'lucide-react';
 import { LINKED_VALUES, evaluate, evaluateDate, format, isDateFormulaSchema, parse } from '@/components/library/functions/formula';
 import { registerFieldType } from '../registry';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
@@ -104,6 +104,50 @@ registerFieldType({
 	table: { type: 'number', cell: NotYetImplementedCell, align: 'end' },
 	view: { type: 'string', render: NotYetImplementedView, layout: 'inline' },
 	storage: 'number',
+});
+
+/**
+ * An Autofill (read-only) field (`autofillreadonly`, docs/autofill): a copy of
+ * a field of the record picked in another field — set by the server on every
+ * save and following that record, so it only shows here. The form fills it the
+ * moment the record is picked (LinkedFiller).
+ */
+const AutofillReadOnlyInput = ({ item, value, ...props }: any) => {
+	const empty = value === null || value === undefined || value === '';
+	const text = empty
+		? ''
+		: item?.fills === 'number'
+		? Number(value).toLocaleString(undefined, { maximumFractionDigits: 10 })
+		: item?.fills === 'date'
+		? Number.isNaN(new Date(value).getTime())
+			? String(value)
+			: day(value)
+		: item?.fills === 'boolean'
+		? value
+			? 'Yes'
+			: 'No'
+		: String(value);
+	return (
+		<VMuted
+			label={props.label}
+			value={text}
+			placeholder='—'
+			helper={[`Copied from ${item?.fromLabel || item?.fillFrom?.from || 'a linked record'} — it changes with it`, item?.helper].filter(Boolean).join(' · ')}
+			icon={<Link2 size={13} />}
+		/>
+	);
+};
+
+registerFieldType({
+	id: 'autofillreadonly',
+	family: 'text',
+	input: AutofillReadOnlyInput,
+	changeMode: 'event',
+	emptyValue: () => undefined,
+	supportsInlineEdit: false,
+	table: { type: 'text', cell: NotYetImplementedCell },
+	view: { type: 'string', render: NotYetImplementedView, layout: 'inline' },
+	storage: 'string',
 });
 
 registerFieldType({

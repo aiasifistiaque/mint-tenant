@@ -5,6 +5,7 @@ import { Box, Flex, Grid, Input, Switch, Text } from '@chakra-ui/react';
 import { useGetConfigQuery } from '@/components/library';
 import { Dropdown } from '@/components/library/cl';
 import { FieldInfo, checkFormula } from '@/components/library/functions/formula';
+import { DocLink } from './ui';
 
 /**
  * "Filled in from a linked record" (settings `schema.fillFrom`): a payment's
@@ -23,22 +24,36 @@ type Props = {
 	/** The record's fields; the ones with `picker` (their linked route) can be filled from. */
 	formFields: PickerField[];
 	disabled?: boolean;
-	onChange: (fillFrom: { from: string; formula: string } | undefined) => void;
+	/** Autofill types: it always copies, so there is no switch. `holds` is what the field stores — a note when the source differs. */
+	always?: boolean;
+	holds?: 'text' | 'number' | 'date' | 'boolean';
+	/** `kind`: what the field it picked holds, when it changed (a formula is a number) — the model builder keeps it as what the Autofill holds. */
+	onChange: (fillFrom: { from: string; formula: string } | undefined, kind?: 'text' | 'number' | 'date' | 'boolean') => void;
 };
 
 const FORMULA = '__formula__';
 const SENSITIVE = /pass(word)?|token|secret|api_?key|apikey|private|otp|salt|hash/i;
 
-const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, onChange }) => {
+/** The kind of value a field of the linked page holds, from its config type. */
+const kindOfType = (t?: string): 'text' | 'number' | 'date' | 'boolean' =>
+	t === 'number' || t === 'formula' || t === 'rollup' || t === 'slider'
+		? 'number'
+		: t === 'date' || t === 'date-only' || t === 'dateformula'
+		? 'date'
+		: t === 'checkbox' || t === 'switch' || t === 'boolean'
+		? 'boolean'
+		: 'text';
+
+const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, always, holds, onChange }) => {
 	const [open, setOpen] = useState(!!fillFrom);
-	const on = open || !!fillFrom;
+	const on = always || open || !!fillFrom;
 	const pickers = formFields.filter(f => f.picker && f.key !== fieldKey);
 	const from = fillFrom?.from || '';
 	const route = pickers.find(p => p.key === from)?.picker || '';
 	const { data } = useGetConfigQuery(route, { skip: !route });
 	const linked = Object.entries<any>(data?.schema || {})
 		.filter(([k]) => k !== '_id' && !SENSITIVE.test(k))
-		.map(([key, s]) => ({ key, label: s?.label || key, numeric: s?.type === 'number' || s?.type === 'formula' }));
+		.map(([key, s]) => ({ key, label: s?.label || key, numeric: s?.type === 'number' || s?.type === 'formula', kind: kindOfType(s?.type) }));
 	const formula = fillFrom?.formula || '';
 	const isField = linked.some(l => l.key === formula);
 	const mode = !formula ? '' : isField ? formula : FORMULA;
@@ -46,7 +61,10 @@ const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, o
 	const check = mode === FORMULA && formula.trim() ? checkFormula(formula, info) : null;
 	const fromLabel = pickers.find(p => p.key === from)?.title || from;
 
-	const toggle = (
+	const sourceKind = mode === FORMULA ? 'number' : linked.find(l => l.key === formula)?.kind;
+	const mismatch = !!holds && !!sourceKind && !!formula && sourceKind !== holds && (!check || check.ok);
+
+	const toggle = always ? null : (
 		<Switch.Root
 			size='sm'
 			checked={on}
@@ -123,7 +141,7 @@ const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, o
 							disabled={disabled}
 							value={mode}
 							placeholder='Pick a field of it'
-							onChange={(v: string) => onChange({ from, formula: v === FORMULA ? (isField ? formula : '') : v })}>
+							onChange={(v: string) => onChange({ from, formula: v === FORMULA ? (isField ? formula : '') : v }, v === FORMULA ? 'number' : linked.find(l => l.key === v)?.kind)}>
 							{linked.map(l => (
 								<option
 									key={l.key}
@@ -144,7 +162,7 @@ const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, o
 						disabled={disabled}
 						placeholder='total - paid'
 						value={formula}
-						onChange={e => onChange({ from, formula: e.target.value })}
+						onChange={e => onChange({ from, formula: e.target.value }, 'number')}
 					/>
 					<Text
 						fontSize='11px'
@@ -161,8 +179,16 @@ const FillFromEditor: FC<Props> = ({ fieldKey, fillFrom, formFields, disabled, o
 					fontSize='xs'
 					color='fg.muted'>
 					Picking a {fromLabel.toLowerCase()} fills this with{' '}
-					{isField ? `its ${linked.find(l => l.key === formula)?.label}` : <code>{formula}</code>}. It stays editable; saved
-					records keep what they hold.
+					{isField ? `its ${linked.find(l => l.key === formula)?.label}` : <code>{formula}</code>}.{' '}
+					{always ? '' : 'It stays editable; saved records keep what they hold.'}
+				</Text>
+			)}
+			{always && <DocLink section='models-autofill' />}
+			{mismatch && (
+				<Text
+					fontSize='xs'
+					color='orange.fg'>
+					It copies {sourceKind === 'text' ? 'text' : `a ${sourceKind}`}, but this field stores {holds === 'text' ? 'text' : `a ${holds}`} — pick a field of the same kind, or change the data type.
 				</Text>
 			)}
 		</Flex>

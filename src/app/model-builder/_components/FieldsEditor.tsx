@@ -29,8 +29,10 @@ import {
 	toKey,
 	DATE_KINDS,
 	isFormulaKind,
+	isAutofillKind,
 } from './modelKinds';
 import SectionFieldsModal from './SectionFieldsModal';
+import FillFromEditor from '@/app/builder/_components/FillFromEditor';
 import KindIcon from './KindIcon';
 import KindPicker from './KindPicker';
 import FormulaModal from '@/app/builder/_components/FormulaModal';
@@ -594,6 +596,8 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			// A formula is calculated: never required, no default.
 			...(isFormulaKind(kind) && { required: false }),
 			...(kind !== 'dateformula' && { calc: undefined }),
+			// An Autofill is filled in, never required when read-only; it keeps its link and what it copies between the two kinds.
+			...(isAutofillKind(kind) ? { required: kind === 'autofillreadonly' ? false : f.required, fills: f.fills || 'text' } : { fillFrom: isAutofillKind(f.kind) ? undefined : f.fillFrom, fills: undefined }),
 			// A component field starts on the first component, once (docs/cms D3).
 			...(kind === 'component'
 				? { component: f.component || components[0]?.uid, unique: false, fields: undefined, required: false }
@@ -603,7 +607,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			...(kind === 'uid'
 				? { unique: true, from: f.from || fields.find(x => x.uid !== f.uid && UID_SOURCES.includes(x.kind) && x.key)?.key }
 				: { from: undefined }),
-			default: isFormulaKind(kind) || SECTION_KINDS.includes(kind) ? undefined : nextDefault,
+			default: isFormulaKind(kind) || isAutofillKind(kind) || SECTION_KINDS.includes(kind) ? undefined : nextDefault,
 			// A section starts from a preset, changed in its field builder; between the two section kinds its fields stay.
 			...(SECTION_KINDS.includes(kind)
 				? {
@@ -710,7 +714,7 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				const kindChanged = hasRecords && savedKinds[f.key] && savedKinds[f.key] !== f.kind;
 				const isRef = REFERENCE_KINDS.includes(f.kind);
 				// Calculated, or holding other fields: never required.
-				const noRequired = isFormulaKind(f.kind) || SECTION_KINDS.includes(f.kind);
+				const noRequired = isFormulaKind(f.kind) || f.kind === 'autofillreadonly' || SECTION_KINDS.includes(f.kind);
 				const openKey = () => {
 					setOpen(f.uid);
 					setTimeout(() => document.getElementById(`key-${f.uid}`)?.focus(), 0);
@@ -1033,6 +1037,27 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 											]}
 										/>
 										{error?.on === 'from' && <FieldMessage>{error.message}</FieldMessage>}
+									</Box>
+								)}
+								{isAutofillKind(f.kind) && (
+									<Box
+										w='100%'
+										maxW='560px'>
+										<FillFromEditor
+											always
+											fieldKey={f.key}
+											fillFrom={f.fillFrom}
+											holds={f.fills}
+											formFields={fields
+												.filter(x => x.kind === 'reference' && x.key && x.ref)
+												.map(x => ({
+													key: x.key,
+													title: x.label || x.key,
+													picker: targets.find(t => t.name === (x.ref === SELF ? selfName : x.ref))?.route,
+												}))}
+											onChange={(fillFrom, kind) => set(f.uid, { fillFrom, ...(kind && { fills: kind }) })}
+										/>
+										{error?.on === 'fill' && <FieldMessage>{error.message}</FieldMessage>}
 									</Box>
 								)}
 								{SECTION_KINDS.includes(f.kind) && (
@@ -1458,6 +1483,8 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 				isOpen={!!sectionField}
 				onClose={() => setSectionFor(null)}
 				field={sectionField}
+				targets={targets}
+				selfName={selfName}
 				onSave={patch => {
 					if (sectionField) set(sectionField.uid, patch);
 					setSectionFor(null);

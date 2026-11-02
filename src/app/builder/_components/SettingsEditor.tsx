@@ -263,6 +263,7 @@ const ruleLock = (f: SettingsField, code: SettingsField | undefined, prop: strin
 	if (system) return 'Fixed: this field is filled in by the system';
 	if (f.rollup && prop !== 'exclude') return 'Worked out from linked records when read — never typed, stored, searched or sorted';
 	if (isFormulaType(f.schema?.type) && (prop === 'edit' || prop === 'required')) return 'A calculated field is worked out, never typed';
+	if (f.schema?.type === 'autofillreadonly' && (prop === 'edit' || prop === 'required')) return 'Copied from the linked record by the server, never typed';
 	if (unsafe(f, code, prop, !on)) return 'Not allowed on a field holding a secret — it can only be made stricter';
 	return '';
 };
@@ -443,6 +444,8 @@ const FieldRow = memo(function FieldRow({
 	const dateFormula = isDateFormulaSchema(f.schema);
 	const input = formula ? (dateFormula ? 'dateformula' : 'formula') : inputOf(f);
 	const locked = readOnly || system;
+	// Autofill / Autofill (read-only): a copy of a field of the record picked in another field (docs/autofill).
+	const autofill = f.schema?.type === 'autofill' || f.schema?.type === 'autofillreadonly';
 	// Off goes back to however the settings file says it — explicit false or
 	// absent — so on-then-off isn't a change.
 	const flip = (prop: string) =>
@@ -948,13 +951,21 @@ const FieldRow = memo(function FieldRow({
 
 					{!RECORD_INPUTS.includes(f.schema?.type) && !formula && !f.rollup && !system && (
 						<Group
-							title='Filled in from a linked record'
-							hint='Picking a record on the form fills this in — a payment’s amount from the bill it pays: the bill’s total, or a formula like total - paid.'>
+							title={autofill ? 'Copies from a linked record' : 'Filled in from a linked record'}
+							hint={
+								autofill
+									? f.schema?.type === 'autofillreadonly'
+										? 'Picking a record on the form fills this in, and the server keeps it in step: it changes when the record’s field changes, and nobody can type in it.'
+										: 'Picking a record on the form fills this in — a customer’s phone. It can then be typed over for this record; picking another record fills it again.'
+									: 'Picking a record on the form fills this in — a payment’s amount from the bill it pays: the bill’s total, or a formula like total - paid.'
+							}>
 							<FillFromEditor
 								fieldKey={f.key}
 								fillFrom={f.schema?.fillFrom}
 								formFields={formFields}
 								disabled={locked}
+								always={autofill}
+								holds={autofill ? f.schema?.fills : undefined}
 								onChange={fillFrom => actions.setSchema(f.key, { fillFrom })}
 							/>
 						</Group>
@@ -1210,11 +1221,27 @@ const SettingsEditor: FC<Props> = ({ fields, codeFields, model, modelFields, rea
 			setSectionFor(key);
 			return;
 		}
-		const { formula: _dropped, returns: _returns, calc: _calc, ...schema } = f.schema || {};
+		if (input === 'autofill' || input === 'autofillreadonly') {
+			// A copy of a field of the record picked in another field. It holds what the model stores
+			// there (text, a number, a date, yes/no); the read-only one is set by the server.
+			const stored = modelByKey.get(key)?.instance;
+			const fills = stored === 'Number' || f.type === 'number' ? 'number' : stored === 'Date' || f.type === 'date' || f.type === 'date-only' ? 'date' : stored === 'Boolean' || f.type === 'boolean' ? 'boolean' : 'text';
+			const { formula: _a, returns: _b, calc: _c, ...was } = f.schema || {};
+			const kind = fills === 'boolean' ? 'checkbox' : fills === 'text' ? 'string' : fills;
+			set(key, {
+				...(input === 'autofillreadonly' && { edit: undefined, required: undefined }),
+				schema: clean({ ...was, type: input, fills, tableType: kind, viewType: kind, ...(input === 'autofillreadonly' && { isRequired: undefined }) }),
+			});
+			setSchemaRev(r => r + 1);
+			return;
+		}
+		const { formula: _dropped, returns: _returns, calc: _calc, fills: _fills, ...schema } = f.schema || {};
 		set(key, {
 			schema: clean({
 				...schema,
 				type: input || undefined,
+				// The cells an Autofill set, not a choice of their own.
+				...((f.schema?.type === 'autofill' || f.schema?.type === 'autofillreadonly') && { tableType: undefined, viewType: undefined }),
 				// The number cells a formula set, not a choice of their own.
 				...(isFormulaType(f.schema?.type) && { tableType: undefined, viewType: undefined }),
 			}),

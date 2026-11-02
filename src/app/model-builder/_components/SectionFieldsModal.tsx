@@ -5,8 +5,8 @@ import { Badge, Box, Button, CloseButton, Dialog, Flex, Input, Portal, Text } fr
 import { AlertDialogContent, AlertDialogHeader, ModalFooter } from '@/components/library';
 import DiscardButton from '@/components/library/components/buttons/DiscardButton';
 import { DocLink } from '@/app/builder/_components/ui';
-import FieldsEditor from './FieldsEditor';
-import { EditableField, SUB_KINDS, validateFields } from './modelKinds';
+import FieldsEditor, { LinkTarget } from './FieldsEditor';
+import { EditableField, ROW_KINDS, SUB_KINDS, validateFields } from './modelKinds';
 
 /**
  * The fields of a Section or Section list — the model builder's own field
@@ -30,9 +30,12 @@ type Props = {
 	 * would be dropped on save, so it's refused; a formula needs a number.
 	 */
 	stored?: { key: string; instance?: string }[];
+	/** The models a row can link to (model builder): rows of a list may pick records and autofill from them. */
+	targets?: LinkTarget[];
+	selfName?: string;
 };
 
-const SectionFieldsModal: FC<Props> = ({ isOpen, onClose, field, onSave, stored }) => {
+const SectionFieldsModal: FC<Props> = ({ isOpen, onClose, field, onSave, stored, targets, selfName }) => {
 	const [fields, setFields] = useState<EditableField[]>([]);
 	const [addLabel, setAddLabel] = useState('');
 	const [tried, setTried] = useState(false);
@@ -135,8 +138,9 @@ const SectionFieldsModal: FC<Props> = ({ isOpen, onClose, field, onSave, stored 
 									fields={fields}
 									onChange={setFields}
 									errors={tried ? errors : {}}
-									targets={[]}
-									kinds={SUB_KINDS}
+									targets={targets || []}
+									selfName={selfName}
+									kinds={isList && targets && !stored ? ROW_KINDS : SUB_KINDS}
 									sub
 								/>
 
