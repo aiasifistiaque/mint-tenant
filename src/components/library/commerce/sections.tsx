@@ -180,8 +180,25 @@ export const StoreBasics: FC<SectionProps<'store'>> = ({ value, onChange, offere
 			label='Guest checkout on your website'
 			hint='On: buyers can order on your website without an account. Off: they sign in or sign up first.'
 		/>
+		<Field.Root maxW='320px'>
+			<Field.Label {...labelCss}>Time zone</Field.Label>
+			<Dropdown
+				size='sm'
+				value={value.timeZone || offered.timeZone || 'UTC'}
+				onChange={timeZone => onChange({ ...value, timeZone })}
+				items={zoneItems(value.timeZone || offered.timeZone)}
+			/>
+			<Text {...help}>Where the store’s days start and end — a discount that ends on 5 Nov runs until midnight here.</Text>
+		</Field.Root>
 	</Stack>
 );
+
+/** Every time zone the browser knows, the store's own kept even if it doesn't. */
+const zoneItems = (current?: string) => {
+	const all: string[] = typeof (Intl as any).supportedValuesOf === 'function' ? (Intl as any).supportedValuesOf('timeZone') : ['Asia/Dhaka', 'Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'UTC'];
+	const list = [...new Set([...(current ? [current] : []), ...all, 'UTC'])].sort();
+	return list.map(z => ({ value: z, label: z.replace(/_/g, ' ') }));
+};
 
 export const Outlets: FC<SectionProps<'outlets'>> = ({ value, onChange }) => (
 	<Stack>
@@ -287,6 +304,18 @@ export const Products: FC<SectionProps<'products'>> = ({ value, onChange, built 
 			checked={value.brands}
 			onChange={brands => onChange({ ...value, brands })}
 			label='Products have brands'
+		/>
+		<OnSwitch
+			checked={value.collections !== false}
+			onChange={collections => onChange({ ...value, collections })}
+			label='Collections'
+			hint='Groups of products on your website — Sale, Featured, New in. A product can be in several. Off: hidden from the sidebar.'
+		/>
+		<OnSwitch
+			checked={value.discounts !== false}
+			onChange={discounts => onChange({ ...value, discounts })}
+			label='Discounts'
+			hint='A percentage off products, categories or collections, with start and end dates. A product gets the biggest one that reaches it. Off: hidden from the sidebar.'
 		/>
 	</Stack>
 );
@@ -620,6 +649,26 @@ export const Pos: FC<SectionProps<'pos'> & { noTax?: boolean }> = ({ value, onCh
 				onChange={coupons => onChange({ ...value, coupons })}
 				label='Coupon codes'
 			/>
+			{value.coupons && (
+				<Box pl='38px'>
+					<Text {...labelCss}>Coupons apply to</Text>
+					<SegmentGroup.Root
+						size='sm'
+						mt={1}
+						value={value.couponBase === 'original' ? 'original' : 'discounted'}
+						onValueChange={(e: any) => onChange({ ...value, couponBase: e.value === 'original' ? 'original' : 'discounted' })}
+						w='fit-content'>
+						<SegmentGroup.Indicator />
+						<SegmentGroup.Items
+							items={[
+								{ value: 'discounted', label: 'The discounted price' },
+								{ value: 'original', label: 'The original price' },
+							]}
+						/>
+					</SegmentGroup.Root>
+					<Text {...help}>On an item with a discount: 10% off a 100 item that’s 20% off takes 8 (10% of 80), or 10 (10% of 100) — either way off the 80.</Text>
+				</Box>
+			)}
 			<OnSwitch
 				checked={value.customerRequired}
 				onChange={customerRequired => onChange({ ...value, customerRequired })}

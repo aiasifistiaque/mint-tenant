@@ -9,7 +9,7 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 import ConditionsEditor from '@/app/builder/_components/ConditionsEditor';
 import type { Automation, AutomationAction, AutomationEvent, AutomationInput } from '@/components/library/store/services/tenantApi';
 import ActionEditor, { ErrorLine, Person } from './ActionEditor';
-import { ACTION_LABEL, DATE_KINDS, DATE_UNITS, EMPTY, EVENT_WORD, Page, conditionFields, inputOf, newAction, sentence } from './model';
+import { ACTION_LABEL, PICKABLE_ACTIONS, DATE_KINDS, DATE_UNITS, EMPTY, EVENT_WORD, Page, conditionFields, inputOf, newAction, sentence } from './model';
 
 /**
  * Adding or changing an automation (backend docs/automations): its name, the
@@ -335,7 +335,7 @@ const AutomationDialog: FC<{
 													value=''
 													placeholder='Add an action'
 													aria-label='Add an action'
-													items={(Object.keys(ACTION_LABEL) as AutomationAction['type'][]).map(t => ({ value: t, label: ACTION_LABEL[t] }))}
+													items={PICKABLE_ACTIONS.map(t => ({ value: t, label: ACTION_LABEL[t] }))}
 													onChange={t => set({ actions: [...a.actions, newAction(t as AutomationAction['type'])] })}
 												/>
 											</Flex>

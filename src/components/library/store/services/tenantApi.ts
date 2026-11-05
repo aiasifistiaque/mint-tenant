@@ -115,7 +115,9 @@ export type AutomationAction =
 	| { type: 'webhook'; url: string }
 	| { type: 'update'; target: string; set: AutomationSet[] }
 	| { type: 'updateLinked'; route: string; via: string; set: AutomationSet[]; when?: AutomationCondition[]; match?: 'all' | 'any' }
-	| { type: 'create'; route: string; set: AutomationSet[] };
+	| { type: 'create'; route: string; set: AutomationSet[] }
+	/** Only the store's own automations (backend docs/ecommerce DISCOUNTS.md DS5): the store does it. */
+	| { type: 'storeAction'; action: 'workOutDiscounts' };
 export type Automation = {
 	_id: string;
 	name: string;

@@ -87,7 +87,11 @@ export const ACTION_LABEL: Record<AutomationAction['type'], string> = {
 	update: 'Update a record',
 	updateLinked: 'Update the records that pick this one',
 	create: 'Create a record',
+	storeAction: 'Work out the store’s discounts',
 };
+
+/** Actions people can pick — a store action is only the store's own. */
+export const PICKABLE_ACTIONS = (Object.keys(ACTION_LABEL) as AutomationAction['type'][]).filter(t => t !== 'storeAction');
 
 export const ACTION_HINT: Record<AutomationAction['type'], string> = {
 	notify: 'A notification in the panel, for people in this project.',
@@ -96,6 +100,7 @@ export const ACTION_HINT: Record<AutomationAction['type'], string> = {
 	update: 'Change fields of this record, or of a record it links to.',
 	updateLinked: 'Change fields of every record on another page that picks this one — a category’s products, a client’s open projects.',
 	create: 'Add a record to another page — a task for a new order, a log line.',
+	storeAction: 'Each product it touches gets the biggest active discount reaching it — or goes back to its price.',
 };
 
 export const newAction = (type: AutomationAction['type']): AutomationAction => {
@@ -112,6 +117,8 @@ export const newAction = (type: AutomationAction['type']): AutomationAction => {
 			return { type, route: '', via: '', set: [{ field: '', value: '' }], when: [], match: 'all' };
 		case 'create':
 			return { type, route: '', set: [{ field: '', value: '' }] };
+		case 'storeAction':
+			return { type, action: 'workOutDiscounts' };
 	}
 };
 

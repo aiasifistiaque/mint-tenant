@@ -13,6 +13,7 @@ import { withFormulaValues } from '../../../functions/formula';
 import { useLinkedFormulaValues } from './LinkedFormulaValues';
 import LinkedFiller from './LinkedFiller';
 import TaxNote from './TaxNote';
+import DiscountNote from './DiscountNote';
 import LinkedPreview from './LinkedPreview';
 import { meets } from '../../../functions/fieldLocks';
 import { lockedFills } from '../../../functions/linkedFill';
@@ -145,6 +146,10 @@ const FormMain: FC<FormMainType> = ({
 			setChangedData={setChangedData}
 		/>
 		<TaxNote
+			fields={fields}
+			formData={formData}
+		/>
+		<DiscountNote
 			fields={fields}
 			formData={formData}
 		/>

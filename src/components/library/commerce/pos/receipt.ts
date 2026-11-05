@@ -34,7 +34,9 @@ export const receiptHtml = (d: StoreOrderDetail, setup: Pick<PosSetup, 'currency
 	const items = order.items
 		.map(
 			it => `<tr><td colspan="2" class="item">${esc(it.name)}${it.sku ? ` <span class="muted">${esc(it.sku)}</span>` : ''}</td></tr>
-<tr><td class="muted">${it.quantity} × ${esc(m(it.unitPrice))}${it.discount ? ` − ${esc(m(it.discount))}` : ''}</td><td class="r">${esc(m(it.total))}</td></tr>`
+<tr><td class="muted">${it.quantity} × ${esc(m(it.unitPrice))}${it.discount ? ` − ${esc(m(it.discount))}` : ''}</td><td class="r">${esc(m(it.total))}</td></tr>${
+				it.saleName ? `\n<tr><td colspan="2" class="muted">${esc(it.saleName)} −${esc(String(it.salePercent))}% (was ${esc(m(it.listPrice || 0))})</td></tr>` : ''
+			}`
 		)
 		.join('');
 	const taxRow = order.tax ? row(setup.pos.taxMode === 'inclusive' ? 'Tax (included)' : 'Tax', m(order.tax)) : '';

@@ -17,9 +17,9 @@ export type CommerceTaxRate = { name: string; rate: number; default?: boolean };
 export type CommerceShippingRate = { name: string; amount: number };
 
 export type CommerceAnswers = {
-	store: { currency: string; orderPrefix: string; negativeStock: boolean; guestCheckout?: boolean };
+	store: { currency: string; orderPrefix: string; negativeStock: boolean; guestCheckout?: boolean; timeZone?: string };
 	outlets: CommerceOutlet[];
-	products: { variations: boolean; options: string[]; brands: boolean; barcodes: boolean; trackStock: boolean };
+	products: { variations: boolean; options: string[]; brands: boolean; barcodes: boolean; trackStock: boolean; collections?: boolean; discounts?: boolean };
 	payments: { tenders: string[]; custom: string[]; gateways: string[] };
 	returns: { allowed: boolean; windowDays: number; partial: boolean; restockDefault: boolean; refundMethods: string[]; storeCredit: boolean };
 	delivery: { enabled: boolean; rates: CommerceShippingRate[]; couriers: string[] };
@@ -29,6 +29,7 @@ export type CommerceAnswers = {
 		held: boolean;
 		discounts: boolean;
 		coupons: boolean;
+		couponBase?: 'discounted' | 'original';
 		tax: { mode: 'none' | 'inclusive' | 'added'; rates: CommerceTaxRate[] };
 		customerRequired: boolean;
 	};
@@ -37,6 +38,7 @@ export type CommerceAnswers = {
 export type CommerceOffered = {
 	country: { code: string; name: string; flag: string } | null;
 	currency: string;
+	timeZone?: string;
 	tenders: { id: string; label: string }[];
 	gateways: { id: string; name: string }[];
 	couriers: { id: string; name: string; ready: boolean }[];
@@ -68,7 +70,11 @@ export type StoreItem = {
 	title: string;
 	sku: string;
 	barcode: string;
+	/** What it sells for — its sale price when a store discount reaches it. */
 	price: number;
+	/** Before the store discount (backend DISCOUNTS.md DS10). */
+	listPrice?: number;
+	sale?: { discount: string | null; percent: number } | null;
 	compareAtPrice: number | null;
 	taxRate: string | null;
 	category: string | null;
@@ -105,6 +111,9 @@ export type StoreQuoteLine = {
 	sku: string;
 	quantity: number;
 	unitPrice: number;
+	listPrice?: number;
+	/** The store discount it sells at — not the cashier's line discount. */
+	sale?: { discount: string | null; name: string; percent: number; amount: number } | null;
 	gross: number;
 	lineDiscount: number;
 	couponDiscount: number;
@@ -175,7 +184,23 @@ export type StoreOrder = {
 	status: 'held' | 'open' | 'completed' | 'cancelled';
 	outlet: string;
 	customer?: string;
-	items: { variant: string; product: string; name: string; sku: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; returned: number }[];
+	items: {
+		variant: string;
+		product: string;
+		name: string;
+		sku: string;
+		quantity: number;
+		unitPrice: number;
+		discount: number;
+		tax: number;
+		total: number;
+		returned: number;
+		/** The store discount it sold at (DISCOUNTS.md DS10). */
+		listPrice?: number;
+		saleName?: string;
+		salePercent?: number;
+		saleAmount?: number;
+	}[];
 	subtotal: number;
 	discount: number;
 	orderDiscount: number;
@@ -300,6 +325,10 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 		/** How many of a category's products saving this tax would change — the category form's note. */
 		getTaxPreview: builder.query<{ products: number; on: boolean }, { category: string; tax: string }>({
 			query: ({ category, tax }) => ({ url: 'commerce/tax-preview', params: { category, tax } }),
+		}),
+		/** What saving a discount would do — the discount form's note (DISCOUNTS.md DS11). */
+		getDiscountPreview: builder.query<{ text: string; problem?: string | null; reach: number; gets?: number; keepBigger?: number }, { id?: string; discount: any }>({
+			query: ({ id, discount }) => ({ url: 'commerce/discount-preview', method: 'POST', body: { id, discount } }),
 		}),
 		/** Moves everything holding a tax to another, active one. */
 		replaceTax: builder.mutation<{ moved: number }, { id: string; to: string }>({
@@ -437,6 +466,7 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 
 export const {
 	useGetTaxPreviewQuery,
+	useGetDiscountPreviewQuery,
 	useGetTaxUsageQuery,
 	useReplaceTaxMutation,
 	useGetCommerceSettingsQuery,

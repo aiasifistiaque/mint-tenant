@@ -298,7 +298,18 @@ const VariantDialog: FC<{ product: StoreCatalogueProduct | null; onClose: () => 
 										fontWeight='600'>
 										{v.title || v.name}
 									</Text>
-									<Text fontSize='13px'>{m(v.price)}</Text>
+									<Text fontSize='13px'>
+										{v.sale && v.listPrice ? (
+											<Text
+												as='span'
+												color='fg.muted'
+												textDecoration='line-through'
+												mr={1}>
+												{m(v.listPrice)}
+											</Text>
+										) : null}
+										{m(v.price)}
+									</Text>
 									{v.trackStock && v.onHand !== null && (
 										<Text
 											{...help}
@@ -735,9 +746,24 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 													{l.name}
 												</Text>
 												<Text {...help}>
+													{ql?.sale && (
+														<Text
+															as='span'
+															textDecoration='line-through'
+															mr={1}>
+															{m(ql.listPrice ?? 0)}
+														</Text>
+													)}
 													{m(ql?.unitPrice ?? l.price)}
 													{ql?.discount ? ` · −${m(ql.discount)}` : ''}
 												</Text>
+												{ql?.sale && (
+													<Text
+														{...help}
+														color='green.fg'>
+														{ql.sale.name} −{ql.sale.percent}%
+													</Text>
+												)}
 											</Box>
 											<Text
 												fontSize='14px'
@@ -1090,6 +1116,14 @@ const Till: FC<{ store: CommerceView; setup: PosSetup; register: { _id: string; 
 													<Text fontSize='13px'>
 														{live.length > 1 && prices.some(x => x !== low) ? 'from ' : ''}
 														{m(low)}
+														{live.some(v => v.sale) && (
+															<Text
+																as='span'
+																color='green.fg'
+																ml={1}>
+																−{Math.max(...live.map(v => v.sale?.percent || 0))}%
+															</Text>
+														)}
 													</Text>
 													{p.trackStock && (
 														<Text

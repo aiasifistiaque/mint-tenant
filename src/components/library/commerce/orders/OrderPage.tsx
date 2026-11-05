@@ -255,8 +255,26 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 													color='fg.muted'>
 													{[it.sku && `SKU ${it.sku}`, Number(it.returned) > 0 && `${it.returned} returned`].filter(Boolean).join(' · ') || ' '}
 												</Text>
+												{it.saleName && (
+													<Text
+														fontSize='12px'
+														color='green.fg'>
+														{it.saleName} −{it.salePercent}%
+													</Text>
+												)}
 											</Table.Cell>
-											<Table.Cell textAlign='end'>{m(it.unitPrice)}</Table.Cell>
+											<Table.Cell textAlign='end'>
+												{it.saleName && it.listPrice ? (
+													<Text
+														as='span'
+														color='fg.muted'
+														textDecoration='line-through'
+														mr={1.5}>
+														{m(it.listPrice)}
+													</Text>
+												) : null}
+												{m(it.unitPrice)}
+											</Table.Cell>
 											<Table.Cell textAlign='end'>{it.quantity}</Table.Cell>
 											<Table.Cell
 												textAlign='end'
