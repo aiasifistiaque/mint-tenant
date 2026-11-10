@@ -160,6 +160,8 @@ const GUIDE_OF: Record<string, string> = {
 	'store-courier-manual': 'store',
 	// Store search (backend docs/search SI-05).
 	'store-search': 'store',
+	'store-search-settings': 'store',
+	'store-search-index': 'store',
 	'store-send-to-courier': 'store',
 	'store-delivery-card': 'store',
 	'store-deliveries': 'store',

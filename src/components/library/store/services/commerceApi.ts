@@ -303,9 +303,31 @@ export type StoreReturnDetail = {
 	extra: StoreExtraField[];
 };
 
+/** Store search's settings (backend commerce/search/settings.ts). `enabled` null: not switched on by name yet. */
+export type SearchDial = 'off' | 'low' | 'normal' | 'high';
+export type StoreSearchSettings = {
+	enabled: boolean | null;
+	typos: 'off' | 'normal' | 'loose';
+	outOfStock: 'show' | 'hide';
+	dials: { popularity: SearchDial; freshness: SearchDial; sale: SearchDial; learned: SearchDial };
+	learning: boolean;
+	banglish: boolean;
+	defaults: Omit<StoreSearchSettings, 'defaults' | 'enabled'> & { enabled: boolean };
+};
+export type StoreSearchStatus = {
+	docs: number;
+	products: number;
+	queued: number;
+	version: number;
+	builtAt: string | null;
+	sweptAt: string | null;
+	rebuild: { status: 'running' | 'done' | 'failed'; reason?: string; startedAt?: string; finishedAt?: string; done?: number; total?: number; docs?: number; error?: string } | null;
+	lastDrift: { at: string; products: number; docs: number; rebuilt: boolean } | null;
+};
+
 export type CommerceSaveInput = { answers?: Partial<CommerceAnswers>; step?: CommerceStep };
 
-export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift', 'store-returns'] }).injectEndpoints({
+export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift', 'store-returns', 'store-search', 'store-search-status'] }).injectEndpoints({
 	endpoints: builder => ({
 		getCommerceSettings: builder.query<CommerceView, void>({
 			query: () => 'commerce/settings',
@@ -461,10 +483,32 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: () => ({ url: 'commerce/setup', method: 'POST', body: {} }),
 			invalidatesTags: [TAG],
 		}),
+
+		/* ------------------------------------------- store search (backend docs/search SI-05 / SI-06) */
+		getStoreSearchSettings: builder.query<StoreSearchSettings, void>({
+			query: () => 'commerce/search/settings',
+			providesTags: ['store-search'],
+		}),
+		saveStoreSearchSettings: builder.mutation<StoreSearchSettings, Partial<Omit<StoreSearchSettings, 'defaults' | 'enabled'>> & { enabled?: boolean }>({
+			query: body => ({ url: 'commerce/search/settings', method: 'PUT', body }),
+			invalidatesTags: ['store-search'],
+		}),
+		getStoreSearchStatus: builder.query<StoreSearchStatus, void>({
+			query: () => 'commerce/search/status',
+			providesTags: ['store-search-status'],
+		}),
+		rebuildStoreSearch: builder.mutation<{ started: boolean }, void>({
+			query: () => ({ url: 'commerce/search/rebuild', method: 'POST', body: {} }),
+			invalidatesTags: ['store-search-status'],
+		}),
 	}),
 });
 
 export const {
+	useGetStoreSearchSettingsQuery,
+	useSaveStoreSearchSettingsMutation,
+	useGetStoreSearchStatusQuery,
+	useRebuildStoreSearchMutation,
 	useGetTaxPreviewQuery,
 	useGetDiscountPreviewQuery,
 	useGetTaxUsageQuery,
