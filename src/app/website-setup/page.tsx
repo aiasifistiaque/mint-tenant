@@ -14,6 +14,7 @@ import { MONO_CAPS } from '@/theme/tones';
 import Snippet from '@/app/public-api/_components/Snippet';
 import { FRAMEWORKS, type Filled, type Framework, type Step } from './_components/snippets';
 import ConnectionTest from './_components/ConnectionTest';
+import StoreSearch from './_components/StoreSearch';
 
 /**
  * Website setup: how a website connects to this website project — one that's
@@ -228,6 +229,8 @@ function WebsiteSetup() {
 						))}
 					</ConsoleTabs>
 				</Panel>
+
+				{project.type === 'ecommerce' && <StoreSearch filled={filled} />}
 
 				<Panel
 					title='Where each setting goes'
