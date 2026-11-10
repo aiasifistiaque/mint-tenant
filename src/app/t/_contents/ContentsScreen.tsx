@@ -191,7 +191,7 @@ const Row: FC<{
 };
 
 const LegacyRow: FC<{ c: SiteContent }> = ({ c }) => (
-	<NextLink href={projectHref(`/web-contents/${c._id}`)}>
+	<NextLink href={projectHref(`/view/web-contents/${c._id}`)}>
 		<Flex
 			align='center'
 			gap={3}
