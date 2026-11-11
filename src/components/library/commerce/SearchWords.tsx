@@ -173,6 +173,50 @@ export const TrySearchCard: FC = () => {
 							{data.total} result{data.total === 1 ? '' : 's'}
 							{u?.words !== undefined && u.words !== q.trim() ? ` for “${u.words || 'everything'}”` : ''} · {data.ms} ms
 						</Text>
+						{data.showing && (
+							<Text
+								fontSize='13px'
+								mt={1}>
+								{data.showing.reason === 'some words'
+									? 'No product has every word: showing the ones with some of them'
+									: `No exact results: showing results for “${data.showing.q}”`}
+								{data.showing.dropped?.length ? ` (left out: ${data.showing.dropped.join(', ')})` : ''}
+							</Text>
+						)}
+						{u?.relaxed && data.total > 0 && (
+							<Text
+								fontSize='13px'
+								mt={1}>
+								What the words asked for (a price, brand or size) left nothing, so it was set aside
+							</Text>
+						)}
+						{data.didYouMean && (
+							<Text
+								fontSize='13px'
+								mt={1}>
+								Did you mean{' '}
+								<Box
+									as='button'
+									{...({ type: 'button' } as any)}
+									textDecoration='underline'
+									fontWeight='600'
+									onClick={() => {
+										setQ(data.didYouMean);
+										run(data.didYouMean);
+									}}>
+									{data.didYouMean}
+								</Box>
+								?
+							</Text>
+						)}
+						{data.fallback?.doc?.length > 0 && (
+							<Text
+								{...help}
+								mt={1}>
+								Shoppers see {data.fallback.kind === 'category' ? `popular products in ${data.fallback.category?.name}` : 'your popular products'} instead:{' '}
+								{data.fallback.doc.map((d: any) => d.name).join(', ')}
+							</Text>
+						)}
 						{data.redirect && (
 							<Text
 								fontSize='13px'
