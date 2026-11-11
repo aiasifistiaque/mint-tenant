@@ -8,6 +8,7 @@ import GuideLink from '../tenant/GuideLink';
 import { projectHref } from '../config/lib/constants/panel';
 import { useGetCommerceSettingsQuery, useGetProductSearchInsightQuery } from '../store/services/commerceApi';
 import { help } from './sections';
+import { RulesTouching } from './SearchRules';
 
 /**
  * A product's Search tab (backend docs/search SI-14): the last 30 days of the store's website search for it — how often
@@ -96,6 +97,9 @@ const ProductSearch: FC<{ id: string }> = ({ id }) => {
 				) : (
 					<Text {...help}>None. Words shoppers use that aren’t in its name or description go in the product’s Search words field.</Text>
 				)}
+				<Box mt={4}>
+					<RulesTouching product={id} />
+				</Box>
 			</Box>
 		</Panel>
 	);

@@ -367,6 +367,20 @@ export type ProductSearchInsight = {
 	views30: number;
 };
 export type StoreSearchWeek = { days: number; totals: SearchSums; before: SearchSums; noResults: SearchQueryRow[] };
+/** A search result card as the panel's explained search returns it (SI-10 / SI-15). */
+export type StoreSearchCard = { _id: string; name: string; image?: string | null; price?: number; salePrice?: number; explain?: string; pinned?: number; score?: number };
+export type StoreSearchRulePreview = {
+	q: string;
+	category: string | null;
+	/** Whether the rule is whole enough to do anything; `missing` says what isn't. */
+	ready: boolean;
+	missing?: string;
+	/** Whether the search tried sets it off. */
+	fires: boolean;
+	before: { doc: StoreSearchCard[]; total: number; rules: { _id: string; name: string; action: string }[]; pinned: number };
+	after: StoreSearchRulePreview['before'] | null;
+};
+export type StoreSearchRuleTouching = { _id: string; name: string; when: string; action: string; active: boolean; live: boolean; startsAt?: string; endsAt?: string; hits: number };
 
 export type CommerceSaveInput = { answers?: Partial<CommerceAnswers>; step?: CommerceStep };
 
@@ -567,6 +581,13 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 		tryStoreSearch: builder.query<any, string>({
 			query: q => ({ url: 'commerce/search/try', params: { q } }),
 		}),
+		// Search rules (backend docs/search SI-15): the editor's before / after, and the rules a search or product meets.
+		previewStoreSearchRule: builder.mutation<StoreSearchRulePreview, { rule: any; q?: string }>({
+			query: body => ({ url: 'commerce/search/rules/preview', method: 'POST', body }),
+		}),
+		getStoreSearchRulesTouching: builder.query<StoreSearchRuleTouching[], { q?: string; product?: string }>({
+			query: params => ({ url: 'commerce/search/rules/touching', params }),
+		}),
 	}),
 });
 
@@ -583,6 +604,8 @@ export const {
 	useGetStoreSearchQueryInsightQuery,
 	useGetProductSearchInsightQuery,
 	useGetStoreSearchWeekQuery,
+	usePreviewStoreSearchRuleMutation,
+	useGetStoreSearchRulesTouchingQuery,
 	useGetTaxPreviewQuery,
 	useGetDiscountPreviewQuery,
 	useGetTaxUsageQuery,

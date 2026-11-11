@@ -16,6 +16,7 @@ import {
 	type SearchQueryRow,
 } from '../store/services/commerceApi';
 import { help } from './sections';
+import { RuleFixes, RulesTouching } from './SearchRules';
 
 /**
  * Search insights (backend docs/search README §6, SI-14): what shoppers search for on the store's website — totals for
@@ -253,7 +254,9 @@ const QueryDrawer: FC<{ q: string | null; days: number; onClose: () => void; onO
 									<Flex gap={2} wrap='wrap'>
 										{t!.zero > 0 && <NoResultFixes q={data.q} />}
 										<TryFix q={data.q} />
+										{t!.zero < t!.searches && <RuleFixes q={data.q} />}
 									</Flex>
+									<RulesTouching q={data.q} />
 								</Flex>
 							)}
 						</Drawer.Body>
@@ -397,13 +400,18 @@ const SearchInsights: FC = () => {
 								<Tabs.Content value='low'>
 									<Text {...help} mb={2}>
 										Searched at least 3 times, results showed, and fewer than 15% were opened — the results may not be what shoppers meant. Try one to see what
-										they see; pinning and boosting come with search rules.
+										they see, then pin the products they meant or boost a brand or collection with a search rule.
 									</Text>
 									{table(
 										data.lowClicks,
 										[cols.q, { key: 'shown', label: 'With results', numeric: true, render: r => count(r.searches - r.zero) }, cols.clickRate],
 										empty('Nothing to fix here', 'Shoppers open the results of the searches they make often.'),
-										r => <TryFix q={r.q} />
+										r => (
+											<Flex gap={1}>
+												<TryFix q={r.q} />
+												<RuleFixes q={r.q} />
+											</Flex>
+										)
 									)}
 								</Tabs.Content>
 								<Tabs.Content value='trending'>
