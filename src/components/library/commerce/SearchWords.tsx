@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { Badge, Box, Button, Flex, Grid, Input, Text } from '@chakra-ui/react';
 import { ChevronRight } from 'lucide-react';
 import { Panel } from '../cl';
@@ -126,6 +126,14 @@ const chip = (text: string, key: string) => (
 export const TrySearchCard: FC = () => {
 	const [q, setQ] = useState('');
 	const [run, { data, isFetching }] = useLazyTryStoreSearchQuery();
+	// Search insights' "Try search" opens here with the search filled in and tried (?try=).
+	useEffect(() => {
+		const asked = new URLSearchParams(window.location.search).get('try')?.trim().slice(0, 100);
+		if (!asked) return;
+		setQ(asked);
+		run(asked);
+		setTimeout(() => document.getElementById('store-search-try')?.scrollIntoView({ block: 'start' }), 300);
+	}, []);
 	const u = data?.understood;
 	const chips = [
 		...(u?.price ? [chip(u.price.gte != null && u.price.lte != null ? `Price ${u.price.gte}–${u.price.lte}` : u.price.lte != null ? `Price ≤ ${u.price.lte}` : `Price ≥ ${u.price.gte}`, 'p')] : []),

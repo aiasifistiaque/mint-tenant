@@ -7,6 +7,7 @@ import RecordView from '@/app/view/_components/RecordView';
 import { useGetByIdQuery } from '../store/services/commonApi';
 import type { CommerceView } from '../store/services/commerceApi';
 import { ProductStock, StockLines } from './stock';
+import ProductSearch from './ProductSearch';
 import { projectHref } from '../config/lib/constants/panel';
 
 /**
@@ -52,7 +53,11 @@ const StoreRecordPage: FC<{ slug: string; id: string; store: CommerceView }> = (
 			<RecordView
 				slug={slug}
 				id={id}
-				tabs={[{ value: 'in-stock', label: 'In stock', content: <ProductStock id={id} store={store} /> }]}
+				tabs={[
+					{ value: 'in-stock', label: 'In stock', content: <ProductStock id={id} store={store} /> },
+					// The store's website search for it (backend docs/search SI-14).
+					{ value: 'search', label: 'Search', content: <ProductSearch id={id} /> },
+				]}
 			/>
 		);
 	if (key === 'adjustment' || key === 'transfer')

@@ -37,6 +37,22 @@ const startingValues = (fields: any[]) =>
 		return acc;
 	}, {});
 
+/**
+ * Values another page filled in through the address: `?fill_<field>=value` (Search insights' fixes open a new
+ * synonym, redirect or product with the search typed in). A tags field gets it as its one tag.
+ */
+const filledValues = (fields: any[]) => {
+	if (typeof window === 'undefined') return {};
+	const params = new URLSearchParams(window.location.search);
+	const out: Record<string, any> = {};
+	for (const f of fields) {
+		const v = f?.name ? params.get(`fill_${f.name}`) : null;
+		if (v == null || !v.trim()) continue;
+		out[f.name] = /tag/i.test(String(f.type || '')) ? [v.trim().slice(0, 200)] : v.slice(0, 500);
+	}
+	return out;
+};
+
 const CreateForm: FC<{ route: string; fields: any[]; table: any }> = ({ route, fields, table }) => {
 	const router = useRouter();
 	const [formData, setFormData] = useFormData<any>(fields);
@@ -46,7 +62,7 @@ const CreateForm: FC<{ route: string; fields: any[]; table: any }> = ({ route, f
 	const back = pagePath(route);
 
 	useEffect(() => {
-		setFormData((prev: any) => ({ ...prev, ...startingValues(fields) }));
+		setFormData((prev: any) => ({ ...prev, ...startingValues(fields), ...filledValues(fields) }));
 	}, [fields]);
 
 	useCustomToast({

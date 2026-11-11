@@ -326,6 +326,48 @@ export type StoreSearchStatus = {
 	lastDrift: { at: string; products: number; docs: number; rebuilt: boolean } | null;
 };
 
+/** Search insights (backend commerce/search/insights.ts, docs/search SI-14). Rates are 0–1. */
+export type SearchSums = { searches: number; zero: number; clicks: number; carts: number; orders: number; revenue: number; zeroRate: number; clickRate: number; conversion: number };
+export type SearchQueryRow = SearchSums & { nq: string; q: string; last?: string };
+export type SearchDayPoint = { day: string; searches: number; zero: number; clicks: number; orders: number; revenue: number };
+export type StoreSearchInsights = {
+	days: number;
+	timeZone: string;
+	from: string;
+	to: string;
+	totals: SearchSums & { visitors: number | null; searchedSessions: number | null; sessions: number | null; sessionShare: number | null };
+	before: SearchSums & { visitors: number | null; searchedSessions: number | null };
+	series: SearchDayPoint[];
+	top: SearchQueryRow[];
+	noResults: SearchQueryRow[];
+	lowClicks: SearchQueryRow[];
+	trending: { nq: string; q: string; searches: number; before: number; up: number; zero: number; isNew: boolean }[];
+};
+export type StoreSearchQueryInsight = {
+	q: string;
+	nq: string;
+	days: number;
+	totals: SearchSums & { visitors: number };
+	before: SearchSums;
+	series: SearchDayPoint[];
+	positions: { position: string; clicks: number }[];
+	next: { nq: string; q: string; times: number }[];
+};
+export type ProductSearchInsight = {
+	indexed: boolean;
+	shown: number;
+	clicks: number;
+	carts: number;
+	orders: number;
+	units: number;
+	revenue: number;
+	queries: { nq: string; q: string; clicks: number; carts: number; orders: number }[];
+	keywords: string[];
+	sold30: number;
+	views30: number;
+};
+export type StoreSearchWeek = { days: number; totals: SearchSums; before: SearchSums; noResults: SearchQueryRow[] };
+
 export type CommerceSaveInput = { answers?: Partial<CommerceAnswers>; step?: CommerceStep };
 
 export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift', 'store-returns', 'store-search', 'store-search-status'] }).injectEndpoints({
@@ -510,6 +552,18 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: ({ id, on }) => ({ url: `commerce/search/packs/${id}`, method: 'POST', body: { on } }),
 			invalidatesTags: ['store-search'],
 		}),
+		getStoreSearchInsights: builder.query<StoreSearchInsights, number>({
+			query: days => ({ url: 'commerce/search/insights', params: { days } }),
+		}),
+		getStoreSearchQueryInsight: builder.query<StoreSearchQueryInsight, { q: string; days: number }>({
+			query: params => ({ url: 'commerce/search/insights/query', params }),
+		}),
+		getProductSearchInsight: builder.query<ProductSearchInsight, string>({
+			query: id => `commerce/search/insights/product/${id}`,
+		}),
+		getStoreSearchWeek: builder.query<StoreSearchWeek, void>({
+			query: () => 'commerce/search/insights/week',
+		}),
 		tryStoreSearch: builder.query<any, string>({
 			query: q => ({ url: 'commerce/search/try', params: { q } }),
 		}),
@@ -524,6 +578,11 @@ export const {
 	useGetStoreSearchPacksQuery,
 	useSetStoreSearchPackMutation,
 	useLazyTryStoreSearchQuery,
+	useTryStoreSearchQuery,
+	useGetStoreSearchInsightsQuery,
+	useGetStoreSearchQueryInsightQuery,
+	useGetProductSearchInsightQuery,
+	useGetStoreSearchWeekQuery,
 	useGetTaxPreviewQuery,
 	useGetDiscountPreviewQuery,
 	useGetTaxUsageQuery,

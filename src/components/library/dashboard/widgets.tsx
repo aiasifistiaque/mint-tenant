@@ -21,6 +21,7 @@ import {
 import { pagePath, projectHref } from '../config/lib/constants/panel';
 import { LucideIcon } from '../icon';
 import { useGetTemplateStatsQuery } from '../store/services/templatesApi';
+import { useGetCommerceSettingsQuery, useGetStoreSearchWeekQuery } from '../store/services/commerceApi';
 import type { TemplateStatRow } from '../store/services/templatesApi';
 
 /**
@@ -47,7 +48,7 @@ type WidgetProps = { w: Widget; index: number; editing?: Editing; preview?: bool
 const titleOf = (w: Widget) => w.title?.trim() || defaultTitle(w, humanizeKey(w.route));
 
 /** A route's list page, when the widget has one to link to. */
-const pageHref = (w: Widget) => (w.route && w.type !== 'actions' ? pagePath(w.route) : undefined);
+const pageHref = (w: Widget) => (w.type === 'search' ? (w.route ? projectHref('/store/search') : undefined) : w.route && w.type !== 'actions' ? pagePath(w.route) : undefined);
 
 const errorStatus = (error: any) => error?.status ?? error?.originalStatus;
 const errorText = (error: any) => error?.data?.message || 'Couldn’t load this widget';
@@ -511,6 +512,105 @@ const TemplatesWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => {
 	);
 };
 
+/** A store's website search this week (backend docs/search SI-14): revenue from search, searches, and what found nothing. */
+const SearchWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => {
+	const q = useGetStoreSearchWeekQuery();
+	const { data: store } = useGetCommerceSettingsQuery();
+	const currency = (store?.answers as any)?.store?.currency || '';
+	const explain = !!(editing || preview);
+	const status = errorStatus(q.error);
+	if ((status === 403 || status === 401 || status === 404) && !explain) return null;
+	const d = q.data;
+	const links = !editing && !preview;
+	const change = (now: number, before: number) => {
+		if (!before) return null;
+		const diff = ((now - before) / before) * 100;
+		if (Math.abs(diff) < 0.5) return null;
+		return (
+			<Flex
+				as='span'
+				align='center'
+				gap={0.5}
+				fontSize='xs'
+				color={diff > 0 ? 'green.fg' : 'red.fg'}>
+				{diff > 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+				{Math.abs(diff).toFixed(0)}%
+			</Flex>
+		);
+	};
+	return (
+		<Frame
+			w={{ ...w, route: links ? 'search' : '' }}
+			index={index}
+			editing={editing}
+			subtitle='The last 7 days against the 7 before'>
+			{status === 403 || status === 401 ? (
+				<Note>You can’t view the store’s search.</Note>
+			) : q.error ? (
+				<Note tone='error'>{errorText(q.error)}</Note>
+			) : !d ? (
+				<Skeleton h='96px' />
+			) : (
+				<Flex
+					direction='column'
+					gap={3}>
+					<Grid
+						templateColumns='repeat(2, minmax(0, 1fr))'
+						gap={3}>
+						{[
+							['Revenue from search', `${currency ? `${currency} ` : ''}${formatNumber(Math.round(d.totals.revenue))}`, change(d.totals.revenue, d.before.revenue)],
+							['Searches', formatNumber(d.totals.searches), change(d.totals.searches, d.before.searches)],
+						].map(([label, value, delta]: any) => (
+							<Box key={label}>
+								<Flex
+									align='baseline'
+									gap={2}>
+									<Text
+										fontSize='2xl'
+										fontWeight='600'
+										lineHeight='1.1'>
+										{value}
+									</Text>
+									{delta}
+								</Flex>
+								<Text
+									fontSize='xs'
+									color='fg.muted'>
+									{label}
+								</Text>
+							</Box>
+						))}
+					</Grid>
+					<Box fontSize='sm'>
+						<Text
+							fontSize='xs'
+							color='fg.muted'
+							mb={1}>
+							Top search with no results
+						</Text>
+						{d.noResults[0] ? (
+							<Text>
+								<Text
+									as='span'
+									fontWeight='600'>
+									“{d.noResults[0].q}”
+								</Text>{' '}
+								<Text
+									as='span'
+									color='fg.muted'>
+									· {d.noResults[0].zero} time{d.noResults[0].zero === 1 ? '' : 's'}
+								</Text>
+							</Text>
+						) : (
+							<Text color='fg.muted'>{d.totals.searches ? 'Every search found something.' : 'No searches yet.'}</Text>
+						)}
+					</Box>
+				</Flex>
+			)}
+		</Frame>
+	);
+};
+
 /** Quick actions: a button to each of the project's own pages. */
 const ActionsWidget: FC<WidgetProps> = ({ w, index, editing, preview }) => (
 	<Frame
@@ -562,6 +662,8 @@ export const WidgetView: FC<WidgetProps> = props =>
 		<ActionsWidget {...props} />
 	) : props.w.type === 'templates' ? (
 		<TemplatesWidget {...props} />
+	) : props.w.type === 'search' ? (
+		<SearchWidget {...props} />
 	) : props.w.type === 'stat' ? (
 		<StatWidget {...props} />
 	) : props.w.type === 'chart' ? (

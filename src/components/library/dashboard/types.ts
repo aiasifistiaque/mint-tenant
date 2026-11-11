@@ -13,7 +13,8 @@ import { OptionFilter, optionQuery } from '../functions/optionFilters';
  */
 
 /** `templates`: Template Studio's overview — the super admin panel only (docs/templates T-11). */
-export type WidgetType = 'stat' | 'chart' | 'recent' | 'templates' | 'actions';
+/** `search`: a store's website search this week (backend docs/search SI-14) — stores only. */
+export type WidgetType = 'stat' | 'chart' | 'recent' | 'templates' | 'actions' | 'search';
 export type WidgetSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 export type Metric = 'count' | 'sum' | 'avg';
 export type Range = 'all' | 'today' | '7d' | '30d' | '90d' | 'month' | '12m' | 'year';
@@ -69,7 +70,7 @@ export const RANGE_LABEL: Record<Range, string> = {
 	all: 'All time',
 };
 
-export const TYPE_LABEL: Record<WidgetType, string> = { stat: 'Number', chart: 'Chart', recent: 'Recent items', templates: 'Templates overview', actions: 'Quick actions' };
+export const TYPE_LABEL: Record<WidgetType, string> = { stat: 'Number', chart: 'Chart', recent: 'Recent items', templates: 'Templates overview', actions: 'Quick actions', search: 'Website search' };
 
 /** A donut's slices beyond these fold into "Other" — the palette's validated hues. */
 export const DONUT_MAX = 7;
@@ -79,6 +80,7 @@ export const newId = () => `w${Date.now().toString(36)}${Math.random().toString(
 export const newWidget = (type: WidgetType): Widget => {
 	const base = { id: newId(), type, route: '', title: '', filters: [] };
 	if (type === 'templates') return { ...base, route: 'templates', size: 'full' };
+	if (type === 'search') return { ...base, route: 'search', size: 'md' };
 	if (type === 'stat') return { ...base, size: 'sm', metric: 'count', range: 'all', dateField: 'createdAt' };
 	if (type === 'chart')
 		return { ...base, size: 'lg', metric: 'count', range: '30d', dateField: 'createdAt', group: 'time', chart: 'bar', interval: 'day' };
@@ -152,6 +154,7 @@ export const bucketLabel = (key: string, interval: Interval = 'day', long = fals
 export const defaultTitle = (w: Widget, modelLabel?: string) => {
 	if (w.type === 'templates') return 'Templates';
 	if (w.type === 'actions') return 'Quick actions';
+	if (w.type === 'search') return 'Website search this week';
 	const what = modelLabel || w.route || 'Pick a model';
 	if (w.type === 'recent') return `Latest ${what.toLowerCase()}`;
 	const metric = w.metric === 'sum' ? `Total ${w.field || ''}` : w.metric === 'avg' ? `Average ${w.field || ''}` : '';

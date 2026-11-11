@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Flex, IconButton, Link, Text } from '@chakra-ui/react';
-import { BarChart3, BookOpen, Copy, Hash, LayoutTemplate, ListOrdered, Pencil, RotateCcw, Save, Trash2, Undo2 } from 'lucide-react';
+import { BarChart3, BookOpen, Copy, Hash, LayoutTemplate, ListOrdered, Pencil, RotateCcw, Save, Search, Trash2, Undo2 } from 'lucide-react';
 import { Layout, useGetDashboardQuery, useResetDashboardMutation, useSaveDashboardMutation } from '@/components/library';
 import { ConfirmAction, DetailSkeleton, EmptyState, ErrorState, PageHeader } from '@/components/library/cl';
 import { toaster } from '@/components/ui/toaster';
@@ -11,6 +11,7 @@ import { TYPE_LABEL, Widget, WidgetType, newId, newWidget } from '@/components/l
 import WidgetDialog from './_components/WidgetDialog';
 import { DocLink, GUIDE } from './_components/ui';
 import { HOME, IS_TENANT_PANEL } from '@/components/library/config/lib/constants/panel';
+import { useWorkspace } from '@/components/library/tenant';
 
 const ICON = { size: 14, strokeWidth: 1.75 };
 /** "1 number", "3 charts"; nothing for none. */
@@ -29,8 +30,14 @@ const ADD: { type: WidgetType; icon: any; label: string }[] = [
  * Save, which replaces the dashboard every admin sees (backend /dashboard).
  * With nothing saved, the dashboard shows its built-in cards.
  */
+/** Widgets with no settings: added as they are. */
+const AS_IS: WidgetType[] = ['templates', 'search'];
+
 const DashboardBuilderPage = () => {
 	const { data, isLoading, error, refetch } = useGetDashboardQuery();
+	// A store also has its website search this week (backend docs/search SI-14).
+	const { project } = useWorkspace();
+	const add = project?.type === 'ecommerce' ? [...ADD, { type: 'search' as WidgetType, icon: Search, label: 'Website search' }] : ADD;
 	const [saveDashboard, { isLoading: saving }] = useSaveDashboardMutation();
 	const [resetDashboard, { isLoading: resetting }] = useResetDashboardMutation();
 
@@ -95,14 +102,18 @@ const DashboardBuilderPage = () => {
 
 	const actions = (w: Widget, index: number) => (
 		<>
-			{w.type === 'templates' ? (
-				// Nothing to set on it but its width.
+			{AS_IS.includes(w.type) ? (
+				// Nothing to set on it but its width (the search widget: a third or half).
 				<IconButton
 					size='2xs'
 					variant='ghost'
-					aria-label={w.size === 'full' ? 'Make it half width' : 'Make it full width'}
-					title={w.size === 'full' ? 'Half width' : 'Full width'}
-					onClick={() => setWidgets(list => list.map(x => (x.id === w.id ? { ...x, size: x.size === 'full' ? 'lg' : 'full' } : x)))}>
+					aria-label={w.size === (w.type === 'search' ? 'lg' : 'full') ? 'Make it narrower' : 'Make it wider'}
+					title={w.size === (w.type === 'search' ? 'lg' : 'full') ? 'Narrower' : 'Wider'}
+					onClick={() =>
+						setWidgets(list =>
+							list.map(x => (x.id === w.id ? { ...x, size: x.type === 'search' ? (x.size === 'lg' ? 'md' : 'lg') : x.size === 'full' ? 'lg' : 'full' } : x))
+						)
+					}>
 					<Pencil {...ICON} />
 				</IconButton>
 			) : (
@@ -167,13 +178,13 @@ const DashboardBuilderPage = () => {
 					}
 					actions={
 						<>
-							{ADD.map(a => (
+							{add.map(a => (
 								<Button
 									key={a.type}
 									size='sm'
 									variant='outline'
 									disabled={isLoading || saving}
-									onClick={() => (a.type === 'templates' ? setWidgets(list => [...list, newWidget('templates')]) : setEditing({ widget: newWidget(a.type), isNew: true }))}>
+									onClick={() => (AS_IS.includes(a.type) ? setWidgets(list => [...list, newWidget(a.type)]) : setEditing({ widget: newWidget(a.type), isNew: true }))}>
 									<a.icon {...ICON} />
 									Add {a.label.toLowerCase()}
 								</Button>
@@ -259,12 +270,12 @@ const DashboardBuilderPage = () => {
 									gap={2}
 									flexWrap='wrap'
 									justify='center'>
-									{ADD.map(a => (
+									{add.map(a => (
 										<Button
 											key={a.type}
 											size='sm'
 											variant='outline'
-											onClick={() => (a.type === 'templates' ? setWidgets(list => [...list, newWidget('templates')]) : setEditing({ widget: newWidget(a.type), isNew: true }))}>
+											onClick={() => (AS_IS.includes(a.type) ? setWidgets(list => [...list, newWidget(a.type)]) : setEditing({ widget: newWidget(a.type), isNew: true }))}>
 											<a.icon {...ICON} />
 											{a.label}
 										</Button>
