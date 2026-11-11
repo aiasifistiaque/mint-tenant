@@ -314,6 +314,7 @@ export type StoreSearchSettings = {
 	banglish: boolean;
 	defaults: Omit<StoreSearchSettings, 'defaults' | 'enabled'> & { enabled: boolean };
 };
+export type StoreSearchPack = { id: string; name: string; about: string; size: number; installed: number; on: boolean };
 export type StoreSearchStatus = {
 	docs: number;
 	products: number;
@@ -501,6 +502,17 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 			query: () => ({ url: 'commerce/search/rebuild', method: 'POST', body: {} }),
 			invalidatesTags: ['store-search-status'],
 		}),
+		getStoreSearchPacks: builder.query<StoreSearchPack[], void>({
+			query: () => 'commerce/search/packs',
+			providesTags: ['store-search'],
+		}),
+		setStoreSearchPack: builder.mutation<StoreSearchPack[], { id: string; on: boolean }>({
+			query: ({ id, on }) => ({ url: `commerce/search/packs/${id}`, method: 'POST', body: { on } }),
+			invalidatesTags: ['store-search'],
+		}),
+		tryStoreSearch: builder.query<any, string>({
+			query: q => ({ url: 'commerce/search/try', params: { q } }),
+		}),
 	}),
 });
 
@@ -509,6 +521,9 @@ export const {
 	useSaveStoreSearchSettingsMutation,
 	useGetStoreSearchStatusQuery,
 	useRebuildStoreSearchMutation,
+	useGetStoreSearchPacksQuery,
+	useSetStoreSearchPackMutation,
+	useLazyTryStoreSearchQuery,
 	useGetTaxPreviewQuery,
 	useGetDiscountPreviewQuery,
 	useGetTaxUsageQuery,

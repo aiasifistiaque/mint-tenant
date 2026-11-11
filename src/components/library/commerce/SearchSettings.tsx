@@ -15,6 +15,7 @@ import {
 	type StoreSearchSettings,
 } from '../store/services/commerceApi';
 import { OnSwitch, help } from './sections';
+import { SearchWordsCard, TrySearchCard } from './SearchWords';
 
 /**
  * Store settings → Search (backend docs/search SI-06): how the store's website search matches and ranks, and the
@@ -333,6 +334,8 @@ const SearchSettings: FC = () => (
 			<GuideLink section='store-search' />
 		</Flex>
 		<SettingsCard />
+		<SearchWordsCard />
+		<TrySearchCard />
 		<IndexCard />
 	</Flex>
 );

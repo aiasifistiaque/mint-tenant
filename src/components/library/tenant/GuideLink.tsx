@@ -162,6 +162,7 @@ const GUIDE_OF: Record<string, string> = {
 	'store-search': 'store',
 	'store-search-settings': 'store',
 	'store-search-index': 'store',
+	'store-search-words': 'store',
 	'store-send-to-courier': 'store',
 	'store-delivery-card': 'store',
 	'store-deliveries': 'store',
