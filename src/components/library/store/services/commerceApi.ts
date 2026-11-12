@@ -324,6 +324,22 @@ export type StoreSearchStatus = {
 	sweptAt: string | null;
 	rebuild: { status: 'running' | 'done' | 'failed'; reason?: string; startedAt?: string; finishedAt?: string; done?: number; total?: number; docs?: number; error?: string } | null;
 	lastDrift: { at: string; products: number; docs: number; rebuilt: boolean } | null;
+	/** The last learning run (SI-16). */
+	learn?: { at: string; pairs: number; boosted: number; suggestions: number; ms: number } | null;
+};
+/** A suggested fix for the store's search (backend commerce/search/learn.ts, SI-16 learned / SI-18 your AI). */
+export type StoreSearchSuggestion = {
+	_id: string;
+	kind: 'synonym' | 'redirect' | 'rule';
+	source: 'learned' | 'your-ai';
+	key: string;
+	title: string;
+	why: string;
+	record: any;
+	evidence?: { visitors?: number; searches?: number; position?: number };
+	status: 'open' | 'accepted' | 'dismissed';
+	made?: string;
+	updatedAt: string;
 };
 
 /** Search insights (backend commerce/search/insights.ts, docs/search SI-14). Rates are 0–1. */
@@ -384,7 +400,7 @@ export type StoreSearchRuleTouching = { _id: string; name: string; when: string;
 
 export type CommerceSaveInput = { answers?: Partial<CommerceAnswers>; step?: CommerceStep };
 
-export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift', 'store-returns', 'store-search', 'store-search-status'] }).injectEndpoints({
+export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-stock', 'store-orders', 'store-held', 'store-shift', 'store-returns', 'store-search', 'store-search-status', 'store-search-suggestions'] }).injectEndpoints({
 	endpoints: builder => ({
 		getCommerceSettings: builder.query<CommerceView, void>({
 			query: () => 'commerce/settings',
@@ -581,12 +597,33 @@ export const commerceApi = mainApi.enhanceEndpoints({ addTagTypes: [TAG, 'store-
 		tryStoreSearch: builder.query<any, string>({
 			query: q => ({ url: 'commerce/search/try', params: { q } }),
 		}),
+		// The Try search page (backend docs/search SI-17): a page of results, a sort, every result explained.
+		tryStoreSearchPage: builder.query<any, { q: string; page?: number; limit?: number; sort?: string }>({
+			query: params => ({ url: 'commerce/search/try', params }),
+		}),
 		// Search rules (backend docs/search SI-15): the editor's before / after, and the rules a search or product meets.
 		previewStoreSearchRule: builder.mutation<StoreSearchRulePreview, { rule: any; q?: string }>({
 			query: body => ({ url: 'commerce/search/rules/preview', method: 'POST', body }),
 		}),
 		getStoreSearchRulesTouching: builder.query<StoreSearchRuleTouching[], { q?: string; product?: string }>({
 			query: params => ({ url: 'commerce/search/rules/touching', params }),
+		}),
+		// Suggested fixes (backend docs/search SI-16 / SI-18): learned from shoppers, or drafted by the owner's AI.
+		getStoreSearchSuggestions: builder.query<{ open: number; doc: StoreSearchSuggestion[] }, string | void>({
+			query: status => ({ url: 'commerce/search/suggestions', params: { status: status || 'open' } }),
+			providesTags: ['store-search-suggestions'],
+		}),
+		acceptStoreSearchSuggestion: builder.mutation<{ ok: boolean; kind: string; made: string; route: string }, string>({
+			query: id => ({ url: `commerce/search/suggestions/${id}/accept`, method: 'POST', body: {} }),
+			invalidatesTags: ['store-search-suggestions'],
+		}),
+		dismissStoreSearchSuggestion: builder.mutation<{ ok: boolean }, string>({
+			query: id => ({ url: `commerce/search/suggestions/${id}/dismiss`, method: 'POST', body: {} }),
+			invalidatesTags: ['store-search-suggestions'],
+		}),
+		learnStoreSearch: builder.mutation<any, void>({
+			query: () => ({ url: 'commerce/search/learn', method: 'POST', body: {} }),
+			invalidatesTags: ['store-search-suggestions', 'store-search-status'],
 		}),
 	}),
 });
@@ -600,12 +637,17 @@ export const {
 	useSetStoreSearchPackMutation,
 	useLazyTryStoreSearchQuery,
 	useTryStoreSearchQuery,
+	useLazyTryStoreSearchPageQuery,
 	useGetStoreSearchInsightsQuery,
 	useGetStoreSearchQueryInsightQuery,
 	useGetProductSearchInsightQuery,
 	useGetStoreSearchWeekQuery,
 	usePreviewStoreSearchRuleMutation,
 	useGetStoreSearchRulesTouchingQuery,
+	useGetStoreSearchSuggestionsQuery,
+	useAcceptStoreSearchSuggestionMutation,
+	useDismissStoreSearchSuggestionMutation,
+	useLearnStoreSearchMutation,
 	useGetTaxPreviewQuery,
 	useGetDiscountPreviewQuery,
 	useGetTaxUsageQuery,

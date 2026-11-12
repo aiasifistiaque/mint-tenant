@@ -17,6 +17,7 @@ import {
 } from '../store/services/commerceApi';
 import { help } from './sections';
 import { RuleFixes, RulesTouching } from './SearchRules';
+import SearchSuggestions from './SearchSuggestions';
 
 /**
  * Search insights (backend docs/search README §6, SI-14): what shoppers search for on the store's website — totals for
@@ -113,7 +114,7 @@ const NoResultFixes: FC<{ q: string }> = ({ q }) => {
 const TryFix: FC<{ q: string }> = ({ q }) => (
 	<Flex justify='flex-end' onClick={e => e.stopPropagation()}>
 		<Button asChild size='xs' variant='outline'>
-			<NextLink href={projectHref(`/store/settings/search?try=${encodeURIComponent(q)}#store-search-try`)}>Try search</NextLink>
+			<NextLink href={projectHref(`/store/search/try?q=${encodeURIComponent(q)}`)}>Try search</NextLink>
 		</Button>
 	</Flex>
 );
@@ -306,6 +307,8 @@ const SearchInsights: FC = () => {
 					<GuideLink section='store-search-insights' />
 				</Flex>
 			</Flex>
+
+			<SearchSuggestions />
 
 			{isLoading || !data ? (
 				<Skeleton h='520px' />

@@ -1,6 +1,7 @@
 'use client';
 
 import { FC, useEffect, useState } from 'react';
+import NextLink from 'next/link';
 import { Badge, Box, Button, Flex, Grid, Input, Text } from '@chakra-ui/react';
 import { ChevronRight } from 'lucide-react';
 import { Panel } from '../cl';
@@ -151,7 +152,14 @@ export const TrySearchCard: FC = () => {
 			id='store-search-try'
 			title='Try a search'
 			subtitle='As your shoppers get it — and why each product is where it is.'
-			actions={<GuideLink section='store-search-words' />}>
+			actions={
+				<Flex gap={2} align='center'>
+					<Button asChild size='xs' variant='ghost'>
+						<NextLink href={projectHref(`/store/search/try${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)}>Open Try search</NextLink>
+					</Button>
+					<GuideLink section='store-search-words' />
+				</Flex>
+			}>
 			<Box p={4}>
 				<Flex
 					as='form'
