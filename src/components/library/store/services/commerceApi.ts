@@ -312,8 +312,13 @@ export type StoreSearchSettings = {
 	dials: { popularity: SearchDial; freshness: SearchDial; sale: SearchDial; learned: SearchDial };
 	learning: boolean;
 	banglish: boolean;
-	defaults: Omit<StoreSearchSettings, 'defaults' | 'enabled'> & { enabled: boolean };
+	/** Search by meaning (SI-19): the store's switch; `meaning` says whether this server has the model. */
+	semantic: boolean;
+	meaning?: StoreSearchMeaning;
+	defaults: Omit<StoreSearchSettings, 'defaults' | 'enabled' | 'meaning'> & { enabled: boolean };
 };
+/** Where the search-by-meaning model is on this server (backend search/semantic/model.ts). */
+export type StoreSearchMeaning = { state: 'off' | 'missing' | 'idle' | 'loading' | 'ready' | 'failed'; loadMs?: number; error?: string; queries: number; slow: number; p50: number | null; p95: number | null; vectors?: number; due?: number };
 export type StoreSearchPack = { id: string; name: string; about: string; size: number; installed: number; on: boolean };
 export type StoreSearchStatus = {
 	docs: number;
@@ -326,6 +331,8 @@ export type StoreSearchStatus = {
 	lastDrift: { at: string; products: number; docs: number; rebuilt: boolean } | null;
 	/** The last learning run (SI-16). */
 	learn?: { at: string; pairs: number; boosted: number; suggestions: number; ms: number } | null;
+	/** Search by meaning (SI-19): the model, and how many products have a vector. */
+	meaning?: StoreSearchMeaning;
 };
 /** A suggested fix for the store's search (backend commerce/search/learn.ts, SI-16 learned / SI-18 your AI). */
 export type StoreSearchSuggestion = {

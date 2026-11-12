@@ -12,6 +12,7 @@ import {
 	useRebuildStoreSearchMutation,
 	useSaveStoreSearchSettingsMutation,
 	type SearchDial,
+	type StoreSearchMeaning,
 	type StoreSearchSettings,
 } from '../store/services/commerceApi';
 import { OnSwitch, help } from './sections';
@@ -22,8 +23,8 @@ import { SearchWordsCard, TrySearchCard } from './SearchWords';
  * search index — how many products it holds, and a rebuild. Saved through /commerce/search/settings.
  */
 
-type Editable = Omit<StoreSearchSettings, 'defaults' | 'enabled'> & { enabled: boolean };
-const editable = (s: StoreSearchSettings): Editable => ({ enabled: s.enabled === true, typos: s.typos, outOfStock: s.outOfStock, dials: { ...s.dials }, learning: s.learning, banglish: s.banglish });
+type Editable = Omit<StoreSearchSettings, 'defaults' | 'enabled' | 'meaning'> & { enabled: boolean };
+const editable = (s: StoreSearchSettings): Editable => ({ enabled: s.enabled === true, typos: s.typos, outOfStock: s.outOfStock, dials: { ...s.dials }, learning: s.learning, banglish: s.banglish, semantic: s.semantic !== false });
 
 const Choice: FC<{ value: string; items: { value: string; label: string }[]; onChange: (v: string) => void; label: string }> = ({ value, items, onChange, label }) => (
 	<SegmentGroup.Root
@@ -37,8 +38,16 @@ const Choice: FC<{ value: string; items: { value: string; label: string }[]; onC
 	</SegmentGroup.Root>
 );
 
-const Row: FC<{ title: string; hint: ReactNode; children: ReactNode }> = ({ title, hint, children }) => (
+/** What search by meaning does, and whether this server can (SI-19). */
+const meaningHint = (on: boolean, m?: StoreSearchMeaning) => {
+	if (m && (m.state === 'off' || m.state === 'missing' || m.state === 'failed')) return 'Not available on this server yet — search works by words only.';
+	if (!on) return 'Off: search works by words only.';
+	return '“party wear” finds gowns even when no product says “party”. Results that match the words always come first; meaning only orders them, and fills in when nothing matched.';
+};
+
+const Row: FC<{ title: string; hint: ReactNode; children: ReactNode; id?: string }> = ({ title, hint, children, id }) => (
 	<Grid
+		id={id}
 		templateColumns={{ base: '1fr', md: '220px minmax(0, 1fr)' }}
 		gap={{ base: 2, md: 4 }}
 		alignItems='start'
@@ -87,7 +96,7 @@ const SettingsCard: FC = () => {
 	// Only what changed is sent; "on" is only sent when it changed, so a store not switched on by name stays so.
 	const submit = async () => {
 		const body: any = {};
-		for (const k of ['typos', 'outOfStock', 'learning', 'banglish'] as const) if (value[k] !== saved[k]) body[k] = value[k];
+		for (const k of ['typos', 'outOfStock', 'learning', 'banglish', 'semantic'] as const) if (value[k] !== saved[k]) body[k] = value[k];
 		const dials = Object.fromEntries(Object.entries(value.dials).filter(([k, v]) => saved.dials[k as keyof Editable['dials']] !== v));
 		if (Object.keys(dials).length) body.dials = dials;
 		if (value.enabled !== saved.enabled) body.enabled = value.enabled;
@@ -98,7 +107,7 @@ const SettingsCard: FC = () => {
 	};
 	const set = (patch: Partial<Editable>) => setValue({ ...value, ...patch });
 	const d = data.defaults;
-	const atDefaults = value.typos === d.typos && value.outOfStock === d.outOfStock && value.learning === d.learning && value.banglish === d.banglish && JSON.stringify(value.dials) === JSON.stringify(d.dials);
+	const atDefaults = value.typos === d.typos && value.outOfStock === d.outOfStock && value.learning === d.learning && value.banglish === d.banglish && value.semantic === (d.semantic !== false) && JSON.stringify(value.dials) === JSON.stringify(d.dials);
 	return (
 		<Panel
 			id='store-search-settings'
@@ -141,6 +150,16 @@ const SettingsCard: FC = () => {
 						checked={value.banglish}
 						onChange={banglish => set({ banglish })}
 						label={value.banglish ? 'On' : 'Off'}
+					/>
+				</Row>
+				<Row
+					id='store-search-meaning'
+					title='Search by meaning'
+					hint={meaningHint(value.semantic, data?.meaning)}>
+					<OnSwitch
+						checked={value.semantic}
+						onChange={semantic => set({ semantic })}
+						label={value.semantic ? 'On' : 'Off'}
 					/>
 				</Row>
 				<Row
@@ -203,7 +222,7 @@ const SettingsCard: FC = () => {
 						<Button
 							size='sm'
 							variant='ghost'
-							onClick={() => set({ typos: d.typos, outOfStock: d.outOfStock, learning: d.learning, banglish: d.banglish, dials: { ...d.dials } })}>
+							onClick={() => set({ typos: d.typos, outOfStock: d.outOfStock, learning: d.learning, banglish: d.banglish, semantic: d.semantic !== false, dials: { ...d.dials } })}>
 							Back to the defaults
 						</Button>
 					)}
@@ -257,6 +276,9 @@ const IndexCard: FC = () => {
 						['Waiting', data.queued.toLocaleString(), data.queued ? 'changes, in seconds' : 'nothing to catch up'],
 						['Last full build', when(data.builtAt), r?.reason === 'first' ? 'when search started' : r?.reason ? `from ${r.reason === 'panel' ? 'here' : r.reason}` : ''],
 						['Last checked', when(data.sweptAt), 'every 2 minutes'],
+						...(data.meaning && data.meaning.state !== 'off' && data.meaning.state !== 'missing'
+							? [['By meaning', data.meaning.vectors != null ? `${data.meaning.vectors.toLocaleString()} of ${data.docs.toLocaleString()}` : '—', data.meaning.due ? `${data.meaning.due} on the way` : data.meaning.state === 'ready' ? 'model ready' : data.meaning.state === 'failed' ? 'model failed — words only' : 'model starting']]
+							: []),
 					].map(([k, v, s]) => (
 						<Box key={k}>
 							<Text {...help}>{k}</Text>

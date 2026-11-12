@@ -266,7 +266,11 @@ const SearchTry: FC = () => {
 						)}
 						{data.showing && (
 							<Text fontSize='13px' mb={2}>
-								{data.showing.reason === 'some words' ? 'No product has every word: showing the ones with some of them' : `No exact results: showing results for “${data.showing.q}”`}
+								{data.showing.reason === 'meaning'
+									? 'No product has these words: showing the products closest in meaning'
+									: data.showing.reason === 'some words'
+										? 'No product has every word: showing the ones with some of them'
+										: `No exact results: showing results for “${data.showing.q}”`}
 								{data.showing.dropped?.length ? ` (left out: ${data.showing.dropped.join(', ')})` : ''}
 							</Text>
 						)}
@@ -397,6 +401,20 @@ const SearchTry: FC = () => {
 										<Flex gap={1.5} wrap='wrap'>
 											{words}
 										</Flex>
+									</Box>
+								)}
+								{data.meaning && (
+									<Box>
+										<Text fontWeight='600' fontSize='12px' mb={1}>
+											By meaning
+										</Text>
+										<Text color={data.meaning.used === 'no' ? 'fg.muted' : undefined}>
+											{data.meaning.used === 'reranked'
+												? `Ordered the top results${data.meaning.moved ? ` (${data.meaning.moved} moved)` : ''}`
+												: data.meaning.used === 'nearest'
+													? 'Found these by meaning'
+													: `Not used — ${data.meaning.why}`}
+										</Text>
 									</Box>
 								)}
 								<Box>
