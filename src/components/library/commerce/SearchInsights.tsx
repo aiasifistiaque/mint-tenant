@@ -18,6 +18,7 @@ import {
 import { help } from './sections';
 import { RuleFixes, RulesTouching } from './SearchRules';
 import SearchSuggestions from './SearchSuggestions';
+import SearchFixWithAi from './SearchFixWithAi';
 
 /**
  * Search insights (backend docs/search README §6, SI-14): what shoppers search for on the store's website — totals for
@@ -304,6 +305,7 @@ const SearchInsights: FC = () => {
 						<SegmentGroup.Indicator />
 						<SegmentGroup.Items items={PERIODS} />
 					</SegmentGroup.Root>
+					<SearchFixWithAi days={days} />
 					<GuideLink section='store-search-insights' />
 				</Flex>
 			</Flex>
