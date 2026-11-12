@@ -16,21 +16,33 @@ const StoreSearch: FC<{ filled: Filled }> = ({ filled }) => {
 	const search = `const res = await fetch(
   '${base}?apiKey=${filled.key}' +
     '&q=' + encodeURIComponent(words) +
-    '&category=shoes&option.Size=42&price[lte]=5000&sort=relevance&facets=1&limit=24'
+    '&category=shoes&option.Size=42&price[lte]=5000&sort=relevance&facets=1&limit=24' +
+    '&visitor=' + visitorId   // any id you keep per browser: it lets the store learn from clicks
 );
-const { doc, total, totalPages, facets, query } = await res.json();
-// doc: [{ _id, name, slug, image, price, salePrice, compareAtPrice, discountPercent, category, brand, inStock }]
-// facets: { categories, collections, brands, price: { buckets }, options: [{ name, values: [{ value, count }] }], inStock, onSale }
-// query.typos: the spellings tried — show "Showing results for …" if you like`;
+const r = await res.json();
+// r.doc: [{ _id, name, slug, image, price, salePrice, compareAtPrice, discountPercent, category, brand, inStock }]
+// r.facets: { categories, collections, brands, price: { buckets }, options: [{ name, values: [{ value, count }] }], inStock, onSale }
+// r.searchId: send it back with clicks (below)
+if (r.redirect) location.href = r.redirect.url;               // a search redirect you made
+if (r.showing?.reason === 'meaning') note('No exact match — these are close in meaning');
+else if (r.showing) note('Showing results for “' + r.showing.q + '”');  // typos, fewer words, some words
+if (r.didYouMean) note('Did you mean ' + r.didYouMean + '?');
+if (!r.total && r.fallback) show(r.fallback.doc);             // popular products instead of an empty page
+// r.understood: what it read from the words (price, brand, size…) — show as chips the shopper can remove`;
 	const suggest = `// As the shopper types (wait ~120 ms after the last key)
 const res = await fetch('${base}/suggest?apiKey=${filled.key}&q=' + encodeURIComponent(typed));
 const { queries, products, categories, brands } = await res.json();`;
+	const events = `// A shopper opens or adds a product from the results: the store learns from it
+navigator.sendBeacon('${base}/events?apiKey=${filled.key}', JSON.stringify({
+  visitor: visitorId,
+  events: [{ type: 'click', searchId: r.searchId, product: productId }],   // or type: 'cart'
+}));`;
 	const category = `// A category page: no words — the same filters, counts and sorting
 fetch('${base}?apiKey=${filled.key}&category=eid-collection&sort=-price&facets=1')`;
 	return (
 		<Panel
 			title='Store search'
-			subtitle='Your store ranks searches itself — typos, Bangla and Banglish, filters with counts. Call these from your site.'
+			subtitle='Your store ranks searches itself — typos, Bangla and Banglish, meaning, filters with counts. Call these from your site, or add the Search widget instead.'
 			actions={<GuideLink section='store-search' />}>
 			<Flex
 				direction='column'
@@ -64,6 +76,18 @@ fetch('${base}?apiKey=${filled.key}&category=eid-collection&sort=-price&facets=1
 						fontSize='12.5px'
 						fontWeight='500'
 						mb={2}>
+						Clicks and adds to bag
+					</Text>
+					<Snippet
+						label='search events code'
+						code={events}
+					/>
+				</Box>
+				<Box>
+					<Text
+						fontSize='12.5px'
+						fontWeight='500'
+						mb={2}>
 						Category pages
 					</Text>
 					<Snippet
@@ -75,7 +99,7 @@ fetch('${base}?apiKey=${filled.key}&category=eid-collection&sort=-price&facets=1
 					fontSize='12.5px'
 					color='fg.muted'>
 					Answers may be cached for 30 seconds; a product you change reaches search in seconds. Categories and collections go by web
-					address or id, brands by name, sizes and colours as you wrote them.
+					address or id, brands by name, sizes and colours as you wrote them. Up to 120 searches a minute from one IP address.
 				</Text>
 			</Flex>
 		</Panel>
