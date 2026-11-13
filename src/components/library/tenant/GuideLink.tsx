@@ -170,6 +170,7 @@ const GUIDE_OF: Record<string, string> = {
 	'store-deliveries': 'store',
 	'store-delivery-risk': 'store',
 	'store-buyer-check': 'store',
+	'store-buyer-lookup': 'store',
 	'store-buyer-check-settings': 'store',
 	'store-courier-buyer-checks': 'store',
 	start: 'site-builder',

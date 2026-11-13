@@ -8,7 +8,7 @@ import { routeTags } from './mainApi';
  * /p/:project/commerce/couriers and /deliveries.
  */
 
-const TAGS = ['store-couriers', 'store-deliveries'] as const;
+const TAGS = ['store-couriers', 'store-deliveries', 'store-buyer-lookups'] as const;
 
 export type CourierField = { key: string; label: string; secret: boolean; helper?: string; kind?: 'text' | 'email' };
 export type CourierSettingField = { key: string; label: string; kind: 'select' | 'number' | 'text'; options?: { value: string; label: string }[]; from?: 'stores' | 'cities' | 'zones' | 'areas'; default?: any; helper?: string };
@@ -284,11 +284,12 @@ export const courierApi = commerceApi.enhanceEndpoints({ addTagTypes: [...TAGS] 
 			// The answer is renewed on the phone's open orders.
 			onQueryStarted: async (_a, { dispatch, queryFulfilled }) => {
 				await queryFulfilled.catch(() => null);
-				dispatch(commerceApi.util.invalidateTags(['store-orders' as any]));
+				dispatch(commerceApi.util.invalidateTags(['store-orders' as any, 'store-buyer-lookups']));
 			},
 		}),
 		getStoreBuyerLookups: builder.query<{ lookups: BuyerLookup[] }, void>({
 			query: () => 'commerce/buyer-check/recent',
+			providesTags: ['store-buyer-lookups'],
 		}),
 	}),
 });

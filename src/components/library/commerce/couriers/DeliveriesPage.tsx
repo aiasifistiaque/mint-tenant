@@ -3,7 +3,7 @@
 import { FC, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Button, Checkbox, Flex, IconButton, Input, Text } from '@chakra-ui/react';
-import { ChevronLeft, ChevronRight, Search, Wallet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, ShieldCheck, Wallet } from 'lucide-react';
 import { ConsoleTabs, DataTable, Dropdown, EmptyState, ErrorState, PageHeader, Panel, StatTile, TableSkeleton, dateTime } from '../../cl';
 import type { Column } from '../../cl';
 import { PromptDialog } from '../..';
@@ -138,7 +138,19 @@ const DeliveriesPage: FC<{ store: CommerceView }> = ({ store }) => {
 				breadcrumbs={[{ href: projectHref('/store/orders'), title: 'Orders' }]}
 				title='Deliveries'
 				meta='Parcels sent to couriers — where each one is, and the cash they collected for you.'
-				actions={<GuideLink section='store-deliveries' />}
+				actions={
+					<Flex
+						gap={3}
+						align='center'>
+						<Button
+							size='sm'
+							variant='outline'
+							onClick={() => router.push(projectHref('/store/buyer-check'))}>
+							<ShieldCheck size={14} /> Check a buyer
+						</Button>
+						<GuideLink section='store-deliveries' />
+					</Flex>
+				}
 			/>
 			{cash && (
 				<Flex
