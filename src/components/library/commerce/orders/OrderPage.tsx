@@ -17,6 +17,7 @@ import { moneyFor, printReceipt, receiptHtml } from '../pos/receipt';
 import { CHANNEL, FULFIL_NEXT, FulfilmentBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, showValue, storeRoutes } from './common';
 import DeliveryCard from '../couriers/DeliveryCard';
 import SendToCourier from '../couriers/SendToCourier';
+import { BuyerCheckCard } from '../couriers/BuyerCheck';
 import { ENDED } from '../couriers/common';
 
 /**
@@ -574,6 +575,14 @@ const OrderPage: FC<{ id: string; store: CommerceView }> = ({ id, store }) => {
 								)}
 							</Box>
 						</Panel>
+					)}
+
+					{/* How often this phone takes its parcels (backend docs/couriers CR-21, CR-22); POS sales without a delivery have none. */}
+					{o.channel !== 'pos' && o.delivery?.phone && (
+						<BuyerCheckCard
+							phone={o.delivery.phone}
+							saved={o.buyerCheck}
+						/>
 					)}
 
 					{delivering && (

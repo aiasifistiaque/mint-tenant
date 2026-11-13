@@ -11,6 +11,7 @@ import { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } from '..
 import type { CommerceSection } from '../store/services/commerceApi';
 import { SECTIONS, PRINTER, Pos, TaxSetting, help } from './sections';
 import CourierList from './couriers/CourierList';
+import BuyerCheckSettings from './couriers/BuyerCheckSettings';
 
 /**
  * Store settings (backend docs/ecommerce EC-04): the setup wizard's sections
@@ -178,6 +179,7 @@ const StoreSettings: FC<{ page?: SettingsPage }> = ({ page = 'store' }) => {
 				)
 			)}
 			{page === 'delivery' && data.answers.delivery.enabled && <CourierList />}
+			{page === 'delivery' && data.answers.delivery.enabled && <BuyerCheckSettings />}
 		</Flex>
 	);
 };

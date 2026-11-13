@@ -219,6 +219,8 @@ export type StoreOrder = {
 	slot?: string;
 	paymentMethod?: string;
 	courier?: Record<string, any>;
+	/** The buyer check when it came in, or the latest while it's open (backend docs/couriers CR-21). */
+	buyerCheck?: import('./courierApi').OrderBuyerCheck;
 	/** On held sales: the customer's name and credit. */
 	customerInfo?: { _id: string; name: string; storeCredit?: number };
 	register?: string;
@@ -265,7 +267,7 @@ export type StoreOrderRow = StoreOrder & {
 	itemCount: number;
 };
 export type StoreList<T, V extends string> = { doc: T[]; total: number; page: number; limit: number; views: Record<V, number> };
-export type StoreOrderQuery = { [filter: string]: any; view?: StoreOrderView; q?: string; scope?: 'pos' | 'website'; area?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
+export type StoreOrderQuery = { [filter: string]: any; view?: StoreOrderView; q?: string; scope?: 'pos' | 'website'; area?: string; buyer?: string; channel?: string; outlet?: string; paymentStatus?: string; fulfilment?: string; page?: number; limit?: number };
 /** A field people added to a store model, with the record's value (the "More details" card). */
 export type StoreExtraField = { key: string; label: string; kind: string; value: any };
 

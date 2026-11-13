@@ -169,6 +169,9 @@ const GUIDE_OF: Record<string, string> = {
 	'store-delivery-card': 'store',
 	'store-deliveries': 'store',
 	'store-delivery-risk': 'store',
+	'store-buyer-check': 'store',
+	'store-buyer-check-settings': 'store',
+	'store-courier-buyer-checks': 'store',
 	start: 'site-builder',
 };
 

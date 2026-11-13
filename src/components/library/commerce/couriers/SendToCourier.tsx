@@ -1,10 +1,11 @@
 'use client';
 
 import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
-import { Badge, Box, Button, Checkbox, Flex, Input, Link, Skeleton, Text, Textarea } from '@chakra-ui/react';
+import { Box, Button, Checkbox, Flex, Input, Link, Skeleton, Text, Textarea } from '@chakra-ui/react';
 import { ShieldCheck } from 'lucide-react';
 import { Dialog, DialogBody, DialogCloseButton, DialogFooter, DialogHeader, DiscardButton } from '../..';
 import { Dropdown } from '../../cl';
+import { BuyerAnswer } from './BuyerCheck';
 import GuideLink from '../../tenant/GuideLink';
 import { projectHref } from '../../config/lib/constants/panel';
 import { toaster } from '@/components/ui/toaster';
@@ -104,7 +105,6 @@ export const SendToCourier: FC<{ open: boolean; onClose: () => void; orderId: st
 		setManualName(manualNames(c?.settings?.names)[0] || '');
 		if (c?.settings?.defaultWeight && data) setWeight(String(c.settings.defaultWeight));
 	}, [courier, data]);
-	const steadfastOn = !!data?.couriers.some(x => x.id === 'steadfast');
 
 	const active = data?.active && data.active.status !== 'error' ? data.active : null;
 	const uncertain = data?.active?.uncertain && data.active.courier === courier;
@@ -184,43 +184,30 @@ export const SendToCourier: FC<{ open: boolean; onClose: () => void; orderId: st
 									items={data.couriers.map(x => ({ value: x.id, label: `${x.name}${x.mode === 'test' ? ' (test)' : ''}` }))}
 								/>
 							</Field>
-							{steadfastOn && (
-								<Box flex='1 1 200px'>
-									<Button
-										size='sm'
-										variant='outline'
-										loading={risk.isFetching}
-										onClick={() => checkRisk({ id: orderId })}>
-										<ShieldCheck size={14} /> Check the buyer
-									</Button>
-								</Box>
-							)}
+							{/* The buyer check (backend docs/couriers CR-19, CR-22): every courier that can say and this store's own orders. */}
+							<Box flex='1 1 200px'>
+								<Button
+									size='sm'
+									variant='outline'
+									loading={risk.isFetching}
+									onClick={() => checkRisk({ id: orderId, fresh: !!risk.data })}>
+									<ShieldCheck size={14} /> {risk.data ? 'Check again' : 'Check the buyer'}
+								</Button>
+							</Box>
 						</Flex>
 						{(risk.data || risk.error) && (
-							<Flex
+							<Box
 								id='store-delivery-risk'
 								p={3}
 								borderRadius='md'
-								bg={risk.data?.level === 'high' ? 'red.subtle' : risk.data?.level === 'medium' ? 'orange.subtle' : 'bg.muted'}
-								fontSize='13px'
-								gap={2}
-								align='center'
-								wrap='wrap'>
-								{risk.data ? (
-									<>
-										<Badge colorPalette={risk.data.level === 'high' ? 'red' : risk.data.level === 'medium' ? 'orange' : risk.data.level === 'low' ? 'green' : 'gray'}>{risk.data.level === 'unknown' ? 'Not known' : `${risk.data.level} risk`}</Badge>
-										<Text>{risk.data.summary}</Text>
-										{risk.data.risk.delivered !== null && (
-											<Text color='fg.muted'>
-												{risk.data.risk.delivered} delivered · {risk.data.risk.cancelled ?? 0} refused (Steadfast)
-											</Text>
-										)}
-									</>
-								) : (
-									<Text>{errText(risk.error)}</Text>
-								)}
-								<GuideLink section='store-delivery-risk' />
-							</Flex>
+								borderWidth='1px'
+								borderColor={risk.data?.check?.level === 'risky' ? 'red.muted' : risk.data?.check?.level === 'check' ? 'orange.muted' : undefined}
+								bg='bg.muted'>
+								{risk.data?.check ? <BuyerAnswer a={risk.data.check} /> : <Text fontSize='13px'>{errText(risk.error)}</Text>}
+								<Box mt={2}>
+									<GuideLink section='store-delivery-risk' />
+								</Box>
+							</Box>
 						)}
 
 						<Flex

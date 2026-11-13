@@ -16,6 +16,7 @@ import {
 	useTestStoreCourierMutation,
 } from '../../store/services/courierApi';
 import type { CourierCard } from '../../store/services/courierApi';
+import PanelChecks from './PanelChecks';
 
 /**
  * Delivery settings → the couriers (backend docs/couriers CR-03, CR-07, CR18):
@@ -407,6 +408,9 @@ export const CourierForm: FC<{ c: CourierCard }> = ({ c }) => {
 						</Flex>
 					</Box>
 				)}
+
+				{/* RedX and Pathao: buyer checks with the store's merchant-panel login (CR-20, CR-22). */}
+				<PanelChecks c={c} />
 			</Flex>
 
 			<PromptDialog

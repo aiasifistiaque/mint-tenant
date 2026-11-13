@@ -35,7 +35,82 @@ export type CourierCard = {
 		updatedAt: string;
 	};
 	warnings: string[];
+	/** Buyer checks through the store's merchant-panel login (RedX, Pathao; CR-20) — null when the courier has none (Steadfast checks with its API keys). */
+	checks: null | {
+		fields: CourierField[];
+		note: string;
+		reusesConnection: boolean;
+		status: 'off' | 'on' | 'signin' | 'otp' | 'error';
+		message: string;
+		by: string;
+		at: string | null;
+		lastOkAt: string | null;
+		lastError: { at: string; message: string } | null;
+		keys: Record<string, { set: boolean; value?: string }>;
+	};
 };
+
+/* ---------------------------------------------- buyer check (CR-19…CR-22) */
+
+export type BuyerLevel = 'safe' | 'check' | 'risky' | 'new';
+
+/** What's kept on an order (CR-21). */
+export type OrderBuyerCheck = {
+	level: BuyerLevel;
+	rate: number | null;
+	parcels: number;
+	delivered: number;
+	refused: number;
+	reports: number;
+	sources: string;
+	warnings: string;
+	summary: string;
+	checkedAt: string;
+};
+
+export type BuyerSource = {
+	id: string;
+	name: string;
+	ok: boolean;
+	delivered: number | null;
+	refused: number | null;
+	ratio: number | null;
+	reports: number | null;
+	categories: string[];
+	rating?: string | null;
+	error?: string;
+	skipped?: boolean;
+	via?: 'panel';
+	at: string;
+};
+
+/** GET buyer-check?phone= — the whole answer (CR-19). */
+export type BuyerCheckAnswer = {
+	phone: string;
+	level: BuyerLevel;
+	label: string;
+	rate: number | null;
+	delivered: number;
+	refused: number;
+	parcels: number;
+	reports: number;
+	warnings: string[];
+	summary: string;
+	sources: BuyerSource[];
+	own: {
+		orders: number;
+		delivered: number;
+		refused: number;
+		cancelled: number;
+		open: number;
+		counted: { delivered: number; refused: number };
+		recent: { id: string; code: string; at: string; total: number; fulfilment: string; status: string; courier: string }[];
+	};
+	checkedAt: string;
+	thresholds: { safe: number; checkFirst: number; auto: boolean };
+};
+
+export type BuyerLookup = { phone: string; level: BuyerLevel; label: string; rate: number | null; parcels: number; last: { by: string; via: string; order: string; at: string } | null; at: string };
 
 export type DeliveryStatus =
 	| 'draft' | 'booking' | 'booked' | 'pickup-pending' | 'picked-up' | 'in-transit' | 'out-for-delivery' | 'delivered' | 'partly-delivered'
@@ -122,6 +197,8 @@ export type DeliveryRisk = {
 	summary: string;
 	checkedAt: string;
 	risk: { deliveryRatio: number | null; cancellationRatio: number | null; delivered: number | null; cancelled: number | null; reports: number | null; volume: string | null; categories: string[] };
+	/** The whole buyer check (CR-19). */
+	check: BuyerCheckAnswer;
 };
 
 type Routes = { routes: string[] };
@@ -148,6 +225,14 @@ export const courierApi = commerceApi.enhanceEndpoints({ addTagTypes: [...TAGS] 
 		}),
 		disconnectStoreCourier: builder.mutation<{ removed: boolean }, string>({
 			query: id => ({ url: `commerce/couriers/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['store-couriers'],
+		}),
+		saveStoreCourierChecks: builder.mutation<CourierCard, { id: string; keys: Record<string, string> }>({
+			query: ({ id, keys }) => ({ url: `commerce/couriers/${id}/checks`, method: 'PUT', body: { keys } }),
+			invalidatesTags: ['store-couriers'],
+		}),
+		removeStoreCourierChecks: builder.mutation<CourierCard, string>({
+			query: id => ({ url: `commerce/couriers/${id}/checks`, method: 'DELETE' }),
 			invalidatesTags: ['store-couriers'],
 		}),
 		getStoreCourierOptions: builder.query<{ choices: CourierChoice[]; cachedAt: string }, { id: string; what: string; parent?: string }>({
@@ -193,6 +278,18 @@ export const courierApi = commerceApi.enhanceEndpoints({ addTagTypes: [...TAGS] 
 		getStoreDeliveryRisk: builder.query<DeliveryRisk, { id: string; fresh?: boolean }>({
 			query: ({ id, fresh }) => ({ url: `commerce/orders/${id}/risk`, params: fresh ? { fresh: '1' } : {} }),
 		}),
+		/* ------------------------------------------ buyer check (CR-19, CR-22) */
+		getStoreBuyerCheck: builder.query<BuyerCheckAnswer, { phone: string; fresh?: boolean }>({
+			query: ({ phone, fresh }) => ({ url: 'commerce/buyer-check', params: { phone, ...(fresh && { fresh: '1' }) } }),
+			// The answer is renewed on the phone's open orders.
+			onQueryStarted: async (_a, { dispatch, queryFulfilled }) => {
+				await queryFulfilled.catch(() => null);
+				dispatch(commerceApi.util.invalidateTags(['store-orders' as any]));
+			},
+		}),
+		getStoreBuyerLookups: builder.query<{ lookups: BuyerLookup[] }, void>({
+			query: () => 'commerce/buyer-check/recent',
+		}),
 	}),
 });
 
@@ -214,4 +311,8 @@ export const {
 	useReceiveStoreDeliveryMutation,
 	useSettleStoreDeliveriesMutation,
 	useLazyGetStoreDeliveryRiskQuery,
+	useSaveStoreCourierChecksMutation,
+	useRemoveStoreCourierChecksMutation,
+	useLazyGetStoreBuyerCheckQuery,
+	useGetStoreBuyerLookupsQuery,
 } = courierApi;

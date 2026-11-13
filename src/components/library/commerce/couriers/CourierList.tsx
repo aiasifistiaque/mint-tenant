@@ -13,6 +13,7 @@ import { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } from '..
 import { useGetStoreCouriersQuery, useTestStoreCourierMutation } from '../../store/services/courierApi';
 import type { CourierCard } from '../../store/services/courierApi';
 import { CourierForm, errText } from './CourierCards';
+import { checksState } from './PanelChecks';
 
 /**
  * Delivery settings → couriers (backend docs/couriers CR-07): a card per
@@ -54,6 +55,7 @@ const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void 
 	const conn = c.connection;
 	const usable = !!conn?.tested;
 	const { connection, tested, webhook } = statesOf(c);
+	const checks = checksState(c);
 
 	const toggle = async (on: boolean) => {
 		const couriers = on ? [...delivery.couriers.filter((x: string) => x !== c.id), c.id] : delivery.couriers.filter((x: string) => x !== c.id);
@@ -137,6 +139,7 @@ const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void 
 				<Status tone={connection[0]}>{connection[1]}</Status>
 				<Status tone={tested[0]}>{tested[1]}</Status>
 				{webhook && <Status tone={webhook[0]}>{webhook[1]}</Status>}
+				{checks && <Status tone={checks[0]}>{checks[1]}</Status>}
 				{conn?.test && !conn.test.ok && (
 					<Text
 						fontSize='12px'
@@ -198,7 +201,7 @@ const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void 
 					size='sm'
 					variant={conn ? 'outline' : 'solid'}
 					onClick={() => onConnect(c.id)}>
-					{conn ? 'Manage connection' : 'Connect courier'}
+					{conn ? 'Manage connection' : c.checks && c.checks.status !== 'off' ? 'Manage' : 'Connect courier'}
 				</Button>
 			</Flex>
 		</Box>

@@ -4,7 +4,7 @@ import { FC, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, Checkbox, Flex, Text } from '@chakra-ui/react';
 import { ScanBarcode, Send } from 'lucide-react';
-import { ConsoleTabs, DataTable, EmptyState, ErrorState, PageHeader, Panel, TableSkeleton, dateTime } from '../../cl';
+import { ConsoleTabs, DataTable, Dropdown, EmptyState, ErrorState, PageHeader, Panel, TableSkeleton, dateTime } from '../../cl';
 import { useAppDispatch, useAppSelector, useIsMobile, useTableUrlSync } from '../../hooks';
 import { setCurrentPath, updateTable } from '../../store/slices/tableSlice';
 import DynamicFilters from '../../dynamic-filters/DynamicFilters';
@@ -22,6 +22,7 @@ import GuideLink from '../../tenant/GuideLink';
 import { moneyFor } from '../pos/receipt';
 import { CHANNEL, FulfilmentBadge, OrderStatusBadge, PaymentBadge, storeRoutes } from './common';
 import BulkSend from '../couriers/BulkSend';
+import { BuyerBadge } from '../couriers/BuyerCheck';
 
 /**
  * The store's Orders page (backend docs/ecommerce EC19, EC-09): every sale and
@@ -60,6 +61,8 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 	const { page, limit, search, filters } = useAppSelector((st: any) => st.table);
 	const route = store.installed.order?.route || 'orders';
 	const [view, setView] = useState<StoreOrderView>((params.get('view') as StoreOrderView) || 'all');
+	// The buyer check's level (backend docs/couriers CR-22): kept in the address so a link opens the same list.
+	const [buyer, setBuyer] = useState(params.get('buyer') || '');
 	useEffect(() => {
 		dispatch(setCurrentPath(route));
 	}, [route]);
@@ -72,19 +75,27 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 		return f;
 	}, [filters]);
 	const q = String(search || '').trim();
-	const { data, isLoading, isFetching, error, refetch } = useGetStoreOrdersQuery({ ...query, view, q, page, limit, scope: website ? 'website' : 'pos' });
+	const { data, isLoading, isFetching, error, refetch } = useGetStoreOrdersQuery({ ...query, ...(buyer && { buyer }), view, q, page, limit, scope: website ? 'website' : 'pos' });
 	const views = website ? WEBSITE_VIEWS : VIEWS;
 	const open = (id: string) => router.push(projectHref(`/store/orders/${id}`));
 	const changeView = (v: string) => {
 		setView(v as StoreOrderView);
 		dispatch(updateTable({ page: 1 }));
 	};
+	const changeBuyer = (v: string) => {
+		setBuyer(v);
+		dispatch(updateTable({ page: 1 }));
+		const u = new URL(window.location.href);
+		if (v) u.searchParams.set('buyer', v);
+		else u.searchParams.delete('buyer');
+		window.history.replaceState(null, '', u.toString());
+	};
 
 	// Several orders sent to a courier at once (backend docs/couriers CR-12): only orders that can still go.
 	const delivering = !!store.answers.delivery?.enabled;
 	const [picked, setPicked] = useState<string[]>([]);
 	const [bulkOpen, setBulkOpen] = useState(false);
-	useEffect(() => setPicked([]), [view, page, q]);
+	useEffect(() => setPicked([]), [view, page, q, buyer]);
 	const sendable = (o: StoreOrderRow) => o.status !== 'cancelled' && !['shipped', 'delivered', 'returned', 'cancelled'].includes(o.fulfilment) && !!(o.delivery?.address || o.delivery?.phone) && !(o as any).courier?.delivery;
 	const pickColumn: Column<StoreOrderRow> = {
 		key: 'pick',
@@ -101,6 +112,21 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 					</Checkbox.Root>
 				</Box>
 			) : null,
+	};
+
+	// How often the buyer's phone takes its parcels (CR-21): checked when the order came in.
+	const buyerColumn: Column<StoreOrderRow> = {
+		key: 'buyer',
+		label: 'Buyer',
+		render: o =>
+			o.buyerCheck?.level ? (
+				<BuyerBadge
+					level={o.buyerCheck.level}
+					rate={o.buyerCheck.rate}
+				/>
+			) : (
+				<Text color='fg.subtle'>—</Text>
+			),
 	};
 
 	const websiteColumns: Column<StoreOrderRow>[] = [
@@ -157,6 +183,7 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 		},
 		{ key: 'items', label: 'Items', numeric: true, render: o => o.itemCount },
 		{ key: 'total', label: 'Total', numeric: true, render: o => <Text fontWeight='600'>{m(o.total)}</Text> },
+		...(delivering ? [buyerColumn] : []),
 		{
 			key: 'payment',
 			label: 'Payment',
@@ -211,6 +238,7 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 		{ key: 'outlet', label: 'Outlet', render: o => o.outletInfo?.name || '—' },
 		{ key: 'items', label: 'Items', numeric: true, render: o => o.itemCount },
 		{ key: 'total', label: 'Total', numeric: true, render: o => <Text fontWeight='600'>{m(o.total)}</Text> },
+		...(delivering ? [buyerColumn] : []),
 		{
 			key: 'payment',
 			label: 'Payment',
@@ -220,7 +248,7 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 	];
 
 	const total = data?.total ?? 0;
-	const filtered = !!(q || Object.keys(query).length);
+	const filtered = !!(q || buyer || Object.keys(query).length);
 
 	const card = (o: StoreOrderRow) => (
 		<Box
@@ -261,6 +289,12 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 			<Flex mt={3} gap={2} wrap='wrap' align='center'>
 				{o.status === 'cancelled' ? <OrderStatusBadge value='cancelled' /> : <PaymentBadge value={o.paymentStatus} />}
 				{o.status !== 'cancelled' && <FulfilmentBadge value={o.fulfilment} />}
+				{o.buyerCheck?.level && (
+					<BuyerBadge
+						level={o.buyerCheck.level}
+						rate={o.buyerCheck.rate}
+					/>
+				)}
 				{website && (
 					<Text fontSize='12px' color='fg.muted'>
 						{o.paymentMethod === 'cod' || !o.paymentMethod ? 'Cash on delivery' : o.paymentMethod}
@@ -323,6 +357,24 @@ const OrdersPage: FC<{ store: CommerceView; website?: boolean }> = ({ store, web
 					<TableSettingsMenuContainer>
 						<FilterContainer>
 							<DynamicFilters path={route} />
+							{delivering && (
+								<Box
+									w='160px'
+									id='store-buyer-filter'>
+									<Dropdown
+										size='sm'
+										value={buyer}
+										onChange={changeBuyer}
+										items={[
+											{ value: '', label: 'Any buyer' },
+											{ value: 'safe', label: 'Safe' },
+											{ value: 'check', label: 'Check first' },
+											{ value: 'risky', label: 'Risky' },
+											{ value: 'new', label: 'New buyer' },
+										]}
+									/>
+								</Box>
+							)}
 						</FilterContainer>
 						<TableSearchContainer>
 							<TableSearch />
