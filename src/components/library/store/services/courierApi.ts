@@ -19,6 +19,8 @@ export type CourierCard = {
 	name: string;
 	on: boolean;
 	ready: boolean;
+	/** Only for buyer checks with the store's merchant login (Paperfly, CarryBee — CR-26): no keys, no parcels. */
+	checksOnly?: boolean;
 	sandbox: boolean;
 	links: { signUp: string; keys: string; webhook?: string };
 	fields: { credentials: CourierField[]; settings: CourierSettingField[]; sandboxKeys?: { clientId: string; username: string } };

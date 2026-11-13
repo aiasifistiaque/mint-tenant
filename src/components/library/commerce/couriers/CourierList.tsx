@@ -49,6 +49,76 @@ const statesOf = (c: CourierCard) => {
 	return { connection, tested, webhook };
 };
 
+/** Paperfly, CarryBee (CR-26): no parcels, no keys — only whether buyer checks with its login are on. */
+const CheckOnlyCard: FC<{ c: CourierCard; onConnect: (id: string) => void }> = ({ c, onConnect }) => {
+	const checks = checksState(c);
+	const set = !!c.checks && c.checks.status !== 'off';
+	return (
+		<Box
+			id={`store-courier-${c.id}`}
+			borderWidth='1px'
+			borderColor='border'
+			borderRadius={radius.CONTAINER}
+			bg='bg.panel'
+			p={4}>
+			<Flex
+				justify='space-between'
+				align='flex-start'
+				gap={3}>
+				<Box minW={0}>
+					<Flex
+						align='center'
+						gap={2}
+						wrap='wrap'>
+						<Text
+							fontWeight='600'
+							fontSize='15px'>
+							{c.name}
+						</Text>
+						<Badge
+							size='sm'
+							variant='subtle'>
+							Buyer checks only
+						</Badge>
+					</Flex>
+					<Flex
+						as='a'
+						{...({ href: c.links.signUp, target: '_blank', rel: 'noreferrer' } as any)}
+						align='center'
+						gap={1}
+						mt={0.5}
+						fontSize='12px'
+						color='blue.fg'>
+						{c.name}’s website
+						<ExternalLink size={11} />
+					</Flex>
+				</Box>
+			</Flex>
+			<Text
+				mt={3}
+				fontSize='13px'
+				color='fg.muted'>
+				Mint can’t send parcels with {c.name} yet. Add your {c.name} merchant login and every buyer check counts {c.name}’s parcels to that number too.
+			</Text>
+			{checks && (
+				<Box mt={3}>
+					<Status tone={checks[0]}>{checks[1]}</Status>
+				</Box>
+			)}
+			<Flex
+				mt={4}
+				justify='flex-end'>
+				<Button
+					size='sm'
+					variant={set ? 'outline' : 'solid'}
+					onClick={() => onConnect(c.id)}>
+					{set ? 'Manage buyer checks' : 'Set up buyer checks'}
+				</Button>
+			</Flex>
+		</Box>
+	);
+};
+
 const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void }> = ({ c, delivery, onConnect }) => {
 	const [saveSettings, saving] = useSaveCommerceSettingsMutation();
 	const [test, testing] = useTestStoreCourierMutation();
@@ -231,7 +301,7 @@ export const ConnectModal: FC<{ id: string | null; onClose: () => void }> = ({ i
 							px={6}
 							pt={5}
 							pb={4}>
-							<Dialog.Title fontSize='16px'>{c ? (c.connection ? `${c.name} connection` : `Connect ${c.name}`) : 'Courier'}</Dialog.Title>
+							<Dialog.Title fontSize='16px'>{c ? (c.checksOnly ? `${c.name} buyer checks` : c.connection ? `${c.name} connection` : `Connect ${c.name}`) : 'Courier'}</Dialog.Title>
 						</Dialog.Header>
 						<Dialog.Body
 							px={6}
@@ -279,7 +349,7 @@ export const ConnectPage: FC<{ id: string }> = ({ id }) => {
 					flex={1}
 					fontSize='18px'
 					fontWeight='600'>
-					{c ? (c.connection ? `${c.name} connection` : `Connect ${c.name}`) : 'Courier not found'}
+					{c ? (c.checksOnly ? `${c.name} buyer checks` : c.connection ? `${c.name} connection` : `Connect ${c.name}`) : 'Courier not found'}
 				</Text>
 				<GuideLink section='store-couriers' />
 			</Flex>
@@ -297,8 +367,8 @@ const CourierList: FC = () => {
 	if (isLoading || !settings) return <Skeleton h='200px' />;
 	if (error || !data) return null;
 	const connect = (id: string) => (isMobile ? router.push(projectHref(`${CONNECT_PATH}?courier=${id}`)) : setOpen(id));
-	// Connected ones first, then the rest.
-	const list = [...data.couriers].sort((a, b) => Number(!!b.connection?.tested) - Number(!!a.connection?.tested));
+	// Connected ones first, then the rest; the check-only ones last.
+	const list = [...data.couriers].sort((a, b) => Number(!!a.checksOnly) - Number(!!b.checksOnly) || Number(!!b.connection?.tested) - Number(!!a.connection?.tested));
 	return (
 		<Flex
 			direction='column'
@@ -318,14 +388,22 @@ const CourierList: FC = () => {
 				</Box>
 				<GuideLink section='store-couriers' />
 			</Flex>
-			{list.map(c => (
-				<Card
-					key={c.id}
-					c={c}
-					delivery={settings.answers.delivery}
-					onConnect={connect}
-				/>
-			))}
+			{list.map(c =>
+				c.checksOnly ? (
+					<CheckOnlyCard
+						key={c.id}
+						c={c}
+						onConnect={connect}
+					/>
+				) : (
+					<Card
+						key={c.id}
+						c={c}
+						delivery={settings.answers.delivery}
+						onConnect={connect}
+					/>
+				)
+			)}
 			<ConnectModal
 				id={open}
 				onClose={() => setOpen(null)}

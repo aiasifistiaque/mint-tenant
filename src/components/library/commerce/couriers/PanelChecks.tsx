@@ -29,7 +29,8 @@ export const checksState = (c: CourierCard): ['good' | 'bad' | 'idle', string] |
 	return ['bad', `Buyer checks stopped — ${k.message || 'sign in again'}`];
 };
 
-const PanelChecks: FC<{ c: CourierCard }> = ({ c }) => {
+/** `alone`: the whole form for a check-only courier (Paperfly, CarryBee — CR-26), no rule above it. */
+const PanelChecks: FC<{ c: CourierCard; alone?: boolean }> = ({ c, alone }) => {
 	const k = c.checks;
 	const [save, saving] = useSaveStoreCourierChecksMutation();
 	const [remove, removing] = useRemoveStoreCourierChecksMutation();
@@ -68,8 +69,8 @@ const PanelChecks: FC<{ c: CourierCard }> = ({ c }) => {
 	return (
 		<Box
 			id='store-courier-buyer-checks'
-			borderTopWidth='1px'
-			pt={4}>
+			borderTopWidth={alone ? 0 : '1px'}
+			pt={alone ? 0 : 4}>
 			<Flex
 				justify='space-between'
 				align='baseline'
@@ -85,7 +86,8 @@ const PanelChecks: FC<{ c: CourierCard }> = ({ c }) => {
 				fontSize='13px'
 				color='fg.muted'
 				mt={1}>
-				Mint looks up a buyer’s phone on {c.name}’s Fraud Check page when an order comes in, with your {c.name} merchant login. You can use it even if you don’t send with {c.name}.
+				Mint looks up a buyer’s phone on {c.name}’s Fraud Check page when an order comes in, with your {c.name} merchant login.{' '}
+				{!c.checksOnly && `You can use it even if you don’t send with ${c.name}.`}
 			</Text>
 			<Box
 				mt={2}

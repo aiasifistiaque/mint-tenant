@@ -135,6 +135,15 @@ export const CourierForm: FC<{ c: CourierCard }> = ({ c }) => {
 		setMode(conn?.mode || (c.sandbox ? 'test' : 'live'));
 	}, [c.id, conn?.updatedAt]);
 
+	// Paperfly, CarryBee (CR-26): nothing to connect — only the buyer checks login.
+	if (c.checksOnly)
+		return (
+			<PanelChecks
+				c={c}
+				alone
+			/>
+		);
+
 	const run = async (p: Promise<any>, ok: (r: any) => string) => {
 		try {
 			const r = await p;

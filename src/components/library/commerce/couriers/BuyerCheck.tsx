@@ -111,7 +111,7 @@ export const BuyerAnswer: FC<{ a: BuyerCheckAnswer }> = ({ a }) => (
 					mt={2}
 					fontSize='12px'
 					color='fg.muted'>
-					No courier can check yet — connect Steadfast, or add your RedX or Pathao login under Store settings → Delivery.
+					No courier can check yet — connect Steadfast, or add your RedX, Pathao, Paperfly or CarryBee login under Store settings → Delivery.
 				</Text>
 			)}
 		</Box>
