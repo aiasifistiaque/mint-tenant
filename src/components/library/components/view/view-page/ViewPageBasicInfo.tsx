@@ -10,6 +10,8 @@ type ViewPageBasicInfoProps = {
 	id: string;
 	schema: any;
 	layout: { exists: boolean; module: any };
+	/** Field types left out (shown in their own tab). */
+	omitTypes?: string[];
 };
 
 /**
@@ -39,7 +41,7 @@ type ViewPageBasicInfoProps = {
  * then name, as in the media manager) need the width a row doesn't have.
  */
 const BLOCK_TYPES = ['editor', 'textarea', 'file', 'file-array', 'blocks'];
-const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layout }) => {
+const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layout, omitTypes }) => {
 	const module = layout?.exists ? layout?.module : undefined;
 
 	const viewFields = module?.fields
@@ -101,10 +103,13 @@ const ViewPageBasicInfo: FC<ViewPageBasicInfoProps> = ({ slug, id, schema, layou
 			</Panel>
 		));
 
-	const split = (items: any[]) => ({
+	const split = (all: any[]) => {
+		const items = omitTypes?.length ? all.filter((field: any) => !omitTypes.includes(field.type)) : all;
+		return {
 		inline: items.filter((field: any) => BLOCK_TYPES.indexOf(field.type) === -1),
 		block: items.filter((field: any) => BLOCK_TYPES.indexOf(field.type) !== -1),
-	});
+		};
+	};
 
 	if (!sections.length) {
 		const { inline, block } = split(viewFields);

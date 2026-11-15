@@ -13,6 +13,7 @@ import { HOME, IS_TENANT_PANEL, pagePath } from '@/components/library/config/lib
 import RecordComments from '@/components/library/tenant/RecordComments';
 import { useGetRecordCommentsQuery } from '@/components/library/store/services/tenantApi';
 import { DownloadPdfButton } from '@/components/library/pdf/DownloadPdf';
+import KeyValueTab, { keyValueFieldsOf } from '@/components/library/components/view/record/KeyValueTab';
 
 /** A page's own tab, shown ahead of Overview. */
 export type RecordViewTab = {
@@ -52,9 +53,28 @@ export type RecordViewProps = {
  * (`/repos/<id>`) wraps this too and passes its console as `tabs`, so the
  * table's "Open" lands on the same overview and tabs either way.
  */
-const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions, noEdit, children }: RecordViewProps) => {
+const RecordView = ({ slug, id, tabs: ownTabs = [], title, badge, meta, actions, noEdit, children }: RecordViewProps) => {
 	const rv = useRecordView({ slug, id });
 	const { name, code, recordTitle, routeTitle, single, drafts, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
+	// Key-value fields (backend docs/key-values) get a tab each, after the page's own, with their own Edit;
+	// Overview leaves them out.
+	const kvFields = keyValueFieldsOf(rv.schema);
+	const kvTabs: RecordViewTab[] = kvFields.map(f => ({
+			value: `kv-${f.key}`,
+			label: f.label,
+			content: (
+				<KeyValueTab
+					slug={slug}
+					id={id}
+					fieldKey={f.key}
+					label={f.label}
+					field={f.field}
+					schema={rv.schema}
+					canEdit={canEdit && !noEdit}
+				/>
+			),
+		}));
+	const pageTabs = [...ownTabs, ...kvTabs];
 	// Like the edit dialog's header: the code, then how fresh the record is.
 	const updated = ago(updatedAt);
 	// A drafts record: when it last went live, and who put it there (docs/cms CMS-07).
@@ -66,7 +86,8 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 	// Tabs after Overview: records of other routes that link to this one, as
 	// set in the route builder's view, then Comments (tenant projects), then History, which every record has.
 	// The open tab lives in `?tab=`.
-	const firstTab = pageTabs[0]?.value || 'overview';
+	// The page's own first tab opens by default; the key-value tabs come after Overview.
+	const firstTab = ownTabs[0]?.value || 'overview';
 	const [tab, setTab] = useState(firstTab);
 	useEffect(() => {
 		const t = new URLSearchParams(window.location.search).get('tab');
@@ -100,6 +121,7 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 			configured={rv.configured}
 			configuredLoading={rv.configuredLoading}
 			configuredFetching={rv.configuredFetching}
+			omitTypes={kvFields.length ? ['keyvalue'] : undefined}
 		/>
 	);
 
@@ -174,8 +196,9 @@ const RecordView = ({ slug, id, tabs: pageTabs = [], title, badge, meta, actions
 					value={openTab}
 					onChange={goTo}
 					tabs={[
-						...pageTabs.map(t => ({ value: t.value, label: t.label })),
+						...ownTabs.map(t => ({ value: t.value, label: t.label })),
 						{ value: 'overview', label: 'Overview' },
+						...kvTabs.map(t => ({ value: t.value, label: t.label })),
 						...tabs.map(t => ({
 							value: String(t.index),
 							label: (

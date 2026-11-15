@@ -41,9 +41,11 @@ type Props = {
 	isLoading?: boolean;
 	/** Narrow (a drawer): every section in one column. */
 	compact?: boolean;
+	/** Field types left out (shown in their own tab). */
+	omitTypes?: string[];
 };
 
-const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) => {
+const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact, omitTypes }) => {
 	if (!view) return <DetailSkeleton />;
 
 	const byKey = viewFieldsByKey(Object.keys(schema || {}), convertToViewFields({ schema }) || []);
@@ -78,7 +80,7 @@ const ConfiguredView: FC<Props> = ({ slug, schema, view, isLoading, compact }) =
 				section.items.forEach((item: any, ii: number) => {
 					if (item.kind === 'field') {
 						const field = byKey[item.key];
-						if (!field) return;
+						if (!field || omitTypes?.includes(field.type)) return;
 						if (section.copy && !['editor', 'file', 'file-array'].includes(field.type))
 							lines.push(detailLine(field, valueOf(field), doc));
 						if (BLOCK_TYPES.includes(field.type))

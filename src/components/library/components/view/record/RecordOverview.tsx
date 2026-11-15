@@ -15,6 +15,8 @@ type Props = {
 	configuredFetching?: boolean;
 	/** In a drawer: one column, whatever the section asks for. */
 	compact?: boolean;
+	/** Field types shown elsewhere on the page — key-value fields have their own tabs. */
+	omitTypes?: string[];
 };
 
 /**
@@ -31,6 +33,7 @@ const RecordOverview: FC<Props> = ({
 	configuredLoading,
 	configuredFetching,
 	compact,
+	omitTypes,
 }) => {
 	if (!slug || !id || !schema || configuredLoading) return <DetailSkeleton />;
 
@@ -42,6 +45,7 @@ const RecordOverview: FC<Props> = ({
 				view={configured}
 				isLoading={configuredFetching}
 				compact={compact}
+				omitTypes={omitTypes}
 			/>
 		);
 
@@ -51,6 +55,7 @@ const RecordOverview: FC<Props> = ({
 			schema={schema}
 			slug={slug}
 			id={id}
+			omitTypes={omitTypes}
 		/>
 	);
 };
