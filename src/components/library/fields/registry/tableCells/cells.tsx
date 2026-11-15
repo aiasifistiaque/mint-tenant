@@ -134,7 +134,19 @@ export const PasswordCell = ({ children, ...props }: any) => (
 	</CustomTd>
 );
 
-export const TextCell = ({ children, ...props }: any) => <CustomTd {...props}>{children}</CustomTd>;
+/**
+ * A value as words. A column with no cell of its own lands here, and it can be a
+ * populated link (`{ _id, name }`) or a list of them — handing those to React
+ * threw error #31 and took the whole table down (Think Tech's Categories, 2026-11-16).
+ */
+const wordsOf = (value: any): any => {
+	if (value == null || typeof value !== 'object' || (value as any).$$typeof) return value;
+	if (Array.isArray(value)) return value.map(wordsOf).filter(v => v != null && v !== '').join(', ');
+	if (value instanceof Date) return value.toISOString();
+	return value.name ?? value.title ?? value.label ?? value._id ?? '';
+};
+
+export const TextCell = ({ children, ...props }: any) => <CustomTd {...props}>{wordsOf(children)}</CustomTd>;
 
 const ENTITY: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
 
