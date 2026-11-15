@@ -4,6 +4,7 @@ import { DragEvent, FC, KeyboardEvent, ReactNode, useEffect, useMemo, useState }
 import { Badge, Box, Button, Flex, Grid, IconButton, Input, Menu, Portal, Switch, Text } from '@chakra-ui/react';
 import { AlertTriangle, ArrowDown, ArrowUp, Copy, Ellipsis, ListPlus, Calculator, CalendarClock, ChevronDown, ListTree, GripVertical, Plus, Puzzle, Trash2, X } from 'lucide-react';
 import { radius, useGetModelComponentsQuery } from '@/components/library';
+import { useGetAllQuery } from '@/components/library/store/services/commonApi';
 import { Dropdown } from '@/components/library/cl';
 import {
 	ARRAY_KINDS,
@@ -63,6 +64,8 @@ export type LinkTarget = {
 	display: string;
 	built: boolean;
 	numbers?: { key: string; label: string; date?: boolean; text?: boolean }[];
+	/** Its fields' kinds (and links), by key — a key-value field picks the link of the picked record that lists its groups. */
+	kinds?: Record<string, { kind: string; ref?: string }>;
 };
 
 type Props = {
@@ -607,7 +610,9 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 			// An address is always unique, made from the first text field unless one is picked.
 			...(kind === 'uid'
 				? { unique: true, from: f.from || fields.find(x => x.uid !== f.uid && UID_SOURCES.includes(x.kind) && x.key)?.key }
-				: { from: undefined }),
+				: kind === 'keyvalue'
+					? { unique: false, from: undefined, via: undefined, groups: undefined, rules: undefined }
+					: { from: undefined, via: undefined, groups: undefined, rules: undefined }),
 			default: isFormulaKind(kind) || (f.fillFrom && canAutofill(kind)) || SECTION_KINDS.includes(kind) ? undefined : nextDefault,
 			// A section starts from a preset, changed in its field builder; between the two section kinds its fields stay.
 			...(SECTION_KINDS.includes(kind)
@@ -1039,6 +1044,16 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 										/>
 										{error?.on === 'from' && <FieldMessage>{error.message}</FieldMessage>}
 									</Box>
+								)}
+								{f.kind === 'keyvalue' && (
+									<KeyValuePickers
+										f={f}
+										fields={fields}
+										targets={targets}
+										selfName={selfName}
+										error={error?.on === 'from' ? error.message : undefined}
+										onChange={patch => set(f.uid, patch)}
+									/>
 								)}
 								{canAutofill(f.kind) && (
 									<Box
@@ -1518,3 +1533,226 @@ const FieldsEditor: FC<Props> = ({ fields, onChange, errors, targets, selfName, 
 };
 
 export default FieldsEditor;
+
+/** What can decide a key-value field's groups: a link, a choice, yes/no or a text (backend KV_SOURCES). */
+const KV_SOURCES: FieldKind[] = ['reference', 'references', 'select', 'multiselect', 'boolean', 'text'];
+
+/** Picks Key values records (backend docs/key-values): chips, and a list to add one more. */
+const GroupsPicker: FC<{ value?: string[]; all: { _id: string; name: string }[]; onChange: (ids: string[]) => void; placeholder?: string }> = ({ value = [], all, onChange, placeholder }) => {
+	const byId = new Map(all.map(g => [g._id, g.name]));
+	return (
+		<Flex
+			gap={1.5}
+			wrap='wrap'
+			align='center'>
+			{value.map(id => (
+				<Badge
+					key={id}
+					size='sm'
+					variant='surface'
+					gap={1}>
+					{byId.get(id) || 'Removed group'}
+					<IconButton
+						aria-label='Remove'
+						size='2xs'
+						variant='ghost'
+						minW='14px'
+						h='14px'
+						onClick={() => onChange(value.filter(x => x !== id))}>
+						<X size={10} />
+					</IconButton>
+				</Badge>
+			))}
+			<Box w='170px'>
+				<Dropdown
+					size='xs'
+					placeholder={placeholder || 'Add a group'}
+					value=''
+					onChange={v => v && onChange([...value, v])}
+					items={all.filter(g => !value.includes(g._id)).map(g => ({ value: g._id, label: g.name }))}
+				/>
+			</Box>
+		</Flex>
+	);
+};
+
+/** One rule's value: the choice, yes/no, record or text that shows its groups. */
+const RuleValue: FC<{ source: EditableField; route?: string; display?: string; value: string; onChange: (v: string) => void }> = ({ source, route, display, value, onChange }) => {
+	const { data } = useGetAllQuery({ path: route, limit: 200, sort: display && display !== '_id' ? display : '-createdAt' }, { skip: !route || !REFERENCE_KINDS.includes(source.kind) });
+	const items =
+		source.kind === 'boolean'
+			? [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]
+			: source.kind === 'select' || source.kind === 'multiselect'
+			? (source.options || []).filter(o => o.value).map(o => ({ value: o.value, label: o.label || o.value }))
+			: REFERENCE_KINDS.includes(source.kind)
+			? (data?.doc || []).map((r: any) => ({ value: String(r._id), label: String((display && r[display]) || r.name || r.title || r._id) }))
+			: null;
+	return items ? (
+		<Dropdown
+			size='xs'
+			placeholder='Pick a value'
+			value={value}
+			onChange={onChange}
+			items={items}
+		/>
+	) : (
+		<Input
+			size='xs'
+			placeholder='The value'
+			value={value}
+			onChange={e => onChange(e.target.value)}
+		/>
+	);
+};
+
+/**
+ * A key-value field's settings (backend docs/key-values): the groups (Key values records) it always shows, and
+ * the field whose value adds more — groups per value (a choice, a picked category), or for a link, the picked
+ * record's own list (its specifications), or the picked records themselves.
+ */
+const KeyValuePickers: FC<{
+	f: EditableField;
+	fields: EditableField[];
+	targets: LinkTarget[];
+	selfName?: string;
+	error?: string;
+	onChange: (patch: Partial<EditableField>) => void;
+}> = ({ f, fields, targets, error, onChange }) => {
+	const { data: kvData, isError: noKv } = useGetAllQuery({ path: 'key-values', limit: 500, sort: 'name' });
+	const all: { _id: string; name: string }[] = (kvData?.doc || []).map((g: any) => ({ _id: String(g._id), name: String(g.name || g._id) }));
+	const sources = fields.filter(x => x.uid !== f.uid && x.key && KV_SOURCES.includes(x.kind));
+	const source = sources.find(x => x.key === f.from);
+	const isLink = !!source && REFERENCE_KINDS.includes(source.kind);
+	const linked = isLink && source?.ref ? targets.find(t => t.name === source.ref) : undefined;
+	const viaItems = Object.entries(linked?.kinds || {})
+		.filter(([, v]) => v.kind === 'reference' || v.kind === 'references')
+		.map(([key, v]) => ({ value: `via:${key}`, label: `Its ${key}${v.ref ? ` (${v.ref})` : ''}` }));
+	const perValue = !!source && (!isLink || Array.isArray(f.rules));
+	const mode = perValue ? 'rules' : f.via ? `via:${f.via}` : '';
+	const rules = f.rules || [];
+	const setRule = (i: number, patch: Partial<{ value: string; groups: string[] }>) => onChange({ rules: rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
+	const label = (t: string) => (
+		<Text
+			fontSize='11px'
+			color='fg.muted'
+			mb={1}>
+			{t}
+		</Text>
+	);
+	return (
+		<Box
+			w='100%'
+			maxW='640px'
+			display='flex'
+			flexDirection='column'
+			gap={3}>
+			<GuideLink section='key-values' />
+			{noKv && (
+				<Text
+					fontSize='12px'
+					color='fg.muted'>
+					This project has no Key values model (/key-values) — new projects start with one. Groups can still come through a link.
+				</Text>
+			)}
+			{!noKv && (
+				<Box>
+					{label('Always show')}
+					<GroupsPicker
+						value={f.groups}
+						all={all}
+						placeholder={all.length ? 'Add a group' : 'No key values yet'}
+						onChange={groups => onChange({ groups })}
+					/>
+				</Box>
+			)}
+			<Flex
+				gap={2}
+				wrap='wrap'
+				align='flex-start'>
+				<Box w='220px'>
+					{label('And show groups by')}
+					<Dropdown
+						size='xs'
+						invalid={!!error}
+						value={f.from || ''}
+						onChange={v => {
+							const next = sources.find(x => x.key === v);
+							onChange({ from: v || undefined, via: undefined, rules: next && !REFERENCE_KINDS.includes(next.kind) ? [] : undefined });
+						}}
+						items={[{ value: '', label: 'Nothing else' }, ...sources.map(x => ({ value: x.key, label: `${x.label || x.key}${x.ref ? ` (${x.ref})` : ''}` }))]}
+					/>
+				</Box>
+				{isLink && (
+					<Box w='260px'>
+						{label('Its groups are')}
+						<Dropdown
+							size='xs'
+							value={mode}
+							onChange={v => onChange(v === 'rules' ? { rules: rules.length ? rules : [], via: undefined } : { rules: undefined, via: v.startsWith('via:') ? v.slice(4) : undefined })}
+							items={[
+								...viaItems,
+								{ value: '', label: `The picked ${source!.label || source!.key} itself` },
+								...(noKv ? [] : [{ value: 'rules', label: `Chosen per ${source!.label || source!.key}` }]),
+							]}
+						/>
+					</Box>
+				)}
+			</Flex>
+			{error && <FieldMessage>{error}</FieldMessage>}
+			{perValue && source && (
+				<Box>
+					{label(`When ${source.label || source.key} is…`)}
+					<Box
+						display='flex'
+						flexDirection='column'
+						gap={2}>
+						{rules.map((r, i) => (
+							<Flex
+								key={i}
+								gap={2}
+								align='center'
+								wrap='wrap'>
+								<Box w='180px'>
+									<RuleValue
+										source={source}
+										route={linked?.route}
+										display={linked?.display}
+										value={r.value}
+										onChange={v => setRule(i, { value: v })}
+									/>
+								</Box>
+								<Text
+									fontSize='12px'
+									color='fg.muted'>
+									show
+								</Text>
+								<Box flex='1'>
+									<GroupsPicker
+										value={r.groups}
+										all={all}
+										onChange={groups => setRule(i, { groups })}
+									/>
+								</Box>
+								<IconButton
+									aria-label='Remove this value'
+									size='xs'
+									variant='ghost'
+									onClick={() => onChange({ rules: rules.filter((_, j) => j !== i) })}>
+									<Trash2 size={13} />
+								</IconButton>
+							</Flex>
+						))}
+						<Box>
+							<Button
+								size='xs'
+								variant='outline'
+								onClick={() => onChange({ rules: [...rules, { value: '', groups: [] }] })}>
+								<Plus size={12} /> Add a value
+							</Button>
+						</Box>
+					</Box>
+				</Box>
+			)}
+		</Box>
+	);
+};

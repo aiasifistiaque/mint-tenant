@@ -13,6 +13,7 @@ import { SectionObject, SectionRows } from './SectionValues';
 import SecretValue from '../../../../cl/SecretValue';
 import DocumentTiles from './DocumentTiles';
 import RichTextValue from './RichTextValue';
+import KeyValueSections from './KeyValueSections';
 
 const textCss: TextProps & LinkProps = {
 	fontSize: '.95rem',
@@ -63,6 +64,7 @@ const linkedList = (items: any, route?: string) => (
  */
 const LIST_TYPES = [
 	'section-data-array',
+	'keyvalue',
 	'custom-section-array',
 	'data-tag',
 	'data-array-tag',
@@ -144,6 +146,8 @@ const renderContent = ({ type, children, colorPalette, path, originalType, id, l
 		return <Text {...textCss}>--</Text>;
 
 	switch (type) {
+		case 'keyvalue':
+			return <KeyValueSections value={children} />;
 		case 'section-data-array':
 			// With its row fields known: a table, with the number columns added up.
 			if (Array.isArray(dataModel) && dataModel.length)

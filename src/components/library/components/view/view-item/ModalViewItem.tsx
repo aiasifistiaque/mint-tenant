@@ -96,11 +96,11 @@ const gridCss = (type: string = 'string'): GridProps => {
 		py: 2.5,
 		gridTemplateColumns: {
 			base: '1fr',
-			md: type == 'textarea' || type == 'section-data-array' ? '1fr' : GRID_COLUMNS,
+			md: type == 'textarea' || type == 'section-data-array' || type == 'keyvalue' ? '1fr' : GRID_COLUMNS,
 		},
 		gap: {
 			base: 2,
-			md: type == 'textarea' || type == 'section-data-array' ? 3 : 8,
+			md: type == 'textarea' || type == 'section-data-array' || type == 'keyvalue' ? 3 : 8,
 		},
 		fontSize: '13px',
 		borderBottomWidth: 1,

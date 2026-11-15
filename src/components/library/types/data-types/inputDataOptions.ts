@@ -49,6 +49,8 @@ export const inputDataOptions = [
 	'slider',
 	'section-data-array',
 	'section-object',
+	// Key-value pairs whose keys come from another link's records (product specifications).
+	'keyvalue',
 	// Content blocks (backend docs/cms D4): components in any order.
 	'blocks',
 	'alignment',

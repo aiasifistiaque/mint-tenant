@@ -63,6 +63,7 @@ const GUIDE_OF: Record<string, string> = {
 	'models-components-nesting': 'models',
 	'models-components-reusable': 'models',
 	'models-image-details': 'models',
+	'key-values': 'models',
 	'models-drafts': 'models',
 	'models-schedule': 'models',
 	'api-reference': 'public-api',

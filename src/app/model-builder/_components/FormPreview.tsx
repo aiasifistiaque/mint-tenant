@@ -195,6 +195,16 @@ const Control: FC<{ f: EditableField; targetTitle: (ref?: string) => string }> =
 					</Text>
 				</Box_>
 			);
+		case 'keyvalue':
+			return (
+				<Box_ muted>
+					<Text
+						fontSize='inherit'
+						truncate>
+						{f.from ? `Sections by ${f.from} — Key: value` : 'Sections — Key: value'}
+					</Text>
+				</Box_>
+			);
 		case 'uid':
 			return (
 				<Box_>

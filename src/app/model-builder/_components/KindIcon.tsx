@@ -2,7 +2,7 @@
 
 import { FC } from 'react';
 import { Flex } from '@chakra-ui/react';
-import {
+import { ListTree,
 	AlignLeft,
 	Calculator,
 	Calendar,
@@ -46,6 +46,7 @@ export const KIND_ICONS: Record<FieldKind, LucideIcon> = {
 	email: Mail,
 	url: Globe,
 	uid: Slash,
+	keyvalue: ListTree,
 	color: Palette,
 	password: KeyRound,
 	number: Hash,

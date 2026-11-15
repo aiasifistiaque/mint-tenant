@@ -25,6 +25,8 @@ export type ViewDataType =
 	| 'section-data-array'
 	// A model builder Section: one object of its own fields.
 	| 'section-object'
+	// Key-value pairs: sections of key → value (product specifications).
+	| 'keyvalue'
 	| 'blocks'
 	// WO-15: renderViewItem.tsx already had working cases for these, just never
 	// declared in the union

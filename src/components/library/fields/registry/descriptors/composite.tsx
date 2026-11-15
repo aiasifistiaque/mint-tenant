@@ -11,6 +11,7 @@ import VVariant from '@/components/library/utils/inputs/VVariant';
 import VModelFields from '@/components/library/utils/inputs/VModelFields';
 import VSectionObject from '@/components/library/utils/inputs/section/VSectionObject';
 import VBlocks from '@/components/library/utils/inputs/section/VBlocks';
+import VKeyValue from '@/components/library/utils/inputs/VKeyValue';
 import { registerFieldType } from '../registry';
 import { NotYetImplementedCell, NotYetImplementedView } from './_shared';
 
@@ -265,4 +266,31 @@ registerFieldType({
 	table: { type: 'text', cell: NotYetImplementedCell },
 	view: { type: 'object', render: NotYetImplementedView, layout: 'full' },
 	storage: 'object',
+});
+
+// Key-value pairs (backend docs/key-values): sections and keys from the records picked in
+// another link of the form (a product's category → its specifications); the backend sends `kv`.
+const KeyValueInput = ({ item, isRequired, formData, ...props }: any) => (
+	<VKeyValue
+		name={(props as any).name}
+		label={(props as any).label}
+		value={(props as any).value}
+		onChange={(props as any).onChange}
+		isRequired={isRequired}
+		helper={item?.helper}
+		kv={item?.kv}
+		formData={formData}
+		isDisabled={!!item?.locked || (props as any).isDisabled}
+	/>
+);
+
+registerFieldType({
+	id: 'keyvalue',
+	family: 'composite',
+	input: KeyValueInput,
+	changeMode: 'value',
+	emptyValue: () => [],
+	table: { type: 'text', cell: NotYetImplementedCell },
+	view: { type: 'keyvalue', render: NotYetImplementedView, layout: 'full' },
+	storage: 'array-object',
 });

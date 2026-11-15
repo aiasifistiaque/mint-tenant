@@ -67,6 +67,8 @@ const OPTIONAL_FIELD_PROPS = [
 	'slugFrom',
 	// Content blocks: the components it takes, each with its fields (docs/cms D4).
 	'blocks',
+	// Key-value pairs: the link that decides its keys and the picked record's group field (docs/key-values).
+	'kv',
 ] as const;
 
 const createResolvedField = ({
