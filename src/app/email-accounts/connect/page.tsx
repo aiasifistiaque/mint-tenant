@@ -12,7 +12,7 @@ import ConnectDialog from '../_components/ConnectDialog';
 export default function ConnectEmailPage() {
 	const router = useRouter();
 	const { can, project } = useWorkspace();
-	const { data } = useGetMailAccountsQuery(undefined, { skip: !can('manage-projects') });
+	const { data } = useGetMailAccountsQuery(undefined, { skip: !(can('manage-projects') || can('manage-email')) });
 
 	return (
 		<Layout

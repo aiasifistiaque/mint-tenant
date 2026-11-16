@@ -217,6 +217,11 @@ export const courierApi = commerceApi.enhanceEndpoints({ addTagTypes: [...TAGS] 
 			query: ({ id, ...body }) => ({ url: `commerce/couriers/${id}`, method: 'PUT', body }),
 			invalidatesTags: ['store-couriers'],
 		}),
+		/** Use a courier for deliveries or not — the delivery answers' couriers only (backend docs/commerce-panel CP-02). */
+		switchStoreCourier: builder.mutation<any, { id: string; on: boolean }>({
+			query: ({ id, on }) => ({ url: `commerce/couriers/${id}/use`, method: 'PUT', body: { on } }),
+			invalidatesTags: ['store-couriers', 'commerce' as any],
+		}),
 		testStoreCourier: builder.mutation<CourierCard, string>({
 			query: id => ({ url: `commerce/couriers/${id}/test`, method: 'POST', body: {} }),
 			invalidatesTags: ['store-couriers'],
@@ -300,6 +305,7 @@ export const {
 	useGetStoreCouriersQuery,
 	useSaveStoreCourierMutation,
 	useTestStoreCourierMutation,
+	useSwitchStoreCourierMutation,
 	useRenewStoreCourierSecretMutation,
 	useDisconnectStoreCourierMutation,
 	useGetStoreCourierOptionsQuery,

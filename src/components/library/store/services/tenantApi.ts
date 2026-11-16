@@ -533,6 +533,17 @@ export type SentEmail = MailLogEntry & { text?: string; html?: string };
 export type SentEmailBase = 'automations/emails' | 'mail-accounts/messages';
 export type MailView = { settings: MailSettings | null; messages: MailLogEntry[]; ports: number[] };
 /* A project's email accounts (backend routes-tenant/mailAccounts.router.ts, docs/messaging M-14). */
+/** A store's own login for the commerce panel (backend docs/commerce-panel, CP-01). */
+export type PanelAdmin = {
+	_id: string;
+	name: string;
+	email: string;
+	phone: string;
+	isActive: boolean;
+	lastLoginAt: string | null;
+	createdAt: string;
+};
+
 export type MailAccount = {
 	_id: string;
 	name: string;
@@ -1329,6 +1340,23 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: id => ({ url: `mail-accounts/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['tenant-mail-accounts', 'history'],
 		}),
+		/* ------------------ a store's commerce panel logins (docs/commerce-panel CP-03) */
+		getPanelAdmins: builder.query<{ doc: PanelAdmin[]; totalDocs: number }, void>({
+			query: () => 'panel-admins',
+			providesTags: ['tenant-panel-admins'],
+		}),
+		addPanelAdmin: builder.mutation<PanelAdmin, { name: string; email: string; password: string; phone?: string }>({
+			query: body => ({ url: 'panel-admins', method: 'POST', body }),
+			invalidatesTags: ['tenant-panel-admins', 'history'],
+		}),
+		updatePanelAdmin: builder.mutation<PanelAdmin, { id: string; name?: string; phone?: string; isActive?: boolean; password?: string }>({
+			query: ({ id, ...body }) => ({ url: `panel-admins/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-panel-admins', 'history'],
+		}),
+		removePanelAdmin: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `panel-admins/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-panel-admins', 'history'],
+		}),
 		getMailDesigns: builder.query<MailDesignsView, void>({
 			query: () => 'mail-designs',
 			providesTags: ['tenant-mail-designs'],
@@ -1432,6 +1460,10 @@ export const {
 	useSetDefaultMailAccountMutation,
 	useSendMailAccountTestMutation,
 	useRemoveMailAccountMutation,
+	useGetPanelAdminsQuery,
+	useAddPanelAdminMutation,
+	useUpdatePanelAdminMutation,
+	useRemovePanelAdminMutation,
 	useGetMailDesignsQuery,
 	usePreviewMailDesignMutation,
 	useAddMailDesignMutation,

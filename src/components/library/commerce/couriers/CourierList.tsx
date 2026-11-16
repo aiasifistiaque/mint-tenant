@@ -9,8 +9,8 @@ import { ModalFooter, radius, useIsMobile } from '../..';
 import GuideLink from '../../tenant/GuideLink';
 import { toaster } from '@/components/ui/toaster';
 import { projectHref } from '../../config/lib/constants/panel';
-import { useGetCommerceSettingsQuery, useSaveCommerceSettingsMutation } from '../../store/services/commerceApi';
-import { useGetStoreCouriersQuery, useTestStoreCourierMutation } from '../../store/services/courierApi';
+import { useGetCommerceSettingsQuery } from '../../store/services/commerceApi';
+import { useGetStoreCouriersQuery, useSwitchStoreCourierMutation, useTestStoreCourierMutation } from '../../store/services/courierApi';
 import type { CourierCard } from '../../store/services/courierApi';
 import { CourierForm, errText } from './CourierCards';
 import { checksState } from './PanelChecks';
@@ -120,7 +120,7 @@ const CheckOnlyCard: FC<{ c: CourierCard; onConnect: (id: string) => void }> = (
 };
 
 const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void }> = ({ c, delivery, onConnect }) => {
-	const [saveSettings, saving] = useSaveCommerceSettingsMutation();
+	const [switchCourier, saving] = useSwitchStoreCourierMutation();
 	const [test, testing] = useTestStoreCourierMutation();
 	const conn = c.connection;
 	const usable = !!conn?.tested;
@@ -128,8 +128,8 @@ const Card: FC<{ c: CourierCard; delivery: any; onConnect: (id: string) => void 
 	const checks = checksState(c);
 
 	const toggle = async (on: boolean) => {
-		const couriers = on ? [...delivery.couriers.filter((x: string) => x !== c.id), c.id] : delivery.couriers.filter((x: string) => x !== c.id);
-		const res: any = await saveSettings({ answers: { delivery: { ...delivery, couriers } } });
+		// Only the couriers list changes (PUT couriers/:id/use) — a commerce panel's store login may do this (backend docs/commerce-panel).
+		const res: any = await switchCourier({ id: c.id, on });
 		if ('error' in res) {
 			toaster.error({ title: res.error?.data?.message || 'Couldn’t change it — try again.' });
 			return;

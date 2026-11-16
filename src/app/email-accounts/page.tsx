@@ -456,7 +456,8 @@ const Log: FC<{ messages: MailLogEntry[]; accounts: MailAccount[] }> = ({ messag
 
 export default function EmailAccountsPage() {
 	const { can, project, self, isLoading: loadingSelf } = useWorkspace();
-	const allowed = can('manage-projects');
+	// A commerce panel's store login holds manage-email (backend docs/commerce-panel).
+	const allowed = can('manage-projects') || can('manage-email');
 	const { data, isLoading, isError } = useGetMailAccountsQuery(undefined, { skip: !allowed });
 
 	return (
