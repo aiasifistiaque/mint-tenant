@@ -25,7 +25,7 @@ import type { PanelAdmin } from '@/components/library/store/services/tenantApi';
  * Backend: routes-tenant/panelAdmins.router.ts. Needs manage-projects or invite-to-projects.
  */
 
-const COMMERCE_URL = (process.env.NEXT_PUBLIC_COMMERCE_URL || 'https://commerce.mintapp.shop').replace(/\/+$/, '');
+const COMMERCE_URL = (process.env.NEXT_PUBLIC_COMMERCE_URL || 'https://commerce.mintapp.site').replace(/\/+$/, '');
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never');
 
