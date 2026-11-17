@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import FormMain from '../page/form-components/FormMain';
 import Stepper from './Stepper';
 import ReviewStep from './ReviewStep';
-import { FormStepsConfig, missingOn, pagesOf, stepOfField } from './formSteps';
+import { FormStepsConfig, missingOn, pagesOf, shownPages, stepOfField } from './formSteps';
 
 /**
  * A create / edit form in pages (backend docs/multi-page-forms): the stepper
@@ -42,22 +42,26 @@ type Props = {
 };
 
 const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setChangedData, mode, isLoading, saveText, cancelHref, onSave, status, canSave = true }) => {
-	const pages = useMemo(() => pagesOf(fields, formSteps), [fields, formSteps]);
-	const [current, setCurrent] = useState(0);
-	// The furthest page passed with Next (its required fields checked).
-	const [passed, setPassed] = useState(-1);
+	const allPages = useMemo(() => pagesOf(fields, formSteps), [fields, formSteps]);
+	// A page whose sections are all hidden right now (Variations on a simple product) is skipped.
+	const pages = shownPages(allPages, fields, formData);
+	// Pages by key: the list can change as the form is filled in.
+	const [currentKey, setCurrentKey] = useState('');
+	// Pages passed with Next (their required fields checked).
+	const [passed, setPassed] = useState<Set<string>>(() => new Set());
 	// What stopped Next / Save, said in the footer (a toast would sit on the buttons).
 	const [stop, setStop] = useState('');
 	const top = useRef<HTMLDivElement>(null);
 	const isEdit = mode === 'edit';
 
-	const at = Math.min(current, Math.max(0, pages.length - 1));
+	const found = pages.findIndex(p => p.key === currentKey);
+	const at = found >= 0 ? found : 0;
 	const page = pages[at];
 	const isLast = at === pages.length - 1;
 
 	const go = (i: number) => {
 		setStop('');
-		setCurrent(i);
+		setCurrentKey(pages[i]?.key || '');
 		// The new page starts at its top.
 		requestAnimationFrame(() => top.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 	};
@@ -77,7 +81,7 @@ const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setC
 
 	const next = () => {
 		if (stopsOn(at)) return;
-		setPassed(p => Math.max(p, at));
+		setPassed(p => new Set(p).add(page.key));
 		go(at + 1);
 	};
 
@@ -114,8 +118,8 @@ const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setC
 				<Stepper
 					titles={pages.map(p => p.title)}
 					current={at}
-					canGo={i => isEdit || i <= passed + 1}
-					done={i => i <= passed}
+					canGo={i => isEdit || pages.slice(0, i).every(p => passed.has(p.key))}
+					done={i => passed.has(pages[i]?.key)}
 					onGo={go}
 				/>
 
@@ -137,14 +141,16 @@ const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setC
 					)}
 				</Box>
 
-				{page.review ? (
+				{page.review || page.summary ? (
 					<ReviewStep
 						pages={pages}
 						fields={fields}
 						formData={formData}
 						onEdit={go}
+						upTo={at}
 					/>
-				) : (
+				) : null}
+				{page.review ? null : (
 					<FormMain
 						fields={fields}
 						formData={formData}

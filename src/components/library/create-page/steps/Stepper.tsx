@@ -8,7 +8,8 @@ import { Check } from 'lucide-react';
  * The steps across the top of a form in pages (docs/multi-page-forms): numbered
  * circles with their labels, joined by lines — the current one in the accent
  * colour, passed ones ticked. On a phone it folds to one line, "Step 2 of 6 ·
- * Pricing", over a thin progress bar (D9).
+ * Pricing", over a thin progress bar (D9). Over five pages, only the current page's
+ * name shows below 2xl, so the row fits.
  */
 
 type Props = {
@@ -99,6 +100,7 @@ const Stepper: FC<Props> = ({ titles, current, canGo, done, onGo }) => (
 								p={0}
 								disabled={!clickable}
 								aria-current={isCurrent ? 'step' : undefined}
+								title={title}
 								cursor={clickable ? 'pointer' : 'default'}
 								onClick={() => clickable && onGo(i)}
 								_hover={clickable ? { '& .step-label': { color: 'fg' } } : undefined}>
@@ -126,6 +128,8 @@ const Stepper: FC<Props> = ({ titles, current, canGo, done, onGo }) => (
 								</Flex>
 								<Text
 									className='step-label'
+									// Many pages: only the current one's name, until the screen is wide enough for all.
+									display={isCurrent || titles.length <= 5 ? 'block' : { base: 'none', '2xl': 'block' }}
 									fontSize='sm'
 									fontWeight={isCurrent ? '600' : '500'}
 									color={isCurrent ? 'fg' : 'fg.muted'}

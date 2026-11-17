@@ -72,16 +72,17 @@ const Value: FC<{ field: any; value: any }> = ({ field, value }) => {
 	return one(value, 0);
 };
 
-type Props = { pages: StepPage[]; fields: any[]; formData: any; onEdit: (i: number) => void };
+/** `upTo`: only the pages before it (the page the summary sits on). */
+type Props = { pages: StepPage[]; fields: any[]; formData: any; onEdit: (i: number) => void; upTo?: number };
 
-const ReviewStep: FC<Props> = ({ pages, fields, formData, onEdit }) => {
+const ReviewStep: FC<Props> = ({ pages, fields, formData, onEdit, upTo = pages.length }) => {
 	const hidden = hiddenFormFields(fields, formData);
 	return (
 		<Flex
 			direction='column'
 			gap={4}>
 			{pages.map((page, i) => {
-				if (page.review) return null;
+				if (page.review || page.summary || i >= upTo) return null;
 				const shown = page.fields.filter(f => f?.name && shownNow(f, hidden, formData));
 				return (
 					<Box

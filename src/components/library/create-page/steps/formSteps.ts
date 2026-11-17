@@ -12,8 +12,9 @@ import { meets } from '../../functions/fieldLocks';
  */
 
 export type FormStep = { key: string; title: string; description?: string };
-export type FormStepsConfig = { review?: boolean; steps: FormStep[] };
-export type StepPage = FormStep & { fields: any[]; review?: boolean };
+export type FormStepsConfig = { review?: boolean; reviewOn?: string; steps: FormStep[] };
+/** `review`: the Review page; `summary`: a page with the Review summary above its sections (reviewOn). */
+export type StepPage = FormStep & { fields: any[]; review?: boolean; summary?: boolean };
 
 export const REVIEW_KEY = '__review';
 
@@ -29,8 +30,21 @@ export const pagesOf = (fields: any[], fs: FormStepsConfig): StepPage[] => {
 	const last = fs.steps[fs.steps.length - 1]?.key;
 	const pageOf = (f: any) => (f?.step && keys.has(f.step) ? f.step : last);
 	const pages: StepPage[] = fs.steps.map(s => ({ ...s, fields: fields.filter(f => pageOf(f) === s.key) })).filter(p => p.fields.length);
-	if (fs.review && pages.length) pages.push({ key: REVIEW_KEY, title: 'Review', description: 'Check everything before saving.', fields: [], review: true });
+	if (fs.review && pages.length) {
+		// On the page `reviewOn` names, above its sections (Review & finalize — MF-08), else a page of its own, last.
+		const at = fs.reviewOn ? pages.findIndex(p => p.key === fs.reviewOn) : -1;
+		if (at > 0) pages[at] = { ...pages[at], summary: true };
+		else pages.push({ key: REVIEW_KEY, title: 'Review', description: 'Check everything before saving.', fields: [], review: true });
+	}
 	return pages;
+};
+
+/** The pages shown now: one whose every field is hidden by its conditions (Variations on a simple product) is skipped. */
+export const shownPages = (pages: StepPage[], allFields: any[], formData: any): StepPage[] => {
+	const hidden = hiddenFormFields(allFields, formData);
+	const out = pages.filter(p => p.review || p.fields.some(f => shownNow(f, hidden, formData)));
+	// A Review with nothing before it has nothing to sum up.
+	return out[0]?.review ? out.slice(1) : out;
 };
 
 /** The page a field is drawn on. */

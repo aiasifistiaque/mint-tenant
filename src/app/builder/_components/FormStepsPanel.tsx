@@ -14,14 +14,14 @@ import { DocLink, Toggle } from './ui';
  * save once at the end.
  *
  * Steps group the form's sections; they hold no fields of their own (D1). The
- * config keeps `formSteps { enabled, review, steps: [{ key, title, description }] }`
+ * config keeps `formSteps { enabled, review, reviewOn, steps: [{ key, title, description }] }`
  * and each section of `form` names its page with `step` (none, or a key no page
  * has → the last page, D3) and may sit in the page's side column (`side`, D12).
  * Steps only apply when the add form opens as its own page (D2).
  */
 
 export type FormStep = { key: string; title: string; description?: string };
-export type FormSteps = { enabled?: boolean; review?: boolean; steps?: FormStep[] };
+export type FormSteps = { enabled?: boolean; review?: boolean; reviewOn?: string; steps?: FormStep[] };
 type Section = { sectionTitle?: string; fields?: any[]; step?: string; side?: boolean; [k: string]: any };
 
 type Props = {
@@ -101,7 +101,7 @@ const FormStepsPanel: FC<Props> = ({ value, form, onChange, opensAsPage, onOpenA
 		const gone = steps[i];
 		const to = steps[i - 1] || steps[i + 1];
 		onChange({
-			formSteps: { ...value, steps: steps.filter((_, j) => j !== i) },
+			formSteps: { ...value, steps: steps.filter((_, j) => j !== i), ...(value?.reviewOn === gone.key && { reviewOn: '' }) },
 			form: form.map(s => (s.step === gone.key ? { ...s, step: to?.key } : s)),
 		});
 	};
@@ -234,11 +234,43 @@ const FormStepsPanel: FC<Props> = ({ value, form, onChange, opensAsPage, onOpenA
 				{enabled && (
 					<>
 						<Toggle
-							label='Review page at the end'
-							hint='A last page that sums up what was filled in, with a link back to each page.'
+							label='Review page'
+							hint='A page that sums up what was filled in, with a link back to each page.'
 							checked={!!value?.review}
 							onChange={review => setSteps({ ...value, review })}
 						/>
+						{value?.review && steps.length > 1 && (
+							<Flex
+								align='center'
+								gap={2}
+								flexWrap='wrap'
+								pl={1}>
+								<Text
+									fontSize='xs'
+									color='fg.muted'>
+									The summary goes
+								</Text>
+								<Dropdown
+									size='xs'
+									w='240px'
+									value={steps.some((p, n) => n > 0 && p.key === value?.reviewOn) ? value!.reviewOn! : ''}
+									onChange={v => setSteps({ ...value, reviewOn: v || '' })}>
+									<option value=''>On a page of its own, last</option>
+									{steps.slice(1).map((p, n) => (
+										<option
+											key={p.key}
+											value={p.key}>
+											At the top of {n + 2}. {p.title || 'Untitled'}
+										</option>
+									))}
+								</Dropdown>
+								<Text
+									fontSize='xs'
+									color='fg.subtle'>
+									On a page: the summary of the pages before it, then its own sections — a last page “Review &amp; finalize” with the status.
+								</Text>
+							</Flex>
+						)}
 
 						<Flex
 							direction='column'
