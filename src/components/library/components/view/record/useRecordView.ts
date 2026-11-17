@@ -12,6 +12,8 @@ import type { RecordSchedule } from '../../../store/services/commonApi';
 import { useGetViewDocumentQuery } from '../../../store/services/builderApi';
 import { HISTORY_PAGE_SIZE } from '../../history/HistoryTimeline';
 import { formFieldsFromConfig } from '../view-page/sections';
+import { stepsOf } from '../../../create-page/steps/formSteps';
+import { editPath } from '../../../config/lib/constants/panel';
 
 const humanize = (s: string) => (s || '').replace(/[-_]+/g, ' ').replace(/^./, c => c.toUpperCase());
 
@@ -89,6 +91,8 @@ const useRecordView = ({ slug, id, skip = false }: { slug: string; id: string; s
 				invalidate: ['config', 'history'],
 		  };
 	const canEdit = hasModule || configForm.length > 0;
+	// A form in pages edits on its own page, not in the drawer (docs/multi-page-forms D10).
+	const editHref = !hasModule && stepsOf(config) ? editPath(slug, id, 'view') : undefined;
 
 	// How the Overview groups fields: the form layout in code, else the route
 	// builder's form sections, so a record reads in the groups it's edited in.
@@ -131,6 +135,7 @@ const useRecordView = ({ slug, id, skip = false }: { slug: string; id: string; s
 		historyTotal,
 		editProps,
 		canEdit,
+		editHref,
 	};
 };
 

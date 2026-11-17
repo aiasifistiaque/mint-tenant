@@ -52,7 +52,7 @@ const countBadge = (n: number) => (
  */
 const RecordDrawer: FC<Props> = ({ open, onClose, path, id, title, fields }) => {
 	const rv = useRecordView({ slug: path, id, skip: !open });
-	const { name, code, routeTitle, tabs, historyTotal, editProps, canEdit, status, updatedAt } = rv;
+	const { name, code, routeTitle, tabs, historyTotal, editProps, canEdit, editHref, status, updatedAt } = rv;
 	const updated = ago(updatedAt);
 
 	const [tab, setTab] = useState('overview');
@@ -123,7 +123,18 @@ const RecordDrawer: FC<Props> = ({ open, onClose, path, id, title, fields }) => 
 							Open full page
 						</NextLink>
 					</Button>
-					{canEdit && (
+					{canEdit && editHref && (
+						<Button
+							asChild
+							size='xs'
+							variant='outline'>
+							<NextLink href={editHref}>
+								<Pencil size={13} />
+								Edit
+							</NextLink>
+						</Button>
+					)}
+					{canEdit && !editHref && (
 						<CreateModal {...editProps}>
 							<Button
 								size='xs'

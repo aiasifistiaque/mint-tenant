@@ -37,9 +37,11 @@ type Props = {
 	onSave: () => void;
 	/** Extra words on the footer's left (edit: "3 changes"). */
 	status?: string;
+	/** False keeps Save off (edit: nothing changed yet). */
+	canSave?: boolean;
 };
 
-const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setChangedData, mode, isLoading, saveText, cancelHref, onSave, status }) => {
+const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setChangedData, mode, isLoading, saveText, cancelHref, onSave, status, canSave = true }) => {
 	const pages = useMemo(() => pagesOf(fields, formSteps), [fields, formSteps]);
 	const [current, setCurrent] = useState(0);
 	// The furthest page passed with Next (its required fields checked).
@@ -207,6 +209,7 @@ const SteppedForm: FC<Props> = ({ fields, formSteps, formData, setFormData, setC
 								key='save'
 								size='sm'
 								type='submit'
+								disabled={!canSave}
 								loading={isLoading}
 								loadingText='Saving'>
 								{saveText || 'Save'}

@@ -34,7 +34,8 @@ import {
 	ViewServerModal,
 	useGetConfigQuery,
 } from '../../../..';
-import { pagePath, projectHref, writePath } from '../../../../config/lib/constants/panel';
+import { editPath, pagePath, projectHref, writePath } from '../../../../config/lib/constants/panel';
+import { stepsOf } from '../../../../create-page/steps/formSteps';
 import { meets } from '../../../../functions/fieldLocks';
 import AddRelatedDialog from './AddRelatedDialog';
 import { useDownloadPdf } from '../../../../pdf/DownloadPdf';
@@ -183,6 +184,16 @@ const TableMenu: FC<TableMenuProps> = ({
 		if (item?.getValue) {
 			data = item?.getValue(doc);
 		}
+
+		// A form in pages edits on its own page (docs/multi-page-forms D10).
+		if (item.type === 'edit-server-modal' && stepsOf(schemaData))
+			return (
+				<MenuItem
+					key={i}
+					href={editPath(path, id)}>
+					{item?.title}
+				</MenuItem>
+			);
 
 		if (DIALOG_TYPES.has(item.type)) {
 			return (

@@ -2,6 +2,7 @@
 
 import PublishControls, { PublishBadge, nextScheduled } from '@/components/library/components/view/record/PublishControls';
 import React, { ReactNode, useEffect, useState } from 'react';
+import NextLink from 'next/link';
 import { Column, CreateModal, ViewTabTable, HistoryTimeline, Layout } from '@/components/library';
 import { ConsoleTabs, PageHeader } from '@/components/library/cl';
 import { Badge, Button, FlexProps, Tabs } from '@chakra-ui/react';
@@ -55,7 +56,7 @@ export type RecordViewProps = {
  */
 const RecordView = ({ slug, id, tabs: ownTabs = [], title, badge, meta, actions, noEdit, children }: RecordViewProps) => {
 	const rv = useRecordView({ slug, id });
-	const { name, code, recordTitle, routeTitle, single, drafts, tabs, historyTotal, editProps: modalProps, canEdit, status, updatedAt } = rv;
+	const { name, code, recordTitle, routeTitle, single, drafts, tabs, historyTotal, editProps: modalProps, canEdit, editHref, status, updatedAt } = rv;
 	// Key-value fields (backend docs/key-values) get a tab each, after the page's own, with their own Edit;
 	// Overview leaves them out.
 	const kvFields = keyValueFieldsOf(rv.schema);
@@ -178,7 +179,18 @@ const RecordView = ({ slug, id, tabs: ownTabs = [], title, badge, meta, actions,
 								route={slug}
 								id={id}
 							/>
-							{canEdit && !noEdit && (
+							{canEdit && !noEdit && editHref && (
+								<Button
+									asChild
+									size='sm'
+									variant='outline'>
+									<NextLink href={editHref}>
+										<Pencil size={14} />
+										Edit
+									</NextLink>
+								</Button>
+							)}
+							{canEdit && !noEdit && !editHref && (
 								<CreateModal {...modalProps}>
 									<Button
 										size='sm'

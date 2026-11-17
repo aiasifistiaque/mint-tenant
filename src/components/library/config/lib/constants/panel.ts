@@ -165,6 +165,13 @@ export const createPath = (route = ''): string => {
 	return IS_TENANT_PANEL ? projectHref(`/t/${r}/create`) : `/${r}/create`;
 };
 
+/**
+ * A record's edit page — /<project>/<route>/edit/<id> (served by app/t/[slug]/edit/[id]); where Edit goes when
+ * the form is in pages (backend docs/multi-page-forms D10). `from: 'view'` returns to the record's page on save.
+ */
+export const editPath = (route = '', id = '', from?: 'view'): string =>
+	`${pagePath(route)}/edit/${encodeURIComponent(id)}${from ? `?from=${from}` : ''}`;
+
 /** A model's "add multiple records" page (MultipleEntryPage): /<route>/multiple, in a project /<project>/<route>/multiple. */
 export const multiplePath = (route = ''): string => {
 	const r = String(route).replace(/^\/+/, '');
