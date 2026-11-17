@@ -7,7 +7,7 @@ import {
 	FormDivisionAccordion,
 	FormItemAccordion,
 } from '../../..';
-import { Accordion, Text } from '@chakra-ui/react';
+import { Accordion, Grid, Text } from '@chakra-ui/react';
 import { hiddenFormFields } from '../../../functions/formRules';
 import { withFormulaValues } from '../../../functions/formula';
 import { useLinkedFormulaValues } from './LinkedFormulaValues';
@@ -24,6 +24,14 @@ type FormMainType = {
 	setFormData: any;
 	setChangedData: any;
 	isModal?: boolean;
+	/**
+	 * Form in pages (docs/multi-page-forms): draw only the sections this says yes to (by
+	 * the section's first field, which carries its `step`). Every field still counts for
+	 * formulas, autofill and conditions — only the drawing is limited.
+	 */
+	showSection?: (first: any) => boolean;
+	/** Put sections marked `side` in a column on the right (wide screens). */
+	sideColumn?: boolean;
 };
 
 const FormMain: FC<FormMainType> = ({
@@ -32,6 +40,8 @@ const FormMain: FC<FormMainType> = ({
 	setFormData,
 	setChangedData,
 	isModal = false,
+	showSection,
+	sideColumn = false,
 }) => {
 	// Read-only autofills (fillFrom.readonly) are drawn as a muted copy of what they follow; the field keeps its own kind.
 	const fields = useMemo(() => lockedFills(rawFields), [rawFields]);
@@ -135,31 +145,21 @@ const FormMain: FC<FormMainType> = ({
 			!item?.name || !(item?.isRequired || requiredNow(item)) || hidden.has(item.name) || (item?.renderCondition && !item.renderCondition(formData)) || !blank(formData?.[item.name])
 	);
 
-	return (
-		<>
-		{linkedReaders}
-		{/* Fields filled from a linked record when it's picked (settings fillFrom). */}
-		<LinkedFiller
-			fields={fields}
-			formData={formData}
-			setFormData={setFormData}
-			setChangedData={setChangedData}
-		/>
-		<TaxNote
-			fields={fields}
-			formData={formData}
-		/>
-		<DiscountNote
-			fields={fields}
-			formData={formData}
-		/>
+	// Which sections this form draws, and where (a stepped page's side column).
+	const drawn = sections.map((section: any, i: number) => ({ section, i })).filter(({ section }) => !showSection || showSection(section?.[0]));
+	const side = sideColumn ? drawn.filter(({ section }) => section?.[0]?.side) : [];
+	const main = side.length ? drawn.filter(({ section }) => !section?.[0]?.side) : drawn;
+	const renderSections = (list: { section: any[]; i: number }[]) => (
 		<Accordion.Root
+			// A form in pages draws other sections on the next page: start them open too.
+			key={list.map(({ i }) => i).join(',')}
 			display='flex'
 			flexDirection='column'
 			gap={isModal ? 0 : 4}
+			minW={0}
 			multiple
-			defaultValue={sections.map((_, i) => String(i))}>
-			{sections.map((section: any, i: number) => {
+			defaultValue={list.map(({ i }) => String(i))}>
+			{list.map(({ section, i }) => {
 				// Every field hidden — by its own condition or its section's (form[].showIf,
 				// set on each field as renderIf) — hides the section, heading and all.
 				const isHidden = (item: any) => hidden.has(item?.name) || (item?.renderCondition && !item?.renderCondition(formData));
@@ -201,6 +201,37 @@ const FormMain: FC<FormMainType> = ({
 				);
 			})}
 		</Accordion.Root>
+	);
+
+	return (
+		<>
+		{linkedReaders}
+		{/* Fields filled from a linked record when it's picked (settings fillFrom). */}
+		<LinkedFiller
+			fields={fields}
+			formData={formData}
+			setFormData={setFormData}
+			setChangedData={setChangedData}
+		/>
+		<TaxNote
+			fields={fields}
+			formData={formData}
+		/>
+		<DiscountNote
+			fields={fields}
+			formData={formData}
+		/>
+		{side.length ? (
+			<Grid
+				templateColumns={{ base: '1fr', lg: 'minmax(0, 1fr) 320px' }}
+				gap={4}
+				alignItems='start'>
+				{renderSections(main)}
+				{renderSections(side)}
+			</Grid>
+		) : (
+			renderSections(main)
+		)}
 		{/* What saving will also change in the records this form picks. */}
 		<LinkedPreview
 			fields={fields}

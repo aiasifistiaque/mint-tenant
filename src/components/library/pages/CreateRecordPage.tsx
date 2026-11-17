@@ -15,6 +15,9 @@ import { HOME, pagePath } from '../config/lib/constants/panel';
 import { recalledTable } from './tableOrigin';
 import { singularOf } from '../modals/CreateModal/CreateModal';
 import { GuidelinesDialog, GuidelinesLink } from '../components/guidelines/Guidelines';
+import SteppedForm from '../create-page/steps/SteppedForm';
+import { FormStepsConfig, stepsOf } from '../create-page/steps/formSteps';
+import { withoutHidden } from '../functions/formRules';
 
 /**
  * A table's "Add" button set to open a page (route builder → Table page →
@@ -53,7 +56,7 @@ const filledValues = (fields: any[]) => {
 	return out;
 };
 
-const CreateForm: FC<{ route: string; fields: any[]; table: any }> = ({ route, fields, table }) => {
+const CreateForm: FC<{ route: string; fields: any[]; table: any; formSteps?: FormStepsConfig }> = ({ route, fields, table, formSteps }) => {
 	const router = useRouter();
 	const [formData, setFormData] = useFormData<any>(fields);
 	const [, setChangedData] = useState({});
@@ -74,17 +77,39 @@ const CreateForm: FC<{ route: string; fields: any[]; table: any }> = ({ route, f
 		if (isSuccess) router.replace(recalledTable(route) || back);
 	}, [isSuccess]);
 
-	const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
+	const save = () => {
 		const body = { ...formData };
 		fields.forEach((f: any) => f?.isExcluded && delete body[f.name]);
-		post({ path: route, body, invalidate: table?.invalidate } as any);
+		// Fields hidden by their conditions aren't sent (the server drops them too).
+		post({ path: route, body: formSteps ? withoutHidden(body, fields, formData) : body, invalidate: table?.invalidate } as any);
+	};
+
+	const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		save();
 	};
 
 	// Enter in a text box shouldn't save half a form.
 	const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
 		if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') e.preventDefault();
 	};
+
+	// Form in pages (docs/multi-page-forms): the stepper, one page at a time, saved once at the end.
+	if (formSteps)
+		return (
+			<SteppedForm
+				mode='create'
+				fields={fields}
+				formSteps={formSteps}
+				formData={formData}
+				setFormData={setFormData}
+				setChangedData={setChangedData}
+				isLoading={isLoading}
+				saveText={table?.button?.prompt?.btnText}
+				cancelHref={back}
+				onSave={save}
+			/>
+		);
 
 	return (
 		<form
@@ -146,6 +171,7 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 	const { data: config, isLoading: configLoading, isError } = useGetConfigQuery(route);
 	const loading = tableLoading || configLoading;
 	const fields: any[] | undefined = Array.isArray(config?.form) ? config.form : undefined;
+	const formSteps = stepsOf(config);
 
 	const [showGuidelines, setShowGuidelines] = useState(false);
 	const tableTitle = table?.title || route;
@@ -159,7 +185,8 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 			path={route}>
 			<Box
 				w='full'
-				maxW='760px'
+				// A form in pages has a side column (Status, Cover image…) beside its sections.
+				maxW={formSteps ? '1180px' : '760px'}
 				mx='auto'>
 				<Flex
 					direction='column'
@@ -227,6 +254,7 @@ const CreateRecordPage: FC<Props> = ({ route, frame: Wrap = Layout as Frame }) =
 							route={route}
 							fields={fields}
 							table={table}
+							formSteps={formSteps}
 						/>
 					)}
 				</Flex>
