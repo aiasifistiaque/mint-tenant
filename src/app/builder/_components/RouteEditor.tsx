@@ -43,6 +43,7 @@ import ValueDisplayPanel from './ValueDisplayPanel';
 import PickerFiltersPanel from './PickerFiltersPanel';
 import ViewSectionRulesPanel, { viewSectionProblems } from './ViewSectionRulesPanel';
 import SectionsEditor from './SectionsEditor';
+import FormStepsPanel, { formStepsProblems } from './FormStepsPanel';
 import PublishDialog from './PublishDialog';
 import LinkedRelationshipsPanel, { linkedProblems } from './LinkedRelationshipsPanel';
 import PagePreview, { PreviewField, PreviewTab } from './PagePreview';
@@ -317,6 +318,12 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 			setEditingUid(Object.keys(errors)[0]);
 			return false;
 		}
+		const sp = formStepsProblems(working.rest.formSteps);
+		if (sp.length) {
+			goTo('form');
+			toaster.create({ title: 'The form’s pages are incomplete', description: sp.join(' · '), type: 'error' });
+			return false;
+		}
 		const fp = [...formRuleProblems(working.rest.formRules, ruleFields), ...sectionRuleProblems(working.rest.form, ruleFields)];
 		if (fp.length) {
 			goTo('form');
@@ -507,7 +514,9 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 								`${formSections.length} ${formSections.length === 1 ? 'section' : 'sections'} · ${countFields(formSections)} fields${
 									Object.keys(working.rest.formRules || {}).length ? ` · ${Object.keys(working.rest.formRules).length} shown only when needed` : ''
 								}`,
-								formSections.map(s => s.sectionTitle || 'Untitled').join(', '),
+								working.rest.formSteps?.enabled && working.rest.formSteps.steps?.length
+									? `In ${working.rest.formSteps.steps.length} pages: ${working.rest.formSteps.steps.map((s: any) => s.title).join(' → ')}`
+									: formSections.map(s => s.sectionTitle || 'Untitled').join(', '),
 						  ]
 						: [isGeneric ? 'No form sections' : 'Part of the table config']
 				}
@@ -1161,6 +1170,18 @@ export const RouteEditorView: FC<{ route: string; data: any }> = ({ route, data 
 							direction='column'
 							gap={5}>
 						<AreaIntro area='form' onPreview={isGeneric ? () => openPreview('form') : undefined} />
+							{isGeneric && (
+								<FormStepsPanel
+									value={working.rest.formSteps}
+									form={formSections}
+									opensAsPage={pageConfig?.button?.path !== undefined}
+									onOpenAsPage={() => {
+										const { isModal: _m, ...button } = pageConfig?.button || DEFAULT_ADD_BUTTON;
+										setRouteConfig({ button: { ...button, path: `/${route}/create` } });
+									}}
+									onChange={patch => setRest(patch)}
+								/>
+							)}
 							{formPanel}
 							{rulesPanel}
 							{hasSettings && (
