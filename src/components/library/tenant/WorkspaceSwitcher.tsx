@@ -61,6 +61,9 @@ const WorkspaceSwitcher: FC = () => {
 	// Everything else, by the search; an organization with nothing left is dropped while searching.
 	const shown = groups.map(g => ({ ...g, list: g.projects.filter(p => !pinnedIds.has(p._id) && byName(p)) })).filter(g => !needle || g.list.length);
 
+	// Desktop menu: the same search, every organization's projects filtered by name.
+	const menuGroups = groups.map(g => ({ ...g, list: g.projects.filter(byName) })).filter(g => !needle || g.list.length);
+
 	const row = (key: string, icon: ReactNode, label: ReactNode, onPick?: () => void, href?: string, on?: boolean) => {
 		const inner = (
 			<Flex align='center' gap={3} px={3} h='46px' borderRadius='md' _active={{ bg: 'bg.muted' }}>
@@ -156,7 +159,7 @@ const WorkspaceSwitcher: FC = () => {
 				</Drawer.Positioner>
 			</Portal>
 		</Drawer.Root>
-		<Menu.Root positioning={{ placement: 'bottom-end', gutter: 8 }}>
+		<Menu.Root positioning={{ placement: 'bottom-end', gutter: 8 }} onOpenChange={d => { if (!d.open) setFind(''); }}>
 			<Menu.Trigger asChild>
 				<Flex
 					as='button'
