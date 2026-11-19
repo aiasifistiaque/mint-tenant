@@ -226,7 +226,35 @@ const WorkspaceSwitcher: FC = () => {
 				overflowY='auto'
 				boxShadow={undefined}>
 				<MenuItemStyle compact>
-					{groups.map((g, i) => (
+					<Flex
+						align='center'
+						gap={2}
+						mb={1}
+						px={2}
+						h='32px'
+						borderWidth='1px'
+						borderColor='border'
+						borderRadius='md'
+						color='fg.muted'
+						onKeyDown={e => { if (e.key !== 'Escape') e.stopPropagation(); }}>
+						<Search size={14} />
+						<Input
+							ref={el => { if (el) setTimeout(() => el.focus(), 0); }}
+							size='xs'
+							variant='flushed'
+							border='none'
+							h='full'
+							px={0}
+							color='fg'
+							fontSize='13px'
+							css={{ '--focus-color': 'transparent' }}
+							aria-label='Search projects'
+							placeholder='Search projects'
+							value={find}
+							onChange={e => setFind(e.target.value)}
+						/>
+					</Flex>
+					{menuGroups.map((g, i) => (
 						<Box key={g._id}>
 							{i > 0 && <Menu.Separator {...separatorCss} />}
 							<Flex
@@ -279,6 +307,9 @@ const WorkspaceSwitcher: FC = () => {
 							)}
 						</Box>
 					))}
+					{needle && !menuGroups.length && (
+						<Text px={2} py={1.5} fontSize='12.5px' color='fg.muted'>No match</Text>
+					)}
 					<Menu.Separator {...separatorCss} />
 					<CustomMenuItem
 						value='all-projects'
