@@ -28,11 +28,12 @@ const WorkspaceSwitcher: FC = () => {
 	const { open } = useOpenAnyProject();
 	const [sheet, setSheet] = useState(false);
 	const [find, setFind] = useState('');
+	const [menuOpen, setMenuOpen] = useState(false);
 	useEffect(() => {
 		if (!sheet) setFind('');
 	}, [sheet]);
 	// Pins are this account's, on the open organization's projects (the projects list carries them).
-	const { data: listed } = useGetProjectsQuery(undefined, { skip: !sheet });
+	const { data: listed } = useGetProjectsQuery(undefined, { skip: !sheet && !menuOpen });
 
 	if (!organization) return null;
 
@@ -62,7 +63,7 @@ const WorkspaceSwitcher: FC = () => {
 	const shown = groups.map(g => ({ ...g, list: g.projects.filter(p => !pinnedIds.has(p._id) && byName(p)) })).filter(g => !needle || g.list.length);
 
 	// Desktop menu: the same search, every organization's projects filtered by name.
-	const menuGroups = groups.map(g => ({ ...g, list: g.projects.filter(byName) })).filter(g => !needle || g.list.length);
+	const menuGroups = shown;
 
 	const row = (key: string, icon: ReactNode, label: ReactNode, onPick?: () => void, href?: string, on?: boolean) => {
 		const inner = (
@@ -159,7 +160,7 @@ const WorkspaceSwitcher: FC = () => {
 				</Drawer.Positioner>
 			</Portal>
 		</Drawer.Root>
-		<Menu.Root positioning={{ placement: 'bottom-end', gutter: 8 }} onOpenChange={d => { if (!d.open) setFind(''); }}>
+		<Menu.Root positioning={{ placement: 'bottom-end', gutter: 8 }} onOpenChange={d => { setMenuOpen(d.open); if (!d.open) setFind(''); }}>
 			<Menu.Trigger asChild>
 				<Flex
 					as='button'
@@ -226,10 +227,10 @@ const WorkspaceSwitcher: FC = () => {
 				overflowY='auto'
 				boxShadow={undefined}>
 				<MenuItemStyle compact>
+					<Box position='sticky' top='-6px' zIndex={1} mx='-6px' mt='-6px' px='6px' pt='6px' pb='6px' bg={{ base: 'menu.light', _dark: 'menu.dark' }}>
 					<Flex
 						align='center'
 						gap={2}
-						mb={1}
 						px={2}
 						h='32px'
 						borderWidth='1px'
@@ -254,9 +255,27 @@ const WorkspaceSwitcher: FC = () => {
 							onChange={e => setFind(e.target.value)}
 						/>
 					</Flex>
+					</Box>
+					{!!pinnedHere.length && (
+						<Box>
+							<Text {...groupCss}>Pinned</Text>
+							{pinnedHere.map(p => (
+								<CustomMenuItem
+									key={`pin-${p._id}`}
+									value={`pin-${p._id}`}
+									icon={<Pin size={15} />}
+									onClick={() => p._id !== project?._id && open(organization._id, p.publicSlug)}>
+									<Flex flex={1} align='center' justify='space-between' gap={2} minW={0}>
+										<Text truncate>{p.name}</Text>
+										{p._id === project?._id && <Check size={14} />}
+									</Flex>
+								</CustomMenuItem>
+							))}
+						</Box>
+					)}
 					{menuGroups.map((g, i) => (
 						<Box key={g._id}>
-							{i > 0 && <Menu.Separator {...separatorCss} />}
+							{(i > 0 || !!pinnedHere.length) && <Menu.Separator {...separatorCss} />}
 							<Flex
 								align='baseline'
 								justify='space-between'
@@ -278,8 +297,8 @@ const WorkspaceSwitcher: FC = () => {
 									</Text>
 								)}
 							</Flex>
-							{g.projects.length ? (
-								g.projects.map(p => (
+							{g.list.length ? (
+								g.list.map(p => (
 									<CustomMenuItem
 										key={p._id}
 										value={`project-${p._id}`}
