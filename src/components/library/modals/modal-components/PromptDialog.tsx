@@ -1,10 +1,16 @@
 'use client';
 
 import { FC, ReactNode, useEffect, useRef, useState } from 'react';
-import { Box, Button, CloseButton, Dialog, Flex, Input, Portal, Text } from '@chakra-ui/react';
+import { Box, Button, Input, Text } from '@chakra-ui/react';
 import { CircleHelp, Trash2, TriangleAlert } from 'lucide-react';
 import { radius, styles } from '../../config';
-import ModalFooter from './CustomModalFooter';
+import {
+	Dialog,
+	DialogBody,
+	DialogCloseButton,
+	DialogFooter,
+	DialogHeader,
+} from '../../components/table/table-components/menu-modals';
 
 type Tone = 'danger' | 'warning' | 'default';
 
@@ -34,18 +40,20 @@ export type PromptDialogProps = {
 	children?: ReactNode;
 };
 
-const TONES: Record<Tone, { bg: string; fg: string; icon: ReactNode; palette?: string }> = {
-	danger: { bg: 'red.subtle', fg: 'red.fg', icon: <Trash2 size={18} strokeWidth={1.75} />, palette: 'red' },
-	warning: { bg: 'orange.subtle', fg: 'orange.fg', icon: <TriangleAlert size={18} strokeWidth={1.75} /> },
-	default: { bg: 'bg.muted', fg: 'fg.muted', icon: <CircleHelp size={18} strokeWidth={1.75} /> },
+const TONES: Record<Tone, { fg: string; icon: ReactNode; palette?: string }> = {
+	danger: { fg: 'red.fg', icon: <Trash2 size={17} strokeWidth={1.75} />, palette: 'red' },
+	warning: { fg: 'orange.fg', icon: <TriangleAlert size={17} strokeWidth={1.75} /> },
+	default: { fg: 'fg.muted', icon: <CircleHelp size={17} strokeWidth={1.75} /> },
 };
 
 /**
  * The one "are you sure?" dialog: delete a record, delete ticked rows, revoke
- * a key, restart an app. An icon in the tone's colour, the question, what
- * happens, the record it happens to, and Cancel / the action on the footer
- * ledge. Focus starts on Cancel, so Enter on a destructive prompt does nothing
- * you didn't choose.
+ * a key, restart an app. Built on the shared modal shell (Dialog + DialogHeader
+ * / DialogBody / DialogFooter), so it looks like every other modal — a centred
+ * dialog on a computer, a bottom sheet on a phone. The tone's icon in the
+ * header, what happens, the record it happens to, and Cancel / the action on
+ * the footer. Focus starts on Cancel, so Enter on a destructive prompt does
+ * nothing you didn't choose.
  */
 const PromptDialog: FC<PromptDialogProps> = ({
 	open,
@@ -76,163 +84,112 @@ const PromptDialog: FC<PromptDialogProps> = ({
 	}, [open]);
 
 	const blocked = disabled || (!!typeToConfirm && typed.trim() !== typeToConfirm);
+	const hasBody = !!(subject || children || typeToConfirm);
 
 	return (
-		<Dialog.Root
-			lazyMount
-			unmountOnExit
-			role='alertdialog'
-			placement='center'
+		<Dialog
+			isOpen={open}
+			onClose={() => !loading && onClose()}
 			size={size}
-			open={open}
-			initialFocusEl={() => cancelRef.current}
-			onOpenChange={e => !e.open && !loading && onClose()}>
-			<Portal>
-				<Dialog.Backdrop
-					_light={{ bg: styles.color.MODAL_OVERLAY.LIGHT }}
-					_dark={{ bg: styles.color.MODAL_OVERLAY.DARK }}
-				/>
-				<Dialog.Positioner px={4}>
-					<Dialog.Content
-						{...(styles.MODAL as any)}
-						borderRadius={radius.MODAL}
-						onClick={(e: any) => e.stopPropagation()}>
-						<Dialog.CloseTrigger
-							asChild
-							top={3}
-							insetEnd={3}>
-							<CloseButton
-								size='sm'
-								borderRadius='full'
-								color='fg.muted'
-								_hover={{ bg: 'bg.muted', color: 'fg' }}
-							/>
-						</Dialog.CloseTrigger>
-
-						<Dialog.Body
-							px={{ base: 5, md: 6 }}
-							pt={{ base: 5, md: 6 }}
-							pb={{ base: 5, md: 6 }}>
-							<Flex
-								gap={4}
-								align='flex-start'
-								direction={{ base: 'column', sm: 'row' }}>
-								<Flex
-									flexShrink={0}
-									w='40px'
-									h='40px'
-									align='center'
-									justify='center'
-									borderRadius='full'
-									bg={t.bg}
-									color={t.fg}>
-									{icon || t.icon}
-								</Flex>
-
-								<Flex
-									direction='column'
-									gap={3}
-									flex={1}
-									minW={0}>
-									<Box pr={6}>
-										<Dialog.Title
-											fontSize='16px'
-											fontWeight='600'
-											letterSpacing='-0.01em'
-											lineHeight='1.4'>
-											{title}
-										</Dialog.Title>
-										{description && (
-											<Dialog.Description
-												mt={1}
-												fontSize='13px'
-												lineHeight='1.55'
-												color='fg.muted'>
-												{description}
-											</Dialog.Description>
-										)}
-									</Box>
-
-									{subject && (
-										<Box
-											px={3}
-											py={2}
-											borderWidth='1px'
-											borderColor='border'
-											borderRadius='md'
-											bg='bg.subtle'
-											fontSize='13px'
-											fontWeight='500'
-											wordBreak='break-word'>
-											{subject}
-										</Box>
-									)}
-
-									{children}
-
-									{typeToConfirm && (
-										<Box>
-											<Text
-												fontSize='13px'
-												mb={1.5}>
-												Type{' '}
-												<Text
-													as='span'
-													fontWeight='600'
-													fontFamily='mono'>
-													{typeToConfirm}
-												</Text>{' '}
-												to confirm.
-											</Text>
-											<Input
-												size='sm'
-												value={typed}
-												autoComplete='off'
-												placeholder={typeToConfirm}
-												borderRadius={radius.INPUT}
-												onChange={e => setTyped(e.target.value)}
-												onKeyDown={e => e.key === 'Enter' && !blocked && !loading && onConfirm()}
-											/>
-										</Box>
-									)}
-								</Flex>
-							</Flex>
-						</Dialog.Body>
-
-						<ModalFooter>
-							{aside && (
-								<Box
-									mr='auto'
-									fontSize='xs'
-									color='fg.muted'>
-									{aside}
-								</Box>
-							)}
-							<Button
-								ref={cancelRef}
-								size='sm'
+			forceModal
+			role='alertdialog'
+			initialFocusEl={() => cancelRef.current}>
+			<DialogHeader
+				icon={
+					<Box
+						as='span'
+						display='flex'
+						color={t.fg}>
+						{icon || t.icon}
+					</Box>
+				}
+				description={description}>
+				{title}
+			</DialogHeader>
+			<DialogCloseButton />
+			{hasBody && (
+				<DialogBody>
+					<Box
+						display='flex'
+						flexDirection='column'
+						gap={3}>
+						{subject && (
+							<Box
 								px={3}
-								variant='outline'
-								disabled={loading}
-								onClick={onClose}>
-								{cancelLabel}
-							</Button>
-							<Button
-								size='sm'
-								px={3}
-								colorPalette={t.palette}
-								loading={loading}
-								loadingText={loadingText}
-								spinnerPlacement='start'
-								disabled={blocked}
-								onClick={onConfirm}>
-								{confirmLabel}
-							</Button>
-						</ModalFooter>
-					</Dialog.Content>
-				</Dialog.Positioner>
-			</Portal>
-		</Dialog.Root>
+								py={2}
+								borderWidth='1px'
+								borderColor='border'
+								borderRadius='md'
+								bg='bg.subtle'
+								fontSize='13px'
+								fontWeight='500'
+								wordBreak='break-word'>
+								{subject}
+							</Box>
+						)}
+
+						{children}
+
+						{typeToConfirm && (
+							<Box>
+								<Text
+									fontSize='13px'
+									mb={1.5}>
+									Type{' '}
+									<Text
+										as='span'
+										fontWeight='600'
+										fontFamily='mono'>
+										{typeToConfirm}
+									</Text>{' '}
+									to confirm.
+								</Text>
+								<Input
+									size='sm'
+									value={typed}
+									autoComplete='off'
+									placeholder={typeToConfirm}
+									borderRadius={radius.INPUT}
+									onChange={e => setTyped(e.target.value)}
+									onKeyDown={e => e.key === 'Enter' && !blocked && !loading && onConfirm()}
+								/>
+							</Box>
+						)}
+					</Box>
+				</DialogBody>
+			)}
+
+			<DialogFooter>
+				{aside && (
+					<Box
+						mr='auto'
+						fontSize='xs'
+						color='fg.muted'>
+						{aside}
+					</Box>
+				)}
+				{/* DiscardButton's look; a plain Button so focus can start here. */}
+				<Button
+					ref={cancelRef}
+					variant='outline'
+					{...(styles.MODAL_BUTTON as any)}
+					borderRadius={radius.BUTTON}
+					disabled={loading}
+					onClick={onClose}>
+					{cancelLabel}
+				</Button>
+				<Button
+					{...(styles.MODAL_BUTTON as any)}
+					colorPalette={t.palette}
+					loading={loading}
+					loadingText={loadingText}
+					spinnerPlacement='start'
+					disabled={blocked}
+					onClick={onConfirm}>
+					{confirmLabel}
+				</Button>
+			</DialogFooter>
+		</Dialog>
 	);
 };
 

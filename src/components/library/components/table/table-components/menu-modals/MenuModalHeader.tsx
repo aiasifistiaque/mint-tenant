@@ -69,7 +69,9 @@ const MenuModalHeader: FC<MenuModalHeaderProps> = ({ children, description, icon
 	return (
 		<Part.Header
 			{...headerCss}
-			{...(divider && layout !== 'drawer' && { borderBottomWidth: '1px', borderColor: 'border.muted' })}
+			// Every modal: a hairline under the header (a drawer's body draws its own),
+			// then the body's own top padding. `divider` is kept for old callers.
+			{...(layout !== 'drawer' && { borderBottomWidth: '1px', borderColor: 'border.muted' })}
 			// Clear of the close button.
 			pr={{ base: 12, md: 14 }}
 			w='full'
