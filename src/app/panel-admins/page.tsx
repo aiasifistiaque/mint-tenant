@@ -2,9 +2,11 @@
 
 import { FC, useState } from 'react';
 import { Badge, Box, Button, Flex, IconButton, Input, Link, Menu, Portal, Skeleton, Text } from '@chakra-ui/react';
+import NextLink from 'next/link';
 import { Ellipsis, ExternalLink, Plus, UserCog } from 'lucide-react';
 import { Layout, PromptDialog } from '@/components/library';
-import { EmptyState, Panel } from '@/components/library/cl';
+import { Dropdown, EmptyState, Panel } from '@/components/library/cl';
+import { projectHref } from '@/components/library/config/lib/constants/panel';
 import { useWorkspace } from '@/components/library/tenant';
 import { toaster } from '@/components/ui/toaster';
 import {
@@ -16,7 +18,12 @@ import {
 import type { PanelAdmin } from '@/components/library/store/services/tenantApi';
 
 /**
- * An e-commerce project's store logins (Project → Panel admins; backend
+ * A project's panel logins (Project → Panel admins / Panel users; backend
+ * docs/panel-users PU-03). A store's (below) sign in to the commerce panel; every
+ * other project's sign in to the panel app (panel.tcrypt.site) with a panel role
+ * (Project → Panel roles) or as a super admin, who can make roles and logins there.
+ *
+ * Before: an e-commerce project's store logins (Project → Panel admins; backend
  * docs/commerce-panel CP-03): the people who run the store sign in to the
  * commerce panel with an email and a password made here. They work with the
  * store's records, couriers and email accounts — never its models, settings or
@@ -26,6 +33,12 @@ import type { PanelAdmin } from '@/components/library/store/services/tenantApi';
  */
 
 const COMMERCE_URL = (process.env.NEXT_PUBLIC_COMMERCE_URL || 'https://commerce.mintapp.site').replace(/\/+$/, '');
+const PANEL_URL = (process.env.NEXT_PUBLIC_PANEL_URL || 'https://panel.tcrypt.site').replace(/\/+$/, '');
+
+/** The access dropdown's value: a role id, SUPER, or '' (a store's own fixed access). */
+const SUPER = '__super';
+const accessOf = (a: { role?: string | null; superAdmin?: boolean }) => (a.superAdmin ? SUPER : a.role || '');
+const accessBody = (v: string) => (v === SUPER ? { superAdmin: true, role: null } : { superAdmin: false, role: v || null });
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never');
 
@@ -49,7 +62,7 @@ const Field: FC<{ label: string; children: React.ReactNode; hint?: string }> = (
 	</Box>
 );
 
-const Row: FC<{ admin: PanelAdmin; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, onPassword, onToggle, onRemove }) => (
+const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, onAccess, onPassword, onToggle, onRemove }) => (
 	<Flex
 		data-testid='panel-admin'
 		align='center'
@@ -82,6 +95,13 @@ const Row: FC<{ admin: PanelAdmin; onPassword: () => void; onToggle: () => void;
 					fontWeight='600'>
 					{a.name}
 				</Text>
+				{access && (
+					<Badge
+						size='sm'
+						colorPalette={a.superAdmin ? 'purple' : 'blue'}>
+						{access}
+					</Badge>
+				)}
 				{!a.isActive && (
 					<Badge
 						size='sm'
@@ -121,6 +141,11 @@ const Row: FC<{ admin: PanelAdmin; onPassword: () => void; onToggle: () => void;
 				<Menu.Positioner>
 					<Menu.Content minW='180px'>
 						<Menu.Item
+							value='access'
+							onClick={onAccess}>
+							Change role
+						</Menu.Item>
+						<Menu.Item
 							value='password'
 							onClick={onPassword}>
 							Set a new password
@@ -143,9 +168,18 @@ const Row: FC<{ admin: PanelAdmin; onPassword: () => void; onToggle: () => void;
 	</Flex>
 );
 
-const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, projectName }) => {
+const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[]; projectName: string; store: boolean }> = ({ admins, roles, projectName, store }) => {
+	const appUrl = store ? COMMERCE_URL : PANEL_URL;
+	const choices = [
+		...(store ? [{ value: '', label: 'Store admin — the store’s orders, products, POS, couriers' }] : []),
+		{ value: SUPER, label: 'Super admin — every table and report, and makes panel users' },
+		...roles.map(r => ({ value: r._id, label: r.name })),
+	];
+	const label = (a: PanelAdmin) => (a.superAdmin ? 'Super admin' : roles.find(r => r._id === a.role)?.name || (store ? '' : 'No role'));
+	const [accessFor, setAccessFor] = useState<PanelAdmin | null>(null);
+	const [access, setAccess] = useState('');
 	const [adding, setAdding] = useState(false);
-	const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+	const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', access: '' });
 	const [pwFor, setPwFor] = useState<PanelAdmin | null>(null);
 	const [pw, setPw] = useState('');
 	const [removingOne, setRemovingOne] = useState<PanelAdmin | null>(null);
@@ -158,17 +192,29 @@ const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, pro
 	return (
 		<Panel
 			id='panel-admins'
-			title='Store logins'
-			subtitle={`The people who run ${projectName || 'the store'} sign in to the commerce panel with these — orders, products, POS, couriers and email, no building or settings`}
+			title={store ? 'Store logins' : 'Panel users'}
+			subtitle={
+				store
+					? `The people who run ${projectName || 'the store'} sign in to the commerce panel with these — orders, products, POS, couriers and email, no building or settings`
+					: `The people who work in ${projectName || 'the project'} sign in to the panel app with these — the tables and reports their role allows, never building or settings`
+			}
 			actions={
-				<Button
-					size='sm'
-					onClick={() => {
-						setForm({ name: '', email: '', password: '', phone: '' });
-						setAdding(true);
-					}}>
-					<Plus size={14} /> Add a login
-				</Button>
+				<Flex gap={2}>
+					<Button
+						asChild
+						size='sm'
+						variant='outline'>
+						<NextLink href={projectHref('/panel-roles')}>Panel roles</NextLink>
+					</Button>
+					<Button
+						size='sm'
+						onClick={() => {
+							setForm({ name: '', email: '', password: '', phone: '', access: store ? '' : roles[0]?._id || SUPER });
+							setAdding(true);
+						}}>
+						<Plus size={14} /> Add a login
+					</Button>
+				</Flex>
 			}>
 			<Flex
 				direction='column'
@@ -177,13 +223,18 @@ const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, pro
 					<Text
 						fontSize='13px'
 						color='fg.muted'>
-						No logins yet. Add one with an email and a password, then share the commerce panel’s address with them.
+						{`No logins yet. Add one with an email and a password${store ? '' : ' and a role'}, then share the ${store ? 'commerce panel’s' : 'panel app’s'} address with them.`}
 					</Text>
 				) : (
 					admins.map(a => (
 						<Row
 							key={a._id}
 							admin={a}
+							access={label(a)}
+							onAccess={() => {
+								setAccess(accessOf(a));
+								setAccessFor(a);
+							}}
 							onPassword={() => {
 								setPw('');
 								setPwFor(a);
@@ -208,12 +259,12 @@ const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, pro
 					pt={2}>
 					They sign in at
 					<Link
-						href={`${COMMERCE_URL}/auth/login`}
+						href={`${appUrl}/auth/login`}
 						target='_blank'
 						rel='noreferrer'
 						color='fg'
 						fontWeight='500'>
-						{COMMERCE_URL.replace(/^https?:\/\//, '')} <ExternalLink size={12} />
+						{appUrl.replace(/^https?:\/\//, '')} <ExternalLink size={12} />
 					</Link>
 				</Flex>
 			</Flex>
@@ -221,13 +272,13 @@ const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, pro
 			<PromptDialog
 				open={adding}
 				onClose={() => setAdding(false)}
-				title='Add a store login'
-				description='One email opens one store. You can set a new password for them here later.'
+				title={store ? 'Add a store login' : 'Add a panel user'}
+				description={`One email opens one ${store ? 'store' : 'project'}. You can set a new password for them here later.`}
 				confirmLabel='Add'
 				loading={added.isLoading}
 				onConfirm={async () => {
 					try {
-						await add({ name: form.name.trim(), email: form.email.trim(), password: form.password, phone: form.phone.trim() || undefined }).unwrap();
+						await add({ name: form.name.trim(), email: form.email.trim(), password: form.password, phone: form.phone.trim() || undefined, ...accessBody(form.access) }).unwrap();
 						setAdding(false);
 						toaster.create({ type: 'success', title: 'Login added.' });
 					} catch (e) {
@@ -265,6 +316,44 @@ const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, pro
 						size='sm'
 						value={form.phone}
 						onChange={e => setForm({ ...form, phone: e.target.value })}
+					/>
+				</Field>
+				<Field
+					label='Role'
+					hint={roles.length ? undefined : 'No panel roles yet — make one under Panel roles, or add a super admin.'}>
+					<Dropdown
+						size='sm'
+						value={form.access}
+						onChange={v => setForm({ ...form, access: v })}
+						items={choices}
+					/>
+				</Field>
+			</PromptDialog>
+
+			<PromptDialog
+				open={!!accessFor}
+				onClose={() => setAccessFor(null)}
+				title='Change role'
+				subject={accessFor ? `${accessFor.name} — ${accessFor.email}` : undefined}
+				description='It applies from their next page — they stay signed in.'
+				confirmLabel='Save'
+				loading={updating.isLoading}
+				onConfirm={async () => {
+					if (!accessFor) return;
+					try {
+						await update({ id: accessFor._id, ...accessBody(access) }).unwrap();
+						setAccessFor(null);
+						toaster.create({ type: 'success', title: 'Role changed.' });
+					} catch (e) {
+						fail(e, 'Not changed — try again.');
+					}
+				}}>
+				<Field label='Role'>
+					<Dropdown
+						size='sm'
+						value={access}
+						onChange={setAccess}
+						items={choices}
 					/>
 				</Field>
 			</PromptDialog>
@@ -326,33 +415,33 @@ const Logins: FC<{ admins: PanelAdmin[]; projectName: string }> = ({ admins, pro
 
 export default function PanelAdminsPage() {
 	const { can, project, isLoading: loadingSelf } = useWorkspace();
-	const allowed = can('manage-projects') || can('invite-to-projects');
+	const allowed = can('manage-projects') || can('invite-to-projects') || can('manage-panel-users');
 	const store = project?.type === 'ecommerce';
-	const { data, isLoading, isError } = useGetPanelAdminsQuery(undefined, { skip: !allowed || !store });
+	const { data, isLoading, isError } = useGetPanelAdminsQuery(undefined, { skip: !allowed || !project });
 
 	return (
 		<Layout
-			title='Panel admins'
-			path='panel-admins'>
+			title={store ? 'Panel admins' : 'Panel users'}
+			path={store ? 'panel-admins' : 'panel-users'}>
 			<Flex
 				direction='column'
 				gap={4}
 				pt={2}>
 				{loadingSelf ? (
 					<Skeleton h='240px' />
-				) : !store ? (
+				) : !project ? (
 					<EmptyState
-						title='Only stores have panel admins'
-						description='Open an e-commerce project to give the people who run it their own login.'
+						title='Open a project'
+						description='Panel logins belong to a project.'
 					/>
 				) : !allowed ? (
 					<EmptyState
-						title='Store logins are made by people who manage the project'
+						title='Panel logins are made by people who manage the project'
 						description='Ask your organization’s owner or an admin.'
 					/>
 				) : isError ? (
 					<EmptyState
-						title='Store logins aren’t available yet'
+						title='Panel logins aren’t available yet'
 						description='They arrive with the next update of MINT — try again later.'
 					/>
 				) : isLoading || !data ? (
@@ -360,7 +449,9 @@ export default function PanelAdminsPage() {
 				) : (
 					<Logins
 						admins={data.doc}
+						roles={data.roles || []}
 						projectName={project?.name || ''}
+						store={store}
 					/>
 				)}
 			</Flex>

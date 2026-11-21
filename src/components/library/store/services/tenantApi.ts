@@ -542,6 +542,78 @@ export type PanelAdmin = {
 	isActive: boolean;
 	lastLoginAt: string | null;
 	createdAt: string;
+	/** Its panel role (docs/panel-users PU-01), or a super admin. A store's login may have neither. */
+	role?: string | null;
+	superAdmin?: boolean;
+};
+
+/** What a panel user may do (backend docs/panel-users PU-01). */
+export type PanelRole = { _id: string; name: string; description: string; permissions: string[]; holders: number; createdAt?: string; updatedAt?: string };
+export type PanelRoleTarget = { route: string; name: string; actions: string[] };
+export type PanelRolesView = { doc: PanelRole[]; totalDocs: number; targets: PanelRoleTarget[]; reports: { key: string; label: string; description: string }[] };
+
+/** A saved report (backend docs/panel-users RP-02). */
+export type ReportType = 'list' | 'summary' | 'timeline';
+export type ReportFormat = 'csv' | 'xlsx' | 'pdf';
+export type ReportFilter = { field: string; op: string; value: any };
+export type SavedReport = {
+	_id: string;
+	name: string;
+	description: string;
+	category: string;
+	route: string;
+	model: string;
+	type: ReportType;
+	columns: { key: string; label?: string }[];
+	sort: string;
+	totals: string[];
+	groupBy: string;
+	interval: 'day' | 'week' | 'month' | 'year';
+	sums: { field: string; label?: string }[];
+	filters: ReportFilter[];
+	dateField: string;
+	range: string;
+	exportable: boolean;
+	formats: ReportFormat[];
+	canDownload: boolean;
+	order: number;
+	updatedAt?: string;
+};
+export type ReportInput = Omit<SavedReport, '_id' | 'model' | 'canDownload' | 'updatedAt'>;
+export type ReportModelField = { key: string; label: string; kind: string; ref: string | null; date: boolean; number: boolean };
+export type ReportModel = { route: string; name: string; displayField: string; fields: ReportModelField[] };
+export type ReportRun = {
+	type: ReportType;
+	columns: { key: string; label: string; kind: string }[];
+	rows: any[][];
+	footer: any[] | null;
+	count: number;
+	truncated: boolean;
+	report: SavedReport;
+};
+export type ReportDates = { from?: string; to?: string; tz?: string };
+
+/** Saves a downloaded file under its server-given name (Content-Disposition), or `fallback`. */
+const saveBlob = async (response: Response, fallback: string) => {
+	if (!response.ok) {
+		const text = await response.text();
+		try {
+			return JSON.parse(text);
+		} catch {
+			return { message: text };
+		}
+	}
+	const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(response.headers.get('content-disposition') || '')?.[1];
+	const blob = await response.blob();
+	const url = window.URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = name ? decodeURIComponent(name) : fallback;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	window.URL.revokeObjectURL(url);
+	return { ok: true };
 };
 
 export type MailAccount = {
@@ -1341,21 +1413,71 @@ export const tenantApi = mainApi.injectEndpoints({
 			invalidatesTags: ['tenant-mail-accounts', 'history'],
 		}),
 		/* ------------------ a store's commerce panel logins (docs/commerce-panel CP-03) */
-		getPanelAdmins: builder.query<{ doc: PanelAdmin[]; totalDocs: number }, void>({
+		getPanelAdmins: builder.query<{ doc: PanelAdmin[]; totalDocs: number; roles?: { _id: string; name: string }[] }, void>({
 			query: () => 'panel-admins',
 			providesTags: ['tenant-panel-admins'],
 		}),
-		addPanelAdmin: builder.mutation<PanelAdmin, { name: string; email: string; password: string; phone?: string }>({
+		addPanelAdmin: builder.mutation<PanelAdmin, { name: string; email: string; password: string; phone?: string; role?: string | null; superAdmin?: boolean }>({
 			query: body => ({ url: 'panel-admins', method: 'POST', body }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
 		}),
-		updatePanelAdmin: builder.mutation<PanelAdmin, { id: string; name?: string; phone?: string; isActive?: boolean; password?: string }>({
+		updatePanelAdmin: builder.mutation<PanelAdmin, { id: string; name?: string; phone?: string; isActive?: boolean; password?: string; role?: string | null; superAdmin?: boolean }>({
 			query: ({ id, ...body }) => ({ url: `panel-admins/${id}`, method: 'PUT', body }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
 		}),
 		removePanelAdmin: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `panel-admins/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
+		}),
+		/* ------------------ panel users' roles (docs/panel-users PU-01) */
+		getPanelRoles: builder.query<PanelRolesView, void>({
+			query: () => 'panel-roles',
+			providesTags: ['tenant-panel-roles'],
+		}),
+		addPanelRole: builder.mutation<PanelRole, { name: string; description?: string; permissions: string[] }>({
+			query: body => ({ url: 'panel-roles', method: 'POST', body }),
+			invalidatesTags: ['tenant-panel-roles', 'tenant-panel-admins', 'history'],
+		}),
+		updatePanelRole: builder.mutation<PanelRole, { id: string; name: string; description?: string; permissions: string[] }>({
+			query: ({ id, ...body }) => ({ url: `panel-roles/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-panel-roles', 'tenant-panel-admins', 'history'],
+		}),
+		removePanelRole: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `panel-roles/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-panel-roles', 'history'],
+		}),
+		/* ------------------ reports (docs/panel-users RP-02/03) */
+		getSavedReports: builder.query<{ doc: SavedReport[]; totalDocs: number; canBuild: boolean }, void>({
+			query: () => 'saved-reports',
+			providesTags: ['tenant-reports'],
+		}),
+		getSavedReport: builder.query<SavedReport, string>({
+			query: id => `saved-reports/${id}`,
+			providesTags: ['tenant-reports'],
+		}),
+		getReportModels: builder.query<{ doc: ReportModel[] }, void>({
+			query: () => 'saved-reports/models',
+		}),
+		previewSavedReport: builder.mutation<ReportRun, ReportInput & ReportDates>({
+			query: body => ({ url: 'saved-reports/preview', method: 'POST', body }),
+		}),
+		addSavedReport: builder.mutation<SavedReport, ReportInput>({
+			query: body => ({ url: 'saved-reports', method: 'POST', body }),
+			invalidatesTags: ['tenant-reports', 'history'],
+		}),
+		updateSavedReport: builder.mutation<SavedReport, ReportInput & { id: string }>({
+			query: ({ id, ...body }) => ({ url: `saved-reports/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['tenant-reports', 'history'],
+		}),
+		removeSavedReport: builder.mutation<{ message: string }, string>({
+			query: id => ({ url: `saved-reports/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-reports', 'history'],
+		}),
+		runSavedReport: builder.mutation<ReportRun, ReportDates & { id: string }>({
+			query: ({ id, ...body }) => ({ url: `saved-reports/${id}/run`, method: 'POST', body }),
+		}),
+		exportSavedReport: builder.mutation<{ ok: true }, ReportDates & { id: string; format: ReportFormat }>({
+			query: ({ id, ...body }) => ({ url: `saved-reports/${id}/export`, method: 'POST', body, responseHandler: (r: Response) => saveBlob(r, `report.${body.format}`) }),
 		}),
 		getMailDesigns: builder.query<MailDesignsView, void>({
 			query: () => 'mail-designs',
@@ -1464,6 +1586,19 @@ export const {
 	useAddPanelAdminMutation,
 	useUpdatePanelAdminMutation,
 	useRemovePanelAdminMutation,
+	useGetPanelRolesQuery,
+	useAddPanelRoleMutation,
+	useUpdatePanelRoleMutation,
+	useRemovePanelRoleMutation,
+	useGetSavedReportsQuery,
+	useGetSavedReportQuery,
+	useGetReportModelsQuery,
+	usePreviewSavedReportMutation,
+	useAddSavedReportMutation,
+	useUpdateSavedReportMutation,
+	useRemoveSavedReportMutation,
+	useRunSavedReportMutation,
+	useExportSavedReportMutation,
 	useGetMailDesignsQuery,
 	usePreviewMailDesignMutation,
 	useAddMailDesignMutation,

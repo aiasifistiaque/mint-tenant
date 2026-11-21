@@ -34,7 +34,12 @@ const RoleDialog: FC<{
 	error?: { message: string; on?: string } | null;
 	onSave: (r: ProjectRoleInput) => void;
 	onEdit: () => void;
-}> = ({ open, onClose, role, targets, saving, error, onSave, onEdit }) => {
+	/** Keys of their own under the grid — a panel role's report keys (docs/panel-users PU-03). */
+	extras?: { key: string; label: string; description?: string }[];
+	/** The header's line under the title. */
+	intro?: string;
+	guide?: string;
+}> = ({ open, onClose, role, targets, saving, error, onSave, onEdit, extras = [], intro, guide = 'project-roles' }) => {
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
 	const [keys, setKeys] = useState<Set<string>>(new Set());
@@ -79,7 +84,7 @@ const RoleDialog: FC<{
 			<DialogHeader
 				divider
 				icon={<ShieldCheck size={17} strokeWidth={1.75} />}
-				description='Only for this project. Pick what it may do with each model’s records.'>
+				description={intro || 'Only for this project. Pick what it may do with each model’s records.'}>
 				{role ? `Edit “${role.name}”` : 'New role'}
 			</DialogHeader>
 			<DialogCloseButton />
@@ -125,7 +130,7 @@ const RoleDialog: FC<{
 								align='baseline'
 								justify='space-between'>
 								<Text {...labelCss}>What it can do</Text>
-								<GuideLink section='project-roles' />
+								<GuideLink section={guide} />
 							</Flex>
 							<Box
 								mt={2}
@@ -195,6 +200,46 @@ const RoleDialog: FC<{
 									</tbody>
 								</Box>
 							</Box>
+							{extras.length > 0 && (
+								<Flex
+									direction='column'
+									gap={2}
+									mt={3}>
+									{extras.map(x => (
+										<Checkbox.Root
+											key={x.key}
+											size='sm'
+											alignItems='flex-start'
+											checked={keys.has(x.key)}
+											onCheckedChange={e => {
+												onEdit();
+												setKeys(prev => {
+													const next = new Set(prev);
+													if (e.checked) next.add(x.key);
+													else next.delete(x.key);
+													return next;
+												});
+											}}>
+											<Checkbox.HiddenInput />
+											<Checkbox.Control mt='2px' />
+											<Checkbox.Label>
+												<Text
+													fontSize='13px'
+													fontWeight='500'>
+													{x.label}
+												</Text>
+												{x.description && (
+													<Text
+														fontSize='12px'
+														color='fg.muted'>
+														{x.description}
+													</Text>
+												)}
+											</Checkbox.Label>
+										</Checkbox.Root>
+									))}
+								</Flex>
+							)}
 							{errorAt('permissions') && (
 								<Text
 									role='alert'

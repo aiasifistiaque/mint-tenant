@@ -148,6 +148,8 @@ const tags: string[] = [
 	'tenant-mail',
 	'tenant-mail-accounts',
 	'tenant-panel-admins',
+	'tenant-panel-roles',
+	'tenant-reports',
 	'tenant-mail-designs',
 	'tenant-payments',
 	// Template Studio (templatesApi.ts).
