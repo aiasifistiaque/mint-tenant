@@ -537,6 +537,9 @@ export type MailView = { settings: MailSettings | null; messages: MailLogEntry[]
 export type PanelAdmin = {
 	_id: string;
 	name: string;
+	/** What they sign in with (PU-08); a login from before usernames shows its email. */
+	username: string;
+	/** Optional; signs in too. */
 	email: string;
 	phone: string;
 	isActive: boolean;
@@ -1417,11 +1420,11 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: () => 'panel-admins',
 			providesTags: ['tenant-panel-admins'],
 		}),
-		addPanelAdmin: builder.mutation<PanelAdmin, { name: string; email: string; password: string; phone?: string; role?: string | null; superAdmin?: boolean }>({
+		addPanelAdmin: builder.mutation<PanelAdmin, { name: string; username: string; email?: string; password: string; phone?: string; role?: string | null; superAdmin?: boolean }>({
 			query: body => ({ url: 'panel-admins', method: 'POST', body }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
 		}),
-		updatePanelAdmin: builder.mutation<PanelAdmin, { id: string; name?: string; phone?: string; isActive?: boolean; password?: string; role?: string | null; superAdmin?: boolean }>({
+		updatePanelAdmin: builder.mutation<PanelAdmin, { id: string; name?: string; username?: string; email?: string; phone?: string; isActive?: boolean; password?: string; role?: string | null; superAdmin?: boolean }>({
 			query: ({ id, ...body }) => ({ url: `panel-admins/${id}`, method: 'PUT', body }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
 		}),

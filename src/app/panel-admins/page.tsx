@@ -26,9 +26,9 @@ import GuideLink from '@/components/library/tenant/GuideLink';
  *
  * Before: an e-commerce project's store logins (Project → Panel admins; backend
  * docs/commerce-panel CP-03): the people who run the store sign in to the
- * commerce panel with an email and a password made here. They work with the
+ * commerce panel with a username (or email) and a password made here. They work with the
  * store's records, couriers and email accounts — never its models, settings or
- * developer tools. One email opens one store. Switching a login off, a new
+ * developer tools. One username opens one store. Switching a login off, a new
  * password or removing it signs them out everywhere.
  * Backend: routes-tenant/panelAdmins.router.ts. Needs manage-projects or invite-to-projects.
  */
@@ -63,7 +63,7 @@ const Field: FC<{ label: string; children: React.ReactNode; hint?: string }> = (
 	</Box>
 );
 
-const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, onAccess, onPassword, onToggle, onRemove }) => (
+const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onSignIn: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, onAccess, onSignIn, onPassword, onToggle, onRemove }) => (
 	<Flex
 		data-testid='panel-admin'
 		align='center'
@@ -115,7 +115,8 @@ const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onPassw
 				fontSize='13px'
 				color='fg.muted'
 				truncate>
-				{a.email}
+				{a.username || a.email}
+				{a.email && a.email !== a.username ? ` · ${a.email}` : ''}
 				{a.phone ? ` · ${a.phone}` : ''}
 			</Text>
 		</Box>
@@ -145,6 +146,11 @@ const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onPassw
 							value='access'
 							onClick={onAccess}>
 							Change role
+						</Menu.Item>
+						<Menu.Item
+							value='sign-in'
+							onClick={onSignIn}>
+							Change username or email
 						</Menu.Item>
 						<Menu.Item
 							value='password'
@@ -180,7 +186,11 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 	const [accessFor, setAccessFor] = useState<PanelAdmin | null>(null);
 	const [access, setAccess] = useState('');
 	const [adding, setAdding] = useState(false);
-	const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', access: '' });
+	const [form, setForm] = useState({ name: '', username: '', email: '', password: '', phone: '', access: '' });
+	const [signInFor, setSignInFor] = useState<PanelAdmin | null>(null);
+	const [signIn, setSignIn] = useState({ username: '', email: '' });
+	/** How a login is named in dialogs. */
+	const who = (a: PanelAdmin | null) => (a ? `${a.name} — ${a.username || a.email}` : undefined);
 	const [pwFor, setPwFor] = useState<PanelAdmin | null>(null);
 	const [pw, setPw] = useState('');
 	const [removingOne, setRemovingOne] = useState<PanelAdmin | null>(null);
@@ -213,7 +223,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 					<Button
 						size='sm'
 						onClick={() => {
-							setForm({ name: '', email: '', password: '', phone: '', access: store ? '' : roles[0]?._id || SUPER });
+							setForm({ name: '', username: '', email: '', password: '', phone: '', access: store ? '' : roles[0]?._id || SUPER });
 							setAdding(true);
 						}}>
 						<Plus size={14} /> Add a login
@@ -227,7 +237,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 					<Text
 						fontSize='13px'
 						color='fg.muted'>
-						{`No logins yet. Add one with an email and a password${store ? '' : ' and a role'}, then share the ${store ? 'commerce panel’s' : 'panel app’s'} address with them.`}
+						{`No logins yet. Add one with a username and a password${store ? '' : ' and a role'}, then share the ${store ? 'commerce panel’s' : 'panel app’s'} address with them.`}
 					</Text>
 				) : (
 					admins.map(a => (
@@ -238,6 +248,10 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 							onAccess={() => {
 								setAccess(accessOf(a));
 								setAccessFor(a);
+							}}
+							onSignIn={() => {
+								setSignIn({ username: a.username || '', email: a.email || '' });
+								setSignInFor(a);
 							}}
 							onPassword={() => {
 								setPw('');
@@ -274,15 +288,17 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 			</Flex>
 
 			<PromptDialog
+				tone='default'
+				icon={<UserCog size={18} strokeWidth={1.75} />}
 				open={adding}
 				onClose={() => setAdding(false)}
 				title={store ? 'Add a store login' : 'Add a panel user'}
-				description={`One email opens one ${store ? 'store' : 'project'}. You can set a new password for them here later.`}
+				description={`They sign in with the username (or the email, if you give one). One username opens one ${store ? 'store' : 'project'}. You can set a new password for them here later.`}
 				confirmLabel='Add'
 				loading={added.isLoading}
 				onConfirm={async () => {
 					try {
-						await add({ name: form.name.trim(), email: form.email.trim(), password: form.password, phone: form.phone.trim() || undefined, ...accessBody(form.access) }).unwrap();
+						await add({ name: form.name.trim(), username: form.username.trim(), email: form.email.trim() || undefined, password: form.password, phone: form.phone.trim() || undefined, ...accessBody(form.access) }).unwrap();
 						setAdding(false);
 						toaster.create({ type: 'success', title: 'Login added.' });
 					} catch (e) {
@@ -296,7 +312,19 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 						onChange={e => setForm({ ...form, name: e.target.value })}
 					/>
 				</Field>
-				<Field label='Email'>
+				<Field
+					label='Username'
+					hint='What they sign in with — letters, numbers and . _ - @ +, like rahim or rahim.farm.'>
+					<Input
+						size='sm'
+						autoCapitalize='none'
+						autoComplete='off'
+						spellCheck={false}
+						value={form.username}
+						onChange={e => setForm({ ...form, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+					/>
+				</Field>
+				<Field label='Email (optional)'>
 					<Input
 						size='sm'
 						type='email'
@@ -335,10 +363,12 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 			</PromptDialog>
 
 			<PromptDialog
+				tone='default'
+				icon={<UserCog size={18} strokeWidth={1.75} />}
 				open={!!accessFor}
 				onClose={() => setAccessFor(null)}
 				title='Change role'
-				subject={accessFor ? `${accessFor.name} — ${accessFor.email}` : undefined}
+				subject={who(accessFor)}
 				description='It applies from their next page — they stay signed in.'
 				confirmLabel='Save'
 				loading={updating.isLoading}
@@ -363,10 +393,52 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 			</PromptDialog>
 
 			<PromptDialog
+				tone='default'
+				icon={<UserCog size={18} strokeWidth={1.75} />}
+				open={!!signInFor}
+				onClose={() => setSignInFor(null)}
+				title='Change username or email'
+				subject={who(signInFor)}
+				description='Either one signs in. They stay signed in on their devices.'
+				confirmLabel='Save'
+				loading={updating.isLoading}
+				onConfirm={async () => {
+					if (!signInFor) return;
+					try {
+						await update({ id: signInFor._id, username: signIn.username.trim(), email: signIn.email.trim() }).unwrap();
+						setSignInFor(null);
+						toaster.create({ type: 'success', title: 'Saved.' });
+					} catch (e) {
+						fail(e, 'Not changed — try again.');
+					}
+				}}>
+				<Field label='Username'>
+					<Input
+						size='sm'
+						autoCapitalize='none'
+						autoComplete='off'
+						spellCheck={false}
+						value={signIn.username}
+						onChange={e => setSignIn({ ...signIn, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+					/>
+				</Field>
+				<Field label='Email (optional)'>
+					<Input
+						size='sm'
+						type='email'
+						value={signIn.email}
+						onChange={e => setSignIn({ ...signIn, email: e.target.value })}
+					/>
+				</Field>
+			</PromptDialog>
+
+			<PromptDialog
+				tone='default'
+				icon={<UserCog size={18} strokeWidth={1.75} />}
 				open={!!pwFor}
 				onClose={() => setPwFor(null)}
 				title='Set a new password'
-				subject={pwFor ? `${pwFor.name} — ${pwFor.email}` : undefined}
+				subject={who(pwFor)}
 				description='They’re signed out everywhere and sign in again with this one.'
 				confirmLabel='Save'
 				loading={updating.isLoading}
@@ -398,8 +470,8 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 				onClose={() => setRemovingOne(null)}
 				tone='danger'
 				title='Remove this login?'
-				subject={removingOne ? `${removingOne.name} — ${removingOne.email}` : undefined}
-				description='They’re signed out and can’t sign in again. The email can be used for a login again.'
+				subject={who(removingOne)}
+				description='They’re signed out and can’t sign in again. The username and email can be used for a login again.'
 				confirmLabel='Remove'
 				loading={removing.isLoading}
 				onConfirm={async () => {
