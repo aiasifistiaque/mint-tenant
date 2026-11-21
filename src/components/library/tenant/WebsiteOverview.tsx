@@ -38,7 +38,8 @@ const FIX: Record<string, string> = {
 	tracking: '/site-setup?tab=tracking',
 };
 
-const Traffic: FC = () => {
+/** The last 30 days of visits. Also on the dashboard for logins that can see analytics but not build (panel users). */
+export const Traffic: FC = () => {
 	const range = useMemo(() => ({ from: iso(new Date(Date.now() - 29 * DAY)), to: iso(new Date()) }), []);
 	const { data: summary, isLoading } = useGetAnalyticsSummaryQuery(range);
 	const { data: series, isLoading: loadingSeries } = useGetAnalyticsSeriesQuery(range);

@@ -1,14 +1,14 @@
 'use client';
 
 import NextLink from 'next/link';
-import { Button, Center, Flex, Grid, Skeleton, Text } from '@chakra-ui/react';
+import { Box, Button, Center, Flex, Grid, Skeleton, Text } from '@chakra-ui/react';
 import { LayoutDashboard } from 'lucide-react';
 
 import { Layout, Count, useGetByIdQuery, ShowSum, useGetDashboardQuery } from '@/components/library';
 import { DashboardGrid } from '@/components/library/dashboard/widgets';
 import { IS_TENANT_PANEL, getProjectSlug, projectHref } from '@/components/library/config/lib/constants/panel';
 import ProjectsBoard from '@/components/library/tenant/ProjectsBoard';
-import WebsiteOverview from '@/components/library/tenant/WebsiteOverview';
+import WebsiteOverview, { Traffic } from '@/components/library/tenant/WebsiteOverview';
 import ApiOverview from '@/components/library/tenant/ApiOverview';
 import { useWorkspace } from '@/components/library/tenant';
 import ProjectSuggestions from '@/components/library/tenant/ProjectSuggestions';
@@ -38,7 +38,16 @@ function Dashboard() {
 	const widgets = data?.widgets || [];
 	// A website's home starts with how the site is doing and what's left to set up (WO-34);
 	// an API's with its address, endpoints and recent calls (docs/templates T-09).
-	const { project } = useWorkspace();
+	const { project, can } = useWorkspace();
+	// Websites and stores: the last 30 days of visits for anyone allowed to see
+	// analytics. Builders get it inside WebsiteOverview; panel users (who never
+	// build) get the card on its own.
+	const traffic = (project?.type === 'website' || project?.type === 'ecommerce') && can('view-analytics');
+	const trafficCard = (
+		<Box pt={2}>
+			<Traffic />
+		</Box>
+	);
 	// Suggestions lead an empty dashboard and follow one that has widgets.
 	const hasWidgets = !!data?.saved && widgets.length > 0;
 	// A store opens on its setup wizard until it's built (docs/ecommerce EC2).
@@ -49,7 +58,7 @@ function Dashboard() {
 			<Layout
 				title='Dashboard'
 				path='dashboard'>
-				{project.type === 'website' ? <WebsiteOverview /> : <ApiOverview />}
+				{project.type === 'website' ? can('build') ? <WebsiteOverview /> : traffic ? trafficCard : null : <ApiOverview />}
 				{data?.saved && widgets.length ? (
 					<Flex
 						direction='column'
@@ -65,6 +74,7 @@ function Dashboard() {
 		<Layout
 			title='Dashboard'
 			path='dashboard'>
+			{IS_TENANT_PANEL && traffic && trafficCard}
 			{IS_TENANT_PANEL && !isLoading && !hasWidgets && <ProjectSuggestions />}
 			{isLoading ? (
 				<Grid
