@@ -12,7 +12,8 @@ import type { ProjectRoleInput, ProjectRoleOption, ProjectRoleTarget } from '@/c
  * Making or changing one of the project's own roles (WO-50): its name, and per
  * model what it may do — view, add, edit, delete, and publish where records are
  * drafts until published (docs/cms D11) — plus the media library and History. Adding, editing or deleting includes viewing, so those tick View
- * too, and unticking View clears the row. A server refusal carries `on`.
+ * too, and unticking View clears the row. Select all, each row's All and each
+ * column heading tick a whole group at once. A server refusal carries `on`.
  */
 
 const ACTIONS = [
@@ -68,6 +69,24 @@ const RoleDialog: FC<{
 		const all = rows.length > 0 && rows.every(t => keys.has(`${action}-${t.route}`));
 		rows.forEach(t => toggle(t.route, action, !all));
 	};
+	/** A tri-state: every key on, some on, none on. */
+	const stateOf = (list: string[]): boolean | 'indeterminate' => {
+		const on = list.filter(k => keys.has(k)).length;
+		return on === 0 ? false : on === list.length ? true : 'indeterminate';
+	};
+	const rowKeys = (t: ProjectRoleTarget) => ACTIONS.filter(a => t.actions.includes(a.key as any)).map(a => `${a.key}-${t.route}`);
+	const columnKeys = (action: string) => targets.filter(t => t.actions.includes(action as any)).map(t => `${action}-${t.route}`);
+	const everyKey = [...targets.flatMap(rowKeys), ...extras.map(x => x.key)];
+	/** Turn a set of keys all on, or all off. */
+	const setMany = (list: string[], on: boolean) => {
+		onEdit();
+		setKeys(prev => {
+			const next = new Set(prev);
+			list.forEach(k => (on ? next.add(k) : next.delete(k)));
+			return next;
+		});
+	};
+	const allState = stateOf(everyKey);
 
 	const submit = (e?: FormEvent) => {
 		e?.preventDefault();
@@ -130,7 +149,24 @@ const RoleDialog: FC<{
 								align='baseline'
 								justify='space-between'>
 								<Text {...labelCss}>What it can do</Text>
-								<GuideLink section={guide} />
+								<Flex
+									align='center'
+									gap={3}>
+									<Checkbox.Root
+										size='sm'
+										checked={allState}
+										disabled={!everyKey.length}
+										onCheckedChange={() => setMany(everyKey, allState !== true)}>
+										<Checkbox.HiddenInput />
+										<Checkbox.Control />
+										<Checkbox.Label
+											fontSize='12.5px'
+											fontWeight='500'>
+											Select all
+										</Checkbox.Label>
+									</Checkbox.Root>
+									<GuideLink section={guide} />
+								</Flex>
 							</Flex>
 							<Box
 								mt={2}
@@ -159,16 +195,33 @@ const RoleDialog: FC<{
 													key={a.key}
 													w='72px'
 													textAlign='center'>
-													<Button
-														size='2xs'
-														variant='ghost'
-														fontWeight='600'
-														title={`${a.label}: all or none`}
-														onClick={() => column(a.key)}>
-														{a.label}
-													</Button>
+													<Checkbox.Root
+														size='sm'
+														flexDirection='column'
+														gap={1}
+														title={`${a.label}: every model or none`}
+														checked={stateOf(columnKeys(a.key))}
+														disabled={!columnKeys(a.key).length}
+														onCheckedChange={() => column(a.key)}>
+														<Checkbox.HiddenInput aria-label={`${a.label} for every model`} />
+														<Checkbox.Label
+															fontSize='12.5px'
+															fontWeight='600'>
+															{a.label}
+														</Checkbox.Label>
+														<Checkbox.Control />
+													</Checkbox.Root>
 												</Box>
 											))}
+											<Box
+												as='th'
+												w='60px'
+												textAlign='center'
+												fontWeight='600'
+												borderLeftWidth='1px'
+												borderColor='border.muted'>
+												All
+											</Box>
 										</Box>
 									</thead>
 									<tbody>
@@ -195,6 +248,19 @@ const RoleDialog: FC<{
 														)}
 													</Box>
 												))}
+												<Box
+													as='td'
+													textAlign='center'
+													borderLeftWidth='1px'
+													borderColor='border.muted'>
+													<Checkbox.Root
+														size='sm'
+														checked={stateOf(rowKeys(t))}
+														onCheckedChange={() => setMany(rowKeys(t), stateOf(rowKeys(t)) !== true)}>
+														<Checkbox.HiddenInput aria-label={`Everything on ${t.name}`} />
+														<Checkbox.Control />
+													</Checkbox.Root>
+												</Box>
 											</Box>
 										))}
 									</tbody>
