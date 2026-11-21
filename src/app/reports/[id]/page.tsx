@@ -13,6 +13,7 @@ import { useExportSavedReportMutation, useGetSavedReportQuery, useGetSavedReport
 import type { ReportFormat, ReportRun } from '@/components/library/store/services/tenantApi';
 import ReportTable from '../_components/ReportTable';
 import { FORMATS, RANGES, TZ, describe, rangeDates } from '../_components/kinds';
+import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
  * One report (docs/panel-users RP-03): pick the dates (it opens on its own
@@ -79,16 +80,21 @@ export default function ReportPage() {
 						title={report.name}
 						subtitle={report.description || describe(report)}
 						actions={
-							list?.canBuild && (
-								<Button
-									asChild
-									size='sm'
-									variant='outline'>
-									<NextLink href={projectHref(`/reports/${id}/edit`)}>
-										<Pencil size={14} /> Edit
-									</NextLink>
-								</Button>
-							)
+							<Flex
+								gap={3}
+								align='center'>
+								<GuideLink section='run-report' />
+								{list?.canBuild && (
+									<Button
+										asChild
+										size='sm'
+										variant='outline'>
+										<NextLink href={projectHref(`/reports/${id}/edit`)}>
+											<Pencil size={14} /> Edit
+										</NextLink>
+									</Button>
+								)}
+							</Flex>
 						}>
 						<Flex
 							gap={3}

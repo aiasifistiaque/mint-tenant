@@ -18,6 +18,7 @@ import {
 import type { ReportInput, ReportRun, SavedReport } from '@/components/library/store/services/tenantApi';
 import ReportTable from './ReportTable';
 import { FORMATS, KIND, RANGES, TZ, rangeDates } from './kinds';
+import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
  * The report builder (docs/panel-users RP-03) — developers only (Build). Pick a
@@ -156,7 +157,8 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 			<Panel
 				id='report-basics'
 				title={report ? `Edit “${report.name}”` : 'New report'}
-				subtitle='Who opens it sees only the records their role can view.'>
+				subtitle='Who opens it sees only the records their role can view.'
+				actions={<GuideLink section='build-report' />}>
 				<Grid
 					templateColumns={{ base: '1fr', md: '1fr 1fr' }}
 					gap={4}>
@@ -215,7 +217,8 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 			{model && (
 				<Panel
 					id='report-shape'
-					title={r.type === 'list' ? 'Columns' : r.type === 'summary' ? 'Rows and totals' : 'Periods and totals'}>
+					title={r.type === 'list' ? 'Columns' : r.type === 'summary' ? 'Rows and totals' : 'Periods and totals'}
+					actions={<GuideLink section='report-kinds' />}>
 					{r.type === 'list' && (
 						<Flex
 							direction='column'
@@ -372,7 +375,8 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 			{model && (
 				<Panel
 					id='report-records'
-					title='Which records'>
+					title='Which records'
+					actions={<GuideLink section='build-report' />}>
 					<Flex
 						direction='column'
 						gap={4}>
@@ -460,7 +464,8 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 			{model && (
 				<Panel
 					id='report-download'
-					title='Download'>
+					title='Download'
+					actions={<GuideLink section='run-report' />}>
 					<Flex
 						direction='column'
 						gap={3}>

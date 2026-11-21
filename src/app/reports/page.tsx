@@ -9,6 +9,7 @@ import { EmptyState, Panel } from '@/components/library/cl';
 import { projectHref } from '@/components/library/config/lib/constants/panel';
 import { useGetSavedReportsQuery } from '@/components/library/store/services/tenantApi';
 import type { SavedReport } from '@/components/library/store/services/tenantApi';
+import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
  * Reports (backend docs/panel-users RP-03): the project's saved reports this
@@ -115,15 +116,20 @@ export default function ReportsPage() {
 						title='Reports'
 						subtitle='Open one to pick the dates, see its rows and totals, and download it.'
 						actions={
-							data.canBuild && (
-								<Button
-									asChild
-									size='sm'>
-									<NextLink href={projectHref('/reports/new')}>
-										<Plus size={14} /> New report
-									</NextLink>
-								</Button>
-							)
+							<Flex
+								gap={3}
+								align='center'>
+								<GuideLink section='reports' />
+								{data.canBuild && (
+									<Button
+										asChild
+										size='sm'>
+										<NextLink href={projectHref('/reports/new')}>
+											<Plus size={14} /> New report
+										</NextLink>
+									</Button>
+								)}
+							</Flex>
 						}>
 						<Flex
 							direction='column'

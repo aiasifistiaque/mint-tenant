@@ -16,6 +16,7 @@ import {
 	useUpdatePanelAdminMutation,
 } from '@/components/library/store/services/tenantApi';
 import type { PanelAdmin } from '@/components/library/store/services/tenantApi';
+import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
  * A project's panel logins (Project → Panel admins / Panel users; backend
@@ -199,7 +200,10 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 					: `The people who work in ${projectName || 'the project'} sign in to the panel app with these — the tables and reports their role allows, never building or settings`
 			}
 			actions={
-				<Flex gap={2}>
+				<Flex
+					gap={2}
+					align='center'>
+					{!store && <GuideLink section='panel-users' />}
 					<Button
 						asChild
 						size='sm'
