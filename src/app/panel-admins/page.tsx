@@ -1,10 +1,11 @@
 'use client';
 
-import { FC, useState } from 'react';
+import { FC, ReactNode, useState } from 'react';
 import { Badge, Box, Button, Flex, IconButton, Input, Link, Menu, Portal, Skeleton, Text } from '@chakra-ui/react';
 import NextLink from 'next/link';
-import { Ellipsis, ExternalLink, Plus, UserCog } from 'lucide-react';
-import { Layout, PromptDialog } from '@/components/library';
+import { Ellipsis, ExternalLink, Plus, ShieldCheck, UserCog } from 'lucide-react';
+import { Dialog, DialogBody, DialogCloseButton, DialogFooter, DialogHeader, DiscardButton, Layout, PromptDialog } from '@/components/library';
+import { styles } from '@/components/library/config';
 import { Dropdown, EmptyState, Panel } from '@/components/library/cl';
 import { projectHref } from '@/components/library/config/lib/constants/panel';
 import { useWorkspace } from '@/components/library/tenant';
@@ -12,6 +13,7 @@ import { toaster } from '@/components/ui/toaster';
 import {
 	useAddPanelAdminMutation,
 	useGetPanelAdminsQuery,
+	useGetPanelRolesQuery,
 	useRemovePanelAdminMutation,
 	useUpdatePanelAdminMutation,
 } from '@/components/library/store/services/tenantApi';
@@ -43,6 +45,247 @@ const accessBody = (v: string) => (v === SUPER ? { superAdmin: true, role: null 
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never');
 
+/**
+ * The add / change dialogs: the app's standard modal (a bottom sheet on a
+ * phone, a centred dialog on a computer) with a header, a scrolling form and
+ * Cancel / the action on the footer. Enter in a field submits.
+ */
+const FormDialog: FC<{
+	open: boolean;
+	onClose: () => void;
+	onConfirm: () => void;
+	title: ReactNode;
+	description?: ReactNode;
+	subject?: ReactNode;
+	confirmLabel: ReactNode;
+	loading?: boolean;
+	children: ReactNode;
+}> = ({ open, onClose, onConfirm, title, description, subject, confirmLabel, loading, children }) => (
+	<Dialog
+		isOpen={open}
+		onClose={() => !loading && onClose()}
+		size='md'
+		forceModal>
+		<DialogHeader
+			divider
+			icon={<UserCog size={17} strokeWidth={1.75} />}
+			description={description}>
+			{title}
+		</DialogHeader>
+		<DialogCloseButton />
+		<DialogBody>
+			<form
+				id='panel-login-form'
+				onSubmit={e => {
+					e.preventDefault();
+					if (!loading) onConfirm();
+				}}>
+				{subject && (
+					<Box
+						mb={4}
+						px={3}
+						py={2}
+						borderWidth='1px'
+						borderColor='border'
+						borderRadius='md'
+						bg='bg.subtle'
+						fontSize='13px'
+						fontWeight='500'
+						wordBreak='break-word'>
+						{subject}
+					</Box>
+				)}
+				{children}
+			</form>
+		</DialogBody>
+		<DialogFooter>
+			<DiscardButton
+				disabled={loading}
+				onClick={onClose}>
+				Cancel
+			</DiscardButton>
+			<Button
+				{...(styles.MODAL_BUTTON as any)}
+				type='submit'
+				form='panel-login-form'
+				loading={loading}>
+				{confirmLabel}
+			</Button>
+		</DialogFooter>
+	</Dialog>
+);
+
+const ACTION_LABELS: Record<string, string> = { view: 'View', create: 'Add', edit: 'Edit', delete: 'Delete', publish: 'Publish' };
+const ACTION_ORDER = Object.keys(ACTION_LABELS);
+
+const Chip: FC<{ children: ReactNode }> = ({ children }) => (
+	<Badge
+		size='sm'
+		variant='subtle'
+		colorPalette='gray'>
+		{children}
+	</Badge>
+);
+
+/**
+ * What one login may do, read from their panel role: each model with the
+ * actions ticked, then reports and analytics. A super admin, a store admin and
+ * a login with no role get a sentence instead. The standard modal — a bottom
+ * sheet on a phone.
+ */
+const PermissionsDialog: FC<{ admin: PanelAdmin | null; store: boolean; onClose: () => void; onChangeRole: () => void }> = ({ admin: a, store, onClose, onChangeRole }) => {
+	const { data, isLoading, isError } = useGetPanelRolesQuery(undefined, { skip: !a || a.superAdmin || !a.role });
+	const role = data?.doc.find(r => r._id === a?.role);
+	const keys = new Set(role?.permissions || []);
+	const rows = (data?.targets || [])
+		.map(t => ({ name: t.name, actions: ACTION_ORDER.filter(k => t.actions.includes(k) && keys.has(`${k}-${t.route}`)) }))
+		.filter(r => r.actions.length);
+	const reports = (data?.reports || []).filter(r => keys.has(r.key));
+
+	const sentence = !a
+		? ''
+		: a.superAdmin
+		? 'Super admin — they see and work on every table and report, and make panel roles and other panel users. They can’t build.'
+		: !a.role
+		? store
+			? 'Store admin — the store’s orders, products, POS, couriers and email. No building or settings.'
+			: 'No role — they see nothing until you give them one.'
+		: '';
+
+	return (
+		<Dialog
+			isOpen={!!a}
+			onClose={onClose}
+			size='md'
+			forceModal>
+			<DialogHeader
+				divider
+				icon={<ShieldCheck size={17} strokeWidth={1.75} />}
+				description={a ? `${a.username || a.email}${role ? ` · ${role.name}` : a.superAdmin ? ' · Super admin' : ''}` : undefined}>
+				{a ? `What ${a.name} can do` : 'Permissions'}
+			</DialogHeader>
+			<DialogCloseButton />
+			<DialogBody>
+				{sentence ? (
+					<Text
+						fontSize='14px'
+						lineHeight='1.6'>
+						{sentence}
+					</Text>
+				) : isLoading ? (
+					<Skeleton h='160px' />
+				) : isError ? (
+					<Text
+						fontSize='14px'
+						color='fg.muted'>
+						Couldn’t load the role — try again later.
+					</Text>
+				) : !role ? (
+					<Text
+						fontSize='14px'
+						color='fg.muted'>
+						Their role was removed — give them another.
+					</Text>
+				) : (
+					<Flex
+						direction='column'
+						gap={5}>
+						{role.description && (
+							<Text
+								fontSize='13px'
+								color='fg.muted'>
+								{role.description}
+							</Text>
+						)}
+						<Box>
+							<Text
+								fontSize='12px'
+								fontWeight='600'
+								color='fg.muted'
+								textTransform='uppercase'
+								letterSpacing='0.04em'
+								mb={2}>
+								Records
+							</Text>
+							{rows.length === 0 ? (
+								<Text
+									fontSize='13px'
+									color='fg.muted'>
+									No tables.
+								</Text>
+							) : (
+								<Flex
+									direction='column'
+									borderWidth='1px'
+									borderColor='border'
+									borderRadius='lg'
+									overflow='hidden'>
+									{rows.map((r, i) => (
+										<Flex
+											key={r.name}
+											data-testid='permission-row'
+											align='center'
+											justify='space-between'
+											gap={3}
+											wrap='wrap'
+											px={3}
+											py={2.5}
+											borderTopWidth={i ? '1px' : 0}
+											borderColor='border'>
+											<Text
+												fontSize='14px'
+												fontWeight='500'>
+												{r.name}
+											</Text>
+											<Flex
+												gap={1}
+												wrap='wrap'>
+												{r.actions.length === ACTION_ORDER.filter(k => (data?.targets || []).find(t => t.name === r.name)?.actions.includes(k)).length && r.actions.length > 1 ? (
+													<Chip>Everything</Chip>
+												) : (
+													r.actions.map(k => <Chip key={k}>{ACTION_LABELS[k]}</Chip>)
+												)}
+											</Flex>
+										</Flex>
+									))}
+								</Flex>
+							)}
+						</Box>
+						{reports.length > 0 && (
+							<Box>
+								<Text
+									fontSize='12px'
+									fontWeight='600'
+									color='fg.muted'
+									textTransform='uppercase'
+									letterSpacing='0.04em'
+									mb={2}>
+									Reports
+								</Text>
+								<Flex
+									gap={1}
+									wrap='wrap'>
+									{reports.map(r => (
+										<Chip key={r.key}>{r.label}</Chip>
+									))}
+								</Flex>
+							</Box>
+						)}
+					</Flex>
+				)}
+			</DialogBody>
+			<DialogFooter>
+				<DiscardButton onClick={onClose}>Close</DiscardButton>
+				<Button
+					{...(styles.MODAL_BUTTON as any)}
+					onClick={onChangeRole}>
+					Change role
+				</Button>
+			</DialogFooter>
+		</Dialog>
+	);
+};
+
 const Field: FC<{ label: string; children: React.ReactNode; hint?: string }> = ({ label, children, hint }) => (
 	<Box mb={3}>
 		<Text
@@ -63,7 +306,7 @@ const Field: FC<{ label: string; children: React.ReactNode; hint?: string }> = (
 	</Box>
 );
 
-const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onSignIn: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, onAccess, onSignIn, onPassword, onToggle, onRemove }) => (
+const Row: FC<{ admin: PanelAdmin; access: string; onPermissions: () => void; onAccess: () => void; onSignIn: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, onPermissions, onAccess, onSignIn, onPassword, onToggle, onRemove }) => (
 	<Flex
 		data-testid='panel-admin'
 		align='center'
@@ -143,6 +386,11 @@ const Row: FC<{ admin: PanelAdmin; access: string; onAccess: () => void; onSignI
 				<Menu.Positioner>
 					<Menu.Content minW='180px'>
 						<Menu.Item
+							value='permissions'
+							onClick={onPermissions}>
+							See permissions
+						</Menu.Item>
+						<Menu.Item
 							value='access'
 							onClick={onAccess}>
 							Change role
@@ -194,6 +442,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 	const [pwFor, setPwFor] = useState<PanelAdmin | null>(null);
 	const [pw, setPw] = useState('');
 	const [removingOne, setRemovingOne] = useState<PanelAdmin | null>(null);
+	const [permsFor, setPermsFor] = useState<PanelAdmin | null>(null);
 	const [add, added] = useAddPanelAdminMutation();
 	const [update, updating] = useUpdatePanelAdminMutation();
 	const [remove, removing] = useRemovePanelAdminMutation();
@@ -245,6 +494,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 							key={a._id}
 							admin={a}
 							access={label(a)}
+							onPermissions={() => setPermsFor(a)}
 							onAccess={() => {
 								setAccess(accessOf(a));
 								setAccessFor(a);
@@ -287,9 +537,20 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 				</Flex>
 			</Flex>
 
-			<PromptDialog
-				tone='default'
-				icon={<UserCog size={18} strokeWidth={1.75} />}
+			<PermissionsDialog
+				admin={permsFor}
+				store={store}
+				onClose={() => setPermsFor(null)}
+				onChangeRole={() => {
+					if (!permsFor) return;
+					const a = permsFor;
+					setPermsFor(null);
+					setAccess(accessOf(a));
+					setAccessFor(a);
+				}}
+			/>
+
+			<FormDialog
 				open={adding}
 				onClose={() => setAdding(false)}
 				title={store ? 'Add a store login' : 'Add a panel user'}
@@ -360,11 +621,9 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 						items={choices}
 					/>
 				</Field>
-			</PromptDialog>
+			</FormDialog>
 
-			<PromptDialog
-				tone='default'
-				icon={<UserCog size={18} strokeWidth={1.75} />}
+			<FormDialog
 				open={!!accessFor}
 				onClose={() => setAccessFor(null)}
 				title='Change role'
@@ -390,11 +649,9 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 						items={choices}
 					/>
 				</Field>
-			</PromptDialog>
+			</FormDialog>
 
-			<PromptDialog
-				tone='default'
-				icon={<UserCog size={18} strokeWidth={1.75} />}
+			<FormDialog
 				open={!!signInFor}
 				onClose={() => setSignInFor(null)}
 				title='Change username or email'
@@ -430,11 +687,9 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 						onChange={e => setSignIn({ ...signIn, email: e.target.value })}
 					/>
 				</Field>
-			</PromptDialog>
+			</FormDialog>
 
-			<PromptDialog
-				tone='default'
-				icon={<UserCog size={18} strokeWidth={1.75} />}
+			<FormDialog
 				open={!!pwFor}
 				onClose={() => setPwFor(null)}
 				title='Set a new password'
@@ -463,7 +718,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 						onChange={e => setPw(e.target.value)}
 					/>
 				</Field>
-			</PromptDialog>
+			</FormDialog>
 
 			<PromptDialog
 				open={!!removingOne}
