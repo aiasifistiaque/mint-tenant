@@ -3,7 +3,7 @@
 import { FC, ReactNode, useState } from 'react';
 import { Badge, Box, Button, Flex, IconButton, Input, Link, Menu, Portal, Skeleton, Text } from '@chakra-ui/react';
 import NextLink from 'next/link';
-import { Ellipsis, ExternalLink, Plus, ShieldCheck, UserCog } from 'lucide-react';
+import { Copy, Ellipsis, ExternalLink, Plus, ShieldCheck, Sparkles, UserCog } from 'lucide-react';
 import { Dialog, DialogBody, DialogCloseButton, DialogFooter, DialogHeader, DiscardButton, Layout, PromptDialog } from '@/components/library';
 import { styles } from '@/components/library/config';
 import { Dropdown, EmptyState, Panel } from '@/components/library/cl';
@@ -11,13 +11,15 @@ import { projectHref } from '@/components/library/config/lib/constants/panel';
 import { useWorkspace } from '@/components/library/tenant';
 import { toaster } from '@/components/ui/toaster';
 import {
+	useAddDemoLoginMutation,
 	useAddPanelAdminMutation,
 	useGetPanelAdminsQuery,
+	useNewDemoLinkMutation,
 	useGetPanelRolesQuery,
 	useRemovePanelAdminMutation,
 	useUpdatePanelAdminMutation,
 } from '@/components/library/store/services/tenantApi';
-import type { PanelAdmin } from '@/components/library/store/services/tenantApi';
+import type { DemoLogin, PanelAdmin } from '@/components/library/store/services/tenantApi';
 import GuideLink from '@/components/library/tenant/GuideLink';
 
 /**
@@ -59,8 +61,9 @@ const FormDialog: FC<{
 	subject?: ReactNode;
 	confirmLabel: ReactNode;
 	loading?: boolean;
+	icon?: ReactNode;
 	children: ReactNode;
-}> = ({ open, onClose, onConfirm, title, description, subject, confirmLabel, loading, children }) => (
+}> = ({ open, onClose, onConfirm, title, description, subject, confirmLabel, loading, icon, children }) => (
 	<Dialog
 		isOpen={open}
 		onClose={() => !loading && onClose()}
@@ -68,7 +71,7 @@ const FormDialog: FC<{
 		forceModal>
 		<DialogHeader
 			divider
-			icon={<UserCog size={17} strokeWidth={1.75} />}
+			icon={icon || <UserCog size={17} strokeWidth={1.75} />}
 			description={description}>
 			{title}
 		</DialogHeader>
@@ -744,6 +747,280 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 	);
 };
 
+/**
+ * The project's demo login (backend docs/panel-users/DEMO_LOGINS.md): one link that opens the app for an
+ * hour as a visitor, for showing the work (the Thinkcrypt and Commerce OS websites' demo buttons). No
+ * password. Its access is a role like any login's, but it never manages panel users. Only the project's
+ * managers see this card; the panel apps' super admins don't.
+ */
+const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string }[]; store: boolean }> = ({ demo, roles, store }) => {
+	const appUrl = store ? COMMERCE_URL : PANEL_URL;
+	const link = demo ? `${appUrl}/demo/${demo.demoKey}` : '';
+	const choices = [
+		...(store ? [{ value: '', label: 'Store admin — the store’s orders, products, POS, couriers' }] : []),
+		{ value: SUPER, label: 'Everything — every table and report (never panel users)' },
+		...roles.map(r => ({ value: r._id, label: r.name })),
+	];
+	const label = (a: DemoLogin) => (a.superAdmin ? 'Everything' : roles.find(r => r._id === a.role)?.name || (store ? 'Store admin' : 'No role'));
+	const [making, setMaking] = useState(false);
+	const [changing, setChanging] = useState(false);
+	const [access, setAccess] = useState('');
+	const [renewing, setRenewing] = useState(false);
+	const [removingDemo, setRemovingDemo] = useState(false);
+	const [add, added] = useAddDemoLoginMutation();
+	const [renew, renewed] = useNewDemoLinkMutation();
+	const [update, updating] = useUpdatePanelAdminMutation();
+	const [remove, removing] = useRemovePanelAdminMutation();
+	const fail = (e: any, fallback: string) => toaster.create({ type: 'error', title: e?.data?.message || fallback });
+	const copy = async () => {
+		try {
+			await navigator.clipboard.writeText(link);
+			toaster.create({ type: 'success', title: 'Demo link copied.' });
+		} catch {
+			toaster.create({ type: 'error', title: 'Couldn’t copy — select the link and copy it.' });
+		}
+	};
+	const accessNote = 'Visitors can change whatever this role allows. Pick a role that only views to keep your data as it is.';
+
+	return (
+		<Panel
+			id='demo-login'
+			title='Demo login'
+			subtitle={`A link that opens the ${store ? 'commerce panel' : 'panel app'} for an hour, no password — for showing your work. Each visit signs out whoever was signed in on that browser, and after an hour the link signs them in again.`}
+			actions={
+				!demo ? (
+					<Button
+						size='sm'
+						onClick={() => {
+							setAccess(store ? '' : roles[0]?._id || SUPER);
+							setMaking(true);
+						}}>
+						<Sparkles size={14} /> Make a demo login
+					</Button>
+				) : undefined
+			}>
+			{!demo ? (
+				<Text
+					fontSize='13px'
+					color='fg.muted'>
+					No demo login yet. Make one, pick what visitors may see, then put its link on your website.
+				</Text>
+			) : (
+				<Flex
+					direction='column'
+					gap={3}
+					opacity={demo.isActive ? 1 : 0.6}>
+					<Flex
+						align='center'
+						gap={2}
+						wrap='wrap'>
+						<Badge
+							size='sm'
+							colorPalette={demo.superAdmin ? 'purple' : 'blue'}>
+							{label(demo)}
+						</Badge>
+						{!demo.isActive && (
+							<Badge
+								size='sm'
+								colorPalette='gray'>
+								Switched off — the link doesn’t work
+							</Badge>
+						)}
+						<Text
+							fontSize='12px'
+							color='fg.muted'>
+							{demo.lastLoginAt ? `Last opened ${when(demo.lastLoginAt)}` : 'Not opened yet'}
+						</Text>
+					</Flex>
+					<Flex
+						align='center'
+						gap={2}>
+						<Box
+							data-testid='demo-link'
+							flex='1'
+							minW={0}
+							px={3}
+							py={2}
+							borderWidth='1px'
+							borderColor='border'
+							borderRadius='md'
+							bg='bg.subtle'
+							fontFamily='mono'
+							fontSize='12.5px'
+							truncate>
+							{link}
+						</Box>
+						<IconButton
+							aria-label='Copy the demo link'
+							size='sm'
+							variant='outline'
+							onClick={copy}>
+							<Copy size={14} />
+						</IconButton>
+						<IconButton
+							asChild
+							aria-label='Open the demo'
+							size='sm'
+							variant='outline'>
+							<a
+								href={link}
+								target='_blank'
+								rel='noreferrer'>
+								<ExternalLink size={14} />
+							</a>
+						</IconButton>
+						<Menu.Root positioning={{ placement: 'bottom-end' }}>
+							<Menu.Trigger asChild>
+								<IconButton
+									aria-label='More for the demo login'
+									size='sm'
+									variant='ghost'>
+									<Ellipsis size={16} />
+								</IconButton>
+							</Menu.Trigger>
+							<Portal>
+								<Menu.Positioner>
+									<Menu.Content minW='180px'>
+										<Menu.Item
+											value='access'
+											onClick={() => {
+												setAccess(accessOf(demo));
+												setChanging(true);
+											}}>
+											Change what visitors see
+										</Menu.Item>
+										<Menu.Item
+											value='new-link'
+											onClick={() => setRenewing(true)}>
+											Make a new link
+										</Menu.Item>
+										<Menu.Item
+											value='toggle'
+											onClick={async () => {
+												try {
+													await update({ id: demo._id, isActive: !demo.isActive }).unwrap();
+													toaster.create({ type: 'success', title: demo.isActive ? 'Switched off — the link stops and visitors are signed out.' : 'Switched on — the link works again.' });
+												} catch (e) {
+													fail(e, 'Not changed — try again.');
+												}
+											}}>
+											{demo.isActive ? 'Switch off' : 'Switch on'}
+										</Menu.Item>
+										<Menu.Item
+											value='remove'
+											color='fg.error'
+											onClick={() => setRemovingDemo(true)}>
+											Remove
+										</Menu.Item>
+									</Menu.Content>
+								</Menu.Positioner>
+							</Portal>
+						</Menu.Root>
+					</Flex>
+				</Flex>
+			)}
+
+			<FormDialog
+				open={making}
+				onClose={() => setMaking(false)}
+				icon={<Sparkles size={17} strokeWidth={1.75} />}
+				title='Make a demo login'
+				description='One link, no password. Anyone who opens it is signed in for an hour.'
+				confirmLabel='Make it'
+				loading={added.isLoading}
+				onConfirm={async () => {
+					try {
+						await add(accessBody(access)).unwrap();
+						setMaking(false);
+						toaster.create({ type: 'success', title: 'Demo login made — copy its link.' });
+					} catch (e) {
+						fail(e, 'Not made — try again.');
+					}
+				}}>
+				<Field
+					label='What visitors see'
+					hint={accessNote}>
+					<Dropdown
+						size='sm'
+						value={access}
+						onChange={setAccess}
+						items={choices}
+					/>
+				</Field>
+			</FormDialog>
+
+			<FormDialog
+				open={changing}
+				onClose={() => setChanging(false)}
+				icon={<Sparkles size={17} strokeWidth={1.75} />}
+				title='Change what visitors see'
+				description='Visitors already in the demo get it on their next page.'
+				confirmLabel='Save'
+				loading={updating.isLoading}
+				onConfirm={async () => {
+					if (!demo) return;
+					try {
+						await update({ id: demo._id, ...accessBody(access) }).unwrap();
+						setChanging(false);
+						toaster.create({ type: 'success', title: 'Saved.' });
+					} catch (e) {
+						fail(e, 'Not changed — try again.');
+					}
+				}}>
+				<Field
+					label='What visitors see'
+					hint={accessNote}>
+					<Dropdown
+						size='sm'
+						value={access}
+						onChange={setAccess}
+						items={choices}
+					/>
+				</Field>
+			</FormDialog>
+
+			<PromptDialog
+				open={renewing}
+				onClose={() => setRenewing(false)}
+				tone='default'
+				title='Make a new demo link?'
+				description='The old link stops working and anyone using it is signed out. Put the new link on your website.'
+				confirmLabel='Make a new link'
+				loading={renewed.isLoading}
+				onConfirm={async () => {
+					try {
+						await renew().unwrap();
+						setRenewing(false);
+						toaster.create({ type: 'success', title: 'New link made — copy it.' });
+					} catch (e) {
+						fail(e, 'Not made — try again.');
+					}
+				}}
+			/>
+
+			<PromptDialog
+				open={removingDemo}
+				onClose={() => setRemovingDemo(false)}
+				tone='danger'
+				title='Remove the demo login?'
+				description='Its link stops working and visitors are signed out. You can make a new one later, with a new link.'
+				confirmLabel='Remove'
+				loading={removing.isLoading}
+				onConfirm={async () => {
+					if (!demo) return;
+					try {
+						await remove(demo._id).unwrap();
+						setRemovingDemo(false);
+						toaster.create({ type: 'success', title: 'Removed.' });
+					} catch (e) {
+						fail(e, 'Not removed — try again.');
+					}
+				}}
+			/>
+		</Panel>
+	);
+};
+
 export default function PanelAdminsPage() {
 	const { can, project, isLoading: loadingSelf } = useWorkspace();
 	const allowed = can('manage-projects') || can('invite-to-projects') || can('manage-panel-users');
@@ -778,12 +1055,22 @@ export default function PanelAdminsPage() {
 				) : isLoading || !data ? (
 					<Skeleton h='240px' />
 				) : (
-					<Logins
-						admins={data.doc}
-						roles={data.roles || []}
-						projectName={project?.name || ''}
-						store={store}
-					/>
+					<>
+						<Logins
+							admins={data.doc}
+							roles={data.roles || []}
+							projectName={project?.name || ''}
+							store={store}
+						/>
+						{/* The project's managers only: the panel apps' super admins get no `demo` back. */}
+						{data.demo !== undefined && (
+							<DemoCard
+								demo={data.demo}
+								roles={data.roles || []}
+								store={store}
+							/>
+						)}
+					</>
 				)}
 			</Flex>
 		</Layout>

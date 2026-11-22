@@ -548,7 +548,11 @@ export type PanelAdmin = {
 	/** Its panel role (docs/panel-users PU-01), or a super admin. A store's login may have neither. */
 	role?: string | null;
 	superAdmin?: boolean;
+	/** The project's demo login (backend docs/panel-users/DEMO_LOGINS.md). */
+	demo?: boolean;
 };
+/** The demo login with its key: its link is <app>/demo/<demoKey>. */
+export type DemoLogin = PanelAdmin & { demoKey: string };
 
 /** What a panel user may do (backend docs/panel-users PU-01). */
 export type PanelRole = { _id: string; name: string; description: string; permissions: string[]; holders: number; createdAt?: string; updatedAt?: string };
@@ -1416,7 +1420,7 @@ export const tenantApi = mainApi.injectEndpoints({
 			invalidatesTags: ['tenant-mail-accounts', 'history'],
 		}),
 		/* ------------------ a store's commerce panel logins (docs/commerce-panel CP-03) */
-		getPanelAdmins: builder.query<{ doc: PanelAdmin[]; totalDocs: number; roles?: { _id: string; name: string }[] }, void>({
+		getPanelAdmins: builder.query<{ doc: PanelAdmin[]; totalDocs: number; roles?: { _id: string; name: string }[]; demo?: DemoLogin | null }, void>({
 			query: () => 'panel-admins',
 			providesTags: ['tenant-panel-admins'],
 		}),
@@ -1430,6 +1434,16 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 		removePanelAdmin: builder.mutation<{ message: string }, string>({
 			query: id => ({ url: `panel-admins/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['tenant-panel-admins', 'history'],
+		}),
+		/** The project's one demo login (tenant managers only). */
+		addDemoLogin: builder.mutation<{ demo: DemoLogin }, { role?: string | null; superAdmin?: boolean }>({
+			query: body => ({ url: 'panel-admins/demo', method: 'POST', body }),
+			invalidatesTags: ['tenant-panel-admins', 'history'],
+		}),
+		/** A new demo link: the old one stops and its demos are signed out. */
+		newDemoLink: builder.mutation<{ demo: DemoLogin }, void>({
+			query: () => ({ url: 'panel-admins/demo/new-link', method: 'POST' }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
 		}),
 		/* ------------------ panel users' roles (docs/panel-users PU-01) */
@@ -1589,6 +1603,8 @@ export const {
 	useAddPanelAdminMutation,
 	useUpdatePanelAdminMutation,
 	useRemovePanelAdminMutation,
+	useAddDemoLoginMutation,
+	useNewDemoLinkMutation,
 	useGetPanelRolesQuery,
 	useAddPanelRoleMutation,
 	useUpdatePanelRoleMutation,
