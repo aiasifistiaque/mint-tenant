@@ -38,6 +38,7 @@ const GUIDE_OF: Record<string, string> = {
 	'report-kinds': 'reports',
 	'panel-app': 'reports',
 	'panel-users': 'reports',
+	'demo-login': 'reports',
 	'panel-roles': 'reports',
 	'super-admin': 'reports',
 	'panel-ai': 'reports',

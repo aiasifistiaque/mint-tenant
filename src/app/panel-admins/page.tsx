@@ -786,18 +786,23 @@ const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string 
 		<Panel
 			id='demo-login'
 			title='Demo login'
-			subtitle={`A link that opens the ${store ? 'commerce panel' : 'panel app'} for an hour, no password — for showing your work. Each visit signs out whoever was signed in on that browser, and after an hour the link signs them in again.`}
+			subtitle={`A link that opens the ${store ? 'commerce panel' : 'panel app'} signed in, no password — for showing your work. Each visit signs out whoever was signed in on that browser and lasts an hour; opening the link again starts a new hour.`}
 			actions={
-				!demo ? (
-					<Button
-						size='sm'
-						onClick={() => {
-							setAccess(store ? '' : roles[0]?._id || SUPER);
-							setMaking(true);
-						}}>
-						<Sparkles size={14} /> Make a demo login
-					</Button>
-				) : undefined
+				<Flex
+					gap={2}
+					align='center'>
+					<GuideLink section='demo-login' />
+					{!demo && (
+						<Button
+							size='sm'
+							onClick={() => {
+								setAccess(store ? '' : roles[0]?._id || SUPER);
+								setMaking(true);
+							}}>
+							<Sparkles size={14} /> Make a demo login
+						</Button>
+					)}
+				</Flex>
 			}>
 			{!demo ? (
 				<Text
