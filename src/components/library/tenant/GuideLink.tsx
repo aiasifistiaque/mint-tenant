@@ -40,6 +40,10 @@ const GUIDE_OF: Record<string, string> = {
 	'panel-users': 'reports',
 	'demo-login': 'reports',
 	'panel-roles': 'reports',
+	// Mint SEO (backend docs/seo-panel SP-11): its projects and logins, in the SEO guide.
+	'mint-seo': 'seo-connect',
+	'seo-logins': 'seo-connect',
+	'seo-demo': 'seo-connect',
 	'super-admin': 'reports',
 	'panel-ai': 'reports',
 	templates: 'templates',

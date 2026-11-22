@@ -39,6 +39,19 @@ import GuideLink from '@/components/library/tenant/GuideLink';
 
 const COMMERCE_URL = (process.env.NEXT_PUBLIC_COMMERCE_URL || 'https://commerce.mintapp.site').replace(/\/+$/, '');
 const PANEL_URL = (process.env.NEXT_PUBLIC_PANEL_URL || 'https://panel.tcrypt.site').replace(/\/+$/, '');
+const SEO_URL = (process.env.NEXT_PUBLIC_SEO_URL || 'https://seo.tcrypt.site').replace(/\/+$/, '');
+
+/**
+ * Which app a project's logins open: a store's the commerce panel, a Mint SEO website's Mint SEO (backend
+ * docs/seo-panel SP-11: fixed SEO access, no panel roles), every other project's the panel app.
+ */
+type AppKind = 'store' | 'seo' | 'panel';
+const APP: Record<AppKind, { url: string; name: string }> = {
+	store: { url: COMMERCE_URL, name: 'the commerce panel' },
+	seo: { url: SEO_URL, name: 'Mint SEO' },
+	panel: { url: PANEL_URL, name: 'the panel app' },
+};
+const SEO_ADMIN = 'SEO admin — pages, SEO, link previews, redirects, tracking, analytics and the site’s connection';
 
 /** The access dropdown's value: a role id, SUPER, or '' (a store's own fixed access). */
 const SUPER = '__super';
@@ -136,8 +149,8 @@ const Chip: FC<{ children: ReactNode }> = ({ children }) => (
  * a login with no role get a sentence instead. The standard modal — a bottom
  * sheet on a phone.
  */
-const PermissionsDialog: FC<{ admin: PanelAdmin | null; store: boolean; onClose: () => void; onChangeRole: () => void }> = ({ admin: a, store, onClose, onChangeRole }) => {
-	const { data, isLoading, isError } = useGetPanelRolesQuery(undefined, { skip: !a || a.superAdmin || !a.role });
+const PermissionsDialog: FC<{ admin: PanelAdmin | null; store: boolean; seo: boolean; onClose: () => void; onChangeRole: () => void }> = ({ admin: a, store, seo, onClose, onChangeRole }) => {
+	const { data, isLoading, isError } = useGetPanelRolesQuery(undefined, { skip: !a || a.superAdmin || !a.role || seo });
 	const role = data?.doc.find(r => r._id === a?.role);
 	const keys = new Set(role?.permissions || []);
 	const rows = (data?.targets || [])
@@ -147,6 +160,10 @@ const PermissionsDialog: FC<{ admin: PanelAdmin | null; store: boolean; onClose:
 
 	const sentence = !a
 		? ''
+		: seo
+		? a.superAdmin
+			? 'Super admin — everything in Mint SEO: pages, SEO, link previews, redirects, tracking, analytics and the site’s connection, and they add other SEO logins.'
+			: `${SEO_ADMIN}. They can’t add other logins.`
 		: a.superAdmin
 		? 'Super admin — they see and work on every table and report, and make panel roles and other panel users. They can’t build.'
 		: !a.role
@@ -164,7 +181,7 @@ const PermissionsDialog: FC<{ admin: PanelAdmin | null; store: boolean; onClose:
 			<DialogHeader
 				divider
 				icon={<ShieldCheck size={17} strokeWidth={1.75} />}
-				description={a ? `${a.username || a.email}${role ? ` · ${role.name}` : a.superAdmin ? ' · Super admin' : ''}` : undefined}>
+				description={a ? `${a.username || a.email}${role ? ` · ${role.name}` : a.superAdmin ? ' · Super admin' : seo ? ' · SEO admin' : ''}` : undefined}>
 				{a ? `What ${a.name} can do` : 'Permissions'}
 			</DialogHeader>
 			<DialogCloseButton />
@@ -282,7 +299,7 @@ const PermissionsDialog: FC<{ admin: PanelAdmin | null; store: boolean; onClose:
 				<Button
 					{...(styles.MODAL_BUTTON as any)}
 					onClick={onChangeRole}>
-					Change role
+					{seo ? 'Change access' : 'Change role'}
 				</Button>
 			</DialogFooter>
 		</Dialog>
@@ -309,7 +326,7 @@ const Field: FC<{ label: string; children: React.ReactNode; hint?: string }> = (
 	</Box>
 );
 
-const Row: FC<{ admin: PanelAdmin; access: string; onPermissions: () => void; onAccess: () => void; onSignIn: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, onPermissions, onAccess, onSignIn, onPassword, onToggle, onRemove }) => (
+const Row: FC<{ admin: PanelAdmin; access: string; accessLabel: string; onPermissions: () => void; onAccess: () => void; onSignIn: () => void; onPassword: () => void; onToggle: () => void; onRemove: () => void }> = ({ admin: a, access, accessLabel, onPermissions, onAccess, onSignIn, onPassword, onToggle, onRemove }) => (
 	<Flex
 		data-testid='panel-admin'
 		align='center'
@@ -396,7 +413,7 @@ const Row: FC<{ admin: PanelAdmin; access: string; onPermissions: () => void; on
 						<Menu.Item
 							value='access'
 							onClick={onAccess}>
-							Change role
+							{accessLabel}
 						</Menu.Item>
 						<Menu.Item
 							value='sign-in'
@@ -426,14 +443,23 @@ const Row: FC<{ admin: PanelAdmin; access: string; onPermissions: () => void; on
 	</Flex>
 );
 
-const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[]; projectName: string; store: boolean }> = ({ admins, roles, projectName, store }) => {
-	const appUrl = store ? COMMERCE_URL : PANEL_URL;
-	const choices = [
-		...(store ? [{ value: '', label: 'Store admin — the store’s orders, products, POS, couriers' }] : []),
-		{ value: SUPER, label: 'Super admin — every table and report, and makes panel users' },
-		...roles.map(r => ({ value: r._id, label: r.name })),
-	];
-	const label = (a: PanelAdmin) => (a.superAdmin ? 'Super admin' : roles.find(r => r._id === a.role)?.name || (store ? '' : 'No role'));
+const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[]; projectName: string; kind: AppKind }> = ({ admins, roles, projectName, kind }) => {
+	const store = kind === 'store';
+	const seo = kind === 'seo';
+	const appUrl = APP[kind].url;
+	const choices = seo
+		? [
+				{ value: '', label: SEO_ADMIN },
+				{ value: SUPER, label: 'Super admin — all of that, and adds other SEO logins' },
+		  ]
+		: [
+				...(store ? [{ value: '', label: 'Store admin — the store’s orders, products, POS, couriers' }] : []),
+				{ value: SUPER, label: 'Super admin — every table and report, and makes panel users' },
+				...roles.map(r => ({ value: r._id, label: r.name })),
+		  ];
+	const label = (a: PanelAdmin) => (a.superAdmin ? 'Super admin' : seo ? 'SEO admin' : roles.find(r => r._id === a.role)?.name || (store ? '' : 'No role'));
+	/** What a login's access is called: an SEO login has fixed access, not a panel role. */
+	const accessWord = seo ? 'Access' : 'Role';
 	const [accessFor, setAccessFor] = useState<PanelAdmin | null>(null);
 	const [access, setAccess] = useState('');
 	const [adding, setAdding] = useState(false);
@@ -455,27 +481,31 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 	return (
 		<Panel
 			id='panel-admins'
-			title={store ? 'Store logins' : 'Panel users'}
+			title={store ? 'Store logins' : seo ? 'SEO logins' : 'Panel users'}
 			subtitle={
 				store
 					? `The people who run ${projectName || 'the store'} sign in to the commerce panel with these — orders, products, POS, couriers and email, no building or settings`
+					: seo
+					? `The people who look after ${projectName || 'the site'} sign in to Mint SEO with these — they connect the site, then manage its pages’ SEO and see its visits`
 					: `The people who work in ${projectName || 'the project'} sign in to the panel app with these — the tables and reports their role allows, never building or settings`
 			}
 			actions={
 				<Flex
 					gap={2}
 					align='center'>
-					{!store && <GuideLink section='panel-users' />}
-					<Button
-						asChild
-						size='sm'
-						variant='outline'>
-						<NextLink href={projectHref('/panel-roles')}>Panel roles</NextLink>
-					</Button>
+					{!store && <GuideLink section={seo ? 'seo-logins' : 'panel-users'} />}
+					{!seo && (
+						<Button
+							asChild
+							size='sm'
+							variant='outline'>
+							<NextLink href={projectHref('/panel-roles')}>Panel roles</NextLink>
+						</Button>
+					)}
 					<Button
 						size='sm'
 						onClick={() => {
-							setForm({ name: '', username: '', email: '', password: '', phone: '', access: store ? '' : roles[0]?._id || SUPER });
+							setForm({ name: '', username: '', email: '', password: '', phone: '', access: store ? '' : seo ? SUPER : roles[0]?._id || SUPER });
 							setAdding(true);
 						}}>
 						<Plus size={14} /> Add a login
@@ -489,7 +519,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 					<Text
 						fontSize='13px'
 						color='fg.muted'>
-						{`No logins yet. Add one with a username and a password${store ? '' : ' and a role'}, then share the ${store ? 'commerce panel’s' : 'panel app’s'} address with them.`}
+						{`No logins yet. Add one with a username and a password${store || seo ? '' : ' and a role'}, then share ${APP[kind].name}’s address with them.`}
 					</Text>
 				) : (
 					admins.map(a => (
@@ -497,6 +527,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 							key={a._id}
 							admin={a}
 							access={label(a)}
+							accessLabel={`Change ${accessWord.toLowerCase()}`}
 							onPermissions={() => setPermsFor(a)}
 							onAccess={() => {
 								setAccess(accessOf(a));
@@ -543,6 +574,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 			<PermissionsDialog
 				admin={permsFor}
 				store={store}
+				seo={seo}
 				onClose={() => setPermsFor(null)}
 				onChangeRole={() => {
 					if (!permsFor) return;
@@ -556,8 +588,8 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 			<FormDialog
 				open={adding}
 				onClose={() => setAdding(false)}
-				title={store ? 'Add a store login' : 'Add a panel user'}
-				description={`They sign in with the username (or the email, if you give one). One username opens one ${store ? 'store' : 'project'}. You can set a new password for them here later.`}
+				title={store ? 'Add a store login' : seo ? 'Add an SEO login' : 'Add a panel user'}
+				description={`They sign in ${seo ? 'to Mint SEO ' : ''}with the username (or the email, if you give one). One username opens one ${store ? 'store' : seo ? 'site' : 'project'}. You can set a new password for them here later.`}
 				confirmLabel='Add'
 				loading={added.isLoading}
 				onConfirm={async () => {
@@ -615,8 +647,8 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 					/>
 				</Field>
 				<Field
-					label='Role'
-					hint={roles.length ? undefined : 'No panel roles yet — make one under Panel roles, or add a super admin.'}>
+					label={accessWord}
+					hint={seo ? 'The first login is usually a super admin: they can add the rest themselves.' : roles.length ? undefined : 'No panel roles yet — make one under Panel roles, or add a super admin.'}>
 					<Dropdown
 						size='sm'
 						value={form.access}
@@ -629,7 +661,7 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 			<FormDialog
 				open={!!accessFor}
 				onClose={() => setAccessFor(null)}
-				title='Change role'
+				title={`Change ${accessWord.toLowerCase()}`}
 				subject={who(accessFor)}
 				description='It applies from their next page — they stay signed in.'
 				confirmLabel='Save'
@@ -639,12 +671,12 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
 					try {
 						await update({ id: accessFor._id, ...accessBody(access) }).unwrap();
 						setAccessFor(null);
-						toaster.create({ type: 'success', title: 'Role changed.' });
+						toaster.create({ type: 'success', title: `${accessWord} changed.` });
 					} catch (e) {
 						fail(e, 'Not changed — try again.');
 					}
 				}}>
-				<Field label='Role'>
+				<Field label={accessWord}>
 					<Dropdown
 						size='sm'
 						value={access}
@@ -753,15 +785,18 @@ const Logins: FC<{ admins: PanelAdmin[]; roles: { _id: string; name: string }[];
  * password. Its access is a role like any login's, but it never manages panel users. Only the project's
  * managers see this card; the panel apps' super admins don't.
  */
-const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string }[]; store: boolean }> = ({ demo, roles, store }) => {
-	const appUrl = store ? COMMERCE_URL : PANEL_URL;
+const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string }[]; kind: AppKind }> = ({ demo, roles, kind }) => {
+	const store = kind === 'store';
+	// An SEO project's demo only looks (backend SEO_DEMO_PERMISSIONS): visitors could otherwise disconnect the real site.
+	const seo = kind === 'seo';
+	const appUrl = APP[kind].url;
 	const link = demo ? `${appUrl}/demo/${demo.demoKey}` : '';
 	const choices = [
 		...(store ? [{ value: '', label: 'Store admin — the store’s orders, products, POS, couriers' }] : []),
 		{ value: SUPER, label: 'Everything — every table and report (never panel users)' },
 		...roles.map(r => ({ value: r._id, label: r.name })),
 	];
-	const label = (a: DemoLogin) => (a.superAdmin ? 'Everything' : roles.find(r => r._id === a.role)?.name || (store ? 'Store admin' : 'No role'));
+	const label = (a: DemoLogin) => (seo ? 'View only' : a.superAdmin ? 'Everything' : roles.find(r => r._id === a.role)?.name || (store ? 'Store admin' : 'No role'));
 	const [making, setMaking] = useState(false);
 	const [changing, setChanging] = useState(false);
 	const [access, setAccess] = useState('');
@@ -786,12 +821,12 @@ const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string 
 		<Panel
 			id='demo-login'
 			title='Demo login'
-			subtitle={`A link that opens the ${store ? 'commerce panel' : 'panel app'} signed in, no password — for showing your work. Each visit signs out whoever was signed in on that browser and lasts an hour; opening the link again starts a new hour.`}
+			subtitle={`A link that opens ${APP[kind].name} signed in, no password — for showing your work.${seo ? ' Visitors look around — pages, SEO, visits — but can’t change anything.' : ''} Each visit signs out whoever was signed in on that browser and lasts an hour; opening the link again starts a new hour.`}
 			actions={
 				<Flex
 					gap={2}
 					align='center'>
-					<GuideLink section='demo-login' />
+					<GuideLink section={seo ? 'seo-demo' : 'demo-login'} />
 					{!demo && (
 						<Button
 							size='sm'
@@ -808,7 +843,7 @@ const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string 
 				<Text
 					fontSize='13px'
 					color='fg.muted'>
-					No demo login yet. Make one, pick what visitors may see, then put its link on your website.
+					{seo ? 'No demo login yet. Make one, then put its link on your website.' : 'No demo login yet. Make one, pick what visitors may see, then put its link on your website.'}
 				</Text>
 			) : (
 				<Flex
@@ -821,7 +856,7 @@ const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string 
 						wrap='wrap'>
 						<Badge
 							size='sm'
-							colorPalette={demo.superAdmin ? 'purple' : 'blue'}>
+							colorPalette={!seo && demo.superAdmin ? 'purple' : 'blue'}>
 							{label(demo)}
 						</Badge>
 						{!demo.isActive && (
@@ -886,14 +921,16 @@ const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string 
 							<Portal>
 								<Menu.Positioner>
 									<Menu.Content minW='180px'>
-										<Menu.Item
-											value='access'
-											onClick={() => {
-												setAccess(accessOf(demo));
-												setChanging(true);
-											}}>
-											Change what visitors see
-										</Menu.Item>
+										{!seo && (
+											<Menu.Item
+												value='access'
+												onClick={() => {
+													setAccess(accessOf(demo));
+													setChanging(true);
+												}}>
+												Change what visitors see
+											</Menu.Item>
+										)}
 										<Menu.Item
 											value='new-link'
 											onClick={() => setRenewing(true)}>
@@ -930,28 +967,37 @@ const DemoCard: FC<{ demo: DemoLogin | null; roles: { _id: string; name: string 
 				onClose={() => setMaking(false)}
 				icon={<Sparkles size={17} strokeWidth={1.75} />}
 				title='Make a demo login'
-				description='One link, no password. Anyone who opens it is signed in for an hour.'
+				description={`One link, no password. Anyone who opens it is signed in for an hour${seo ? ' and can look but not change anything' : ''}.`}
 				confirmLabel='Make it'
 				loading={added.isLoading}
 				onConfirm={async () => {
 					try {
-						await add(accessBody(access)).unwrap();
+						await add(accessBody(seo ? '' : access)).unwrap();
 						setMaking(false);
 						toaster.create({ type: 'success', title: 'Demo login made — copy its link.' });
 					} catch (e) {
 						fail(e, 'Not made — try again.');
 					}
 				}}>
-				<Field
-					label='What visitors see'
-					hint={accessNote}>
-					<Dropdown
-						size='sm'
-						value={access}
-						onChange={setAccess}
-						items={choices}
-					/>
-				</Field>
+				{seo ? (
+					<Text
+						fontSize='13px'
+						color='fg.muted'>
+						Visitors see Home, Pages & SEO, Defaults, Link previews, Media, Analytics and Connection. Saving, connecting and
+						disconnecting are switched off for them.
+					</Text>
+				) : (
+					<Field
+						label='What visitors see'
+						hint={accessNote}>
+						<Dropdown
+							size='sm'
+							value={access}
+							onChange={setAccess}
+							items={choices}
+						/>
+					</Field>
+				)}
 			</FormDialog>
 
 			<FormDialog
@@ -1030,11 +1076,12 @@ export default function PanelAdminsPage() {
 	const { can, project, isLoading: loadingSelf } = useWorkspace();
 	const allowed = can('manage-projects') || can('invite-to-projects') || can('manage-panel-users');
 	const store = project?.type === 'ecommerce';
+	const kind: AppKind = store ? 'store' : project?.edition === 'seo' ? 'seo' : 'panel';
 	const { data, isLoading, isError } = useGetPanelAdminsQuery(undefined, { skip: !allowed || !project });
 
 	return (
 		<Layout
-			title={store ? 'Panel admins' : 'Panel users'}
+			title={store ? 'Panel admins' : kind === 'seo' ? 'SEO logins' : 'Panel users'}
 			path={store ? 'panel-admins' : 'panel-users'}>
 			<Flex
 				direction='column'
@@ -1065,16 +1112,16 @@ export default function PanelAdminsPage() {
 							admins={data.doc}
 							roles={data.roles || []}
 							projectName={project?.name || ''}
-							store={store}
+							kind={kind}
 						/>
 						{/* The project's managers only: the panel apps' super admins get no `demo` back. */}
 						{data.demo !== undefined && (
 							<DemoCard
 								demo={data.demo}
 								roles={data.roles || []}
-								store={store}
-							/>
-						)}
+								kind={kind}
+								/>
+								)}
 					</>
 				)}
 			</Flex>

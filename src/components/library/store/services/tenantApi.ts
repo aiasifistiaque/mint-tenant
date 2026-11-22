@@ -71,6 +71,8 @@ export type TenantProject = {
 	slug: string;
 	publicSlug: string;
 	type: ProjectType;
+	/** A website's edition (backend docs/seo-panel D1): `seo` = an existing site connected to Mint SEO. */
+	edition?: 'seo';
 	description?: string;
 	icon?: string;
 	/** The project's own logo (its business details), from the list only; empty when it has none. */
@@ -1102,7 +1104,7 @@ export const tenantApi = mainApi.injectEndpoints({
 		}),
 		createProject: builder.mutation<
 			TenantProject,
-			{ name: string; type: ProjectType; description?: string; domains?: string[]; color?: string; icon?: string; mediaScope?: MediaScope }
+			{ name: string; type: ProjectType; edition?: 'seo'; description?: string; domains?: string[]; color?: string; icon?: string; mediaScope?: MediaScope }
 		>({
 			query: body => ({ url: 'projects', method: 'POST', body }),
 			invalidatesTags: ['tenant-projects', 'self', 'tenant-org'],

@@ -45,6 +45,11 @@ const KIND_TONE: Record<string, Tone> = { app: 'emerald', website: 'sky', api: '
 
 /** A project's kind, as a word and an icon. */
 const KIND: Record<ProjectType, { label: string; icon: ReactNode }> = Object.fromEntries(TYPES.map(t => [t.value, { label: t.title, icon: t.icon }])) as any;
+/** A Mint SEO website (backend docs/seo-panel SP-11) shows as its own kind. */
+const kindOf = (p: TenantProject) => (p.edition === 'seo' ? { label: 'Mint SEO', icon: <Search size={18} /> } : KIND[p.type] || KIND.app);
+
+/** Mint SEO's address, where an SEO project's logins sign in. */
+const SEO_URL = (process.env.NEXT_PUBLIC_SEO_URL || 'https://seo.tcrypt.site').replace(/\/+$/, '');
 
 const domainList = (text: string) =>
 	text
@@ -185,6 +190,8 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 	const [description, setDescription] = useState('');
 	const [domains, setDomains] = useState('');
 	const [mediaScope, setMediaScope] = useState<MediaScope>('project');
+	/** New website only: SEO for a site they already have (Mint SEO, SP-11) instead of one made in Mint. */
+	const [seo, setSeo] = useState(false);
 	/** New project only: a template key, 'own', or '' — where Get started opens (StartFrom). */
 	const [start, setStart] = useState('');
 	const [startName, setStartName] = useState('');
@@ -199,6 +206,7 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 		setDescription(project?.description || '');
 		setDomains((project?.domains || []).join(', '));
 		setMediaScope(project?.mediaScope || 'project');
+		setSeo(false);
 		setStart('');
 		setStartName('');
 	}, [open, project?._id]);
@@ -213,11 +221,13 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 		e?.preventDefault();
 		const projectName = name.trim() || (!project ? startName : '');
 		if (!projectName) return;
+		const forSeo = !project && type === 'website' && seo;
 		const body = {
 			name: projectName,
 			description: description.trim(),
 			mediaScope,
-			...(type === 'website' && { domains: domainList(domains) }),
+			...(type === 'website' && !forSeo && { domains: domainList(domains) }),
+			...(forSeo && { edition: 'seo' as const }),
 		};
 		if (project) {
 			const res = await update({ id: project._id, ...body });
@@ -229,6 +239,8 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 			close();
 			// A store starts with its setup wizard (docs/ecommerce EC-04).
 			if (type === 'ecommerce') return openProject(res.data.publicSlug, '/store/setup');
+			// Mint SEO: its people sign in to the SEO app with logins made here (docs/seo-panel SP-11).
+			if (forSeo) return openProject(res.data.publicSlug, '/panel-admins');
 			// A new project starts with its Get started page (WO-35) — on the template picked here, if one was.
 			openProject(res.data.publicSlug, `/get-started${start === 'own' ? '?start=own' : start ? `?template=${encodeURIComponent(start)}` : ''}`);
 		}
@@ -323,7 +335,43 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 								</Grid>
 							</Box>
 						)}
-						{!project && open && type !== 'ecommerce' && (
+						{!project && type === 'website' && (
+							<Box>
+								<Flex
+									align='baseline'
+									justify='space-between'
+									gap={2}>
+									<Text {...labelCss}>The site</Text>
+									<GuideLink section='mint-seo' />
+								</Flex>
+								<SegmentGroup.Root
+									size='sm'
+									mt={1.5}
+									value={seo ? 'seo' : 'mint'}
+									onValueChange={d => {
+										setSeo(d.value === 'seo');
+										setStart('');
+										setStartName('');
+									}}
+									w='fit-content'>
+									<SegmentGroup.Indicator />
+									<SegmentGroup.Items
+										items={[
+											{ value: 'mint', label: 'Made in Mint' },
+											{ value: 'seo', label: 'SEO for a site I already have' },
+										]}
+									/>
+								</SegmentGroup.Root>
+								<Text
+									{...helperCss}
+									mt={1.5}>
+									{seo
+										? `Mint SEO: the people who look after the site sign in at ${SEO_URL.replace(/^https?:\/\//, '')} with logins you make next, connect the site in a few steps, then manage its SEO and see its visits. The site stays where it is.`
+										: 'Pages, content and settings made here, served to your site through its site API.'}
+								</Text>
+							</Box>
+						)}
+						{!project && open && type !== 'ecommerce' && !(type === 'website' && seo) && (
 							<StartFrom
 								type={type}
 								value={start}
@@ -333,7 +381,7 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 								}}
 							/>
 						)}
-						{type === 'website' && (
+						{type === 'website' && !(!project && seo) && (
 							<Field.Root>
 								<Field.Label {...labelCss}>Domains</Field.Label>
 								<Input
@@ -461,7 +509,7 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 						boxSize='36px'
 						borderRadius='10px'
 						color={TONES[KIND_TONE[project.type] || 'emerald'].fg}>
-						{(KIND[project.type] || KIND.app).icon}
+						{kindOf(project).icon}
 					</Center>
 				)}
 				<Box minW={0}>
@@ -476,14 +524,14 @@ const ProjectCard: FC<{ project: TenantProject; current: boolean; canManage: boo
 						color='fg.muted'
 						lineClamp={2}
 						minH='2lh'>
-						{project.description || (KIND[project.type] || KIND.app).label}
+						{project.description || kindOf(project).label}
 					</Text>
 				</Box>
 				<Flex
 					gap={3}
 					fontSize='12px'
 					color='fg.muted'>
-					<Text>{(KIND[project.type] || KIND.app).label}</Text>
+					<Text>{kindOf(project).label}</Text>
 					<Text>
 						{project.models || 0} model{project.models === 1 ? '' : 's'}
 					</Text>
