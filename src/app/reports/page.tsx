@@ -114,7 +114,7 @@ export default function ReportsPage() {
 					<Panel
 						id='reports'
 						title='Reports'
-						subtitle='Open one to pick the dates, see its rows and totals, and download it.'
+						subtitle='Open one to pick the dates and filters, see its rows and totals, and download it. A report is worked out from the current records each time it opens — nothing is generated ahead or on a schedule.'
 						actions={
 							<Flex
 								gap={3}

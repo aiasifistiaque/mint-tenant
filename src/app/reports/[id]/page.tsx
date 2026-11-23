@@ -14,10 +14,11 @@ import type { ReportFormat, ReportRun } from '@/components/library/store/service
 import ReportTable from '../_components/ReportTable';
 import { FORMATS, RANGES, TZ, describe, rangeDates } from '../_components/kinds';
 import GuideLink from '@/components/library/tenant/GuideLink';
+import ReaderFilter from '../_components/ReaderFilter';
 
 /**
  * One report (docs/panel-users RP-03): pick the dates (it opens on its own
- * range), see its rows and totals, download it as CSV, Excel or PDF where it
+ * range) and a value for each of its reader filters, see its rows and totals, download it as CSV, Excel or PDF where it
  * allows that. Developers get Edit.
  */
 
@@ -31,10 +32,13 @@ export default function ReportPage() {
 	const [download, downloading] = useExportSavedReportMutation();
 	const [result, setResult] = useState<ReportRun | null>(null);
 	const [format, setFormat] = useState<ReportFormat | null>(null);
+	/** The reader's pick per reader filter; '' is All. */
+	const [picks, setPicks] = useState<Record<string, string>>({});
+	const chosen = (p = picks) => Object.fromEntries(Object.entries(p).filter(([, v]) => v !== ''));
 
-	const go = async (d = dates) => {
+	const go = async (d = dates, p = picks) => {
 		try {
-			setResult(await run({ id, from: d.from || undefined, to: d.to || undefined, tz: TZ }).unwrap());
+			setResult(await run({ id, from: d.from || undefined, to: d.to || undefined, tz: TZ, filters: chosen(p) }).unwrap());
 		} catch (e: any) {
 			toaster.create({ type: 'error', title: e?.data?.message || 'The report didn’t run — try again.' });
 		}
@@ -45,13 +49,14 @@ export default function ReportPage() {
 		const d = rangeDates(report.range);
 		setRange(report.range);
 		setDates(d);
-		go(d);
+		setPicks({});
+		go(d, {});
 	}, [report?._id, report?.updatedAt]);
 
 	const save = async (f: ReportFormat) => {
 		setFormat(f);
 		try {
-			const out: any = await download({ id, format: f, from: dates.from || undefined, to: dates.to || undefined, tz: TZ }).unwrap();
+			const out: any = await download({ id, format: f, from: dates.from || undefined, to: dates.to || undefined, tz: TZ, filters: chosen() }).unwrap();
 			if (out?.message) throw { data: out };
 		} catch (e: any) {
 			toaster.create({ type: 'error', title: e?.data?.message || 'Not downloaded — try again.' });
@@ -154,6 +159,19 @@ export default function ReportPage() {
 									}}
 								/>
 							</Box>
+							{(report.readerFilterFields || []).map(f => (
+								<ReaderFilter
+									key={f.key}
+									field={f}
+									value={picks[f.key] || ''}
+									onType={v => setPicks({ ...picks, [f.key]: v })}
+									onPick={v => {
+										const next = { ...picks, [f.key]: v };
+										setPicks(next);
+										go(dates, next);
+									}}
+								/>
+							))}
 							<Button
 								size='sm'
 								loading={running.isLoading}

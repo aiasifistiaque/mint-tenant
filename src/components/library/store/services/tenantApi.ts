@@ -580,6 +580,8 @@ export type SavedReport = {
 	interval: 'day' | 'week' | 'month' | 'year';
 	sums: { field: string; label?: string }[];
 	filters: ReportFilter[];
+	/** Fields whoever runs the report can narrow it by. */
+	readerFilters: string[];
 	dateField: string;
 	range: string;
 	exportable: boolean;
@@ -587,10 +589,21 @@ export type SavedReport = {
 	canDownload: boolean;
 	order: number;
 	updatedAt?: string;
+	/** Sent with one report (GET /:id): what the report page shows for each reader filter. */
+	readerFilterFields?: ReaderFilterField[];
 };
-export type ReportInput = Omit<SavedReport, '_id' | 'model' | 'canDownload' | 'updatedAt'>;
-export type ReportModelField = { key: string; label: string; kind: string; ref: string | null; date: boolean; number: boolean };
-export type ReportModel = { route: string; name: string; displayField: string; fields: ReportModelField[] };
+export type ReaderFilterField = {
+	key: string;
+	label: string;
+	kind: string;
+	options: { value: string; label: string }[];
+	number: boolean;
+	link: { route: string; name: string; displayField: string } | null;
+};
+export type ReportInput = Omit<SavedReport, '_id' | 'model' | 'canDownload' | 'updatedAt' | 'readerFilterFields'>;
+export type ReportModelField = { key: string; label: string; kind: string; ref: string | null; options?: { value: string; label: string }[]; date: boolean; number: boolean };
+/** `model` is the model's own name, what a field's `ref` points at. */
+export type ReportModel = { route: string; name: string; model?: string; displayField: string; fields: ReportModelField[] };
 export type ReportRun = {
 	type: ReportType;
 	columns: { key: string; label: string; kind: string }[];
@@ -600,7 +613,8 @@ export type ReportRun = {
 	truncated: boolean;
 	report: SavedReport;
 };
-export type ReportDates = { from?: string; to?: string; tz?: string };
+/** A run's dates, and the reader's pick for each reader filter. */
+export type ReportDates = { from?: string; to?: string; tz?: string; filters?: Record<string, string> };
 
 /** Saves a downloaded file under its server-given name (Content-Disposition), or `fallback`. */
 const saveBlob = async (response: Response, fallback: string) => {

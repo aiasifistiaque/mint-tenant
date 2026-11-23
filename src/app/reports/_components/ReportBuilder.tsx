@@ -19,6 +19,7 @@ import type { ReportInput, ReportRun, SavedReport } from '@/components/library/s
 import ReportTable from './ReportTable';
 import { FORMATS, KIND, RANGES, TZ, rangeDates } from './kinds';
 import GuideLink from '@/components/library/tenant/GuideLink';
+import ConditionValue, { opsFor } from './ConditionValue';
 
 /**
  * The report builder (docs/panel-users RP-03) — developers only (Build). Pick a
@@ -53,6 +54,7 @@ const BLANK: ReportInput = {
 	interval: 'month',
 	sums: [],
 	filters: [],
+	readerFilters: [],
 	dateField: 'createdAt',
 	range: 'all',
 	exportable: true,
@@ -101,7 +103,7 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 
 	useEffect(() => {
 		if (!report) return;
-		const { _id, model, canDownload, updatedAt, ...rest } = report as any;
+		const { _id, model, canDownload, updatedAt, readerFilterFields, ...rest } = report as any;
 		setR({ ...BLANK, ...rest });
 	}, [report?._id]);
 
@@ -117,7 +119,7 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 	const pickModel = (route: string) => {
 		const m = models?.doc.find(x => x.route === route);
 		const first = (m?.fields || []).filter(f => !['createdAt', 'updatedAt'].includes(f.key)).slice(0, 5);
-		set({ route, columns: first.map(f => ({ key: f.key })), totals: [], sort: '', groupBy: '', sums: [], filters: [], dateField: m?.fields.find(f => f.date && f.key !== 'createdAt' && f.key !== 'updatedAt')?.key || 'createdAt' });
+		set({ route, columns: first.map(f => ({ key: f.key })), totals: [], sort: '', groupBy: '', sums: [], filters: [], readerFilters: [], dateField: m?.fields.find(f => f.date && f.key !== 'createdAt' && f.key !== 'updatedAt')?.key || 'createdAt' });
 	};
 	const hasColumn = (key: string) => r.columns.some(c => c.key === key);
 	const sortDir = r.sort.startsWith('-') ? '-' : '';
@@ -157,7 +159,7 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 			<Panel
 				id='report-basics'
 				title={report ? `Edit “${report.name}”` : 'New report'}
-				subtitle='Who opens it sees only the records their role can view.'
+				subtitle='Nothing is generated ahead or on a schedule: a report is worked out from the current records each time someone opens or downloads it. Who opens it sees only the records their role can view.'
 				actions={<GuideLink section='build-report' />}>
 				<Grid
 					templateColumns={{ base: '1fr', md: '1fr 1fr' }}
@@ -407,46 +409,52 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 							<Flex
 								direction='column'
 								gap={2}>
-								{r.filters.map((f, i) => (
-									<Flex
-										key={i}
-										gap={2}
-										align='center'
-										wrap={{ base: 'wrap', md: 'nowrap' }}>
-										<Box flex='1'>
-											<Dropdown
-												size='sm'
-												value={f.field}
-												onChange={v => set({ filters: r.filters.map((x, j) => (j === i ? { ...x, field: v } : x)) })}
-												items={fields.map(x => ({ value: x.key, label: x.label }))}
+								{r.filters.map((f, i) => {
+									const field = fields.find(x => x.key === f.field);
+									const ops = opsFor(field, OPS);
+									const setAt = (patch: Partial<typeof f>) => set({ filters: r.filters.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+									return (
+										<Flex
+											key={i}
+											gap={2}
+											align='flex-start'
+											wrap={{ base: 'wrap', md: 'nowrap' }}>
+											<Box flex='1'>
+												<Dropdown
+													size='sm'
+													value={f.field}
+													onChange={v => {
+														const next = fields.find(x => x.key === v);
+														setAt({ field: v, value: '', op: opsFor(next, OPS).some(o => o.value === f.op) ? f.op : 'eq' });
+													}}
+													items={fields.map(x => ({ value: x.key, label: x.label }))}
+												/>
+											</Box>
+											<Box w='140px'>
+												<Dropdown
+													size='sm'
+													value={f.op}
+													onChange={v => setAt({ op: v, ...(v === 'in' || f.op === 'in' ? { value: '' } : {}) })}
+													items={ops}
+												/>
+											</Box>
+											<ConditionValue
+												field={field}
+												models={models.doc}
+												op={f.op}
+												value={f.value}
+												onChange={v => setAt({ value: v })}
 											/>
-										</Box>
-										<Box w='140px'>
-											<Dropdown
+											<IconButton
+												aria-label='Remove this condition'
 												size='sm'
-												value={f.op}
-												onChange={v => set({ filters: r.filters.map((x, j) => (j === i ? { ...x, op: v } : x)) })}
-												items={OPS}
-											/>
-										</Box>
-										{f.op !== 'exists' && (
-											<Input
-												flex='1'
-												size='sm'
-												placeholder={f.op === 'in' ? 'Comma-separated' : 'Value'}
-												value={String(f.value ?? '')}
-												onChange={e => set({ filters: r.filters.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })}
-											/>
-										)}
-										<IconButton
-											aria-label='Remove this condition'
-											size='sm'
-											variant='ghost'
-											onClick={() => set({ filters: r.filters.filter((_, j) => j !== i) })}>
-											<X size={15} />
-										</IconButton>
-									</Flex>
-								))}
+												variant='ghost'
+												onClick={() => set({ filters: r.filters.filter((_, j) => j !== i) })}>
+												<X size={15} />
+											</IconButton>
+										</Flex>
+									);
+								})}
 								<Box>
 									<Button
 										size='xs'
@@ -456,6 +464,36 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 									</Button>
 								</Box>
 							</Flex>
+						</Box>
+						<Box>
+							<Label hint={`Whoever opens the report picks a value for each, next to the dates — e.g. one employee. Up to 6.`}>Filters for the reader</Label>
+							{groupable.filter(f => !['createdAt', 'updatedAt'].includes(f.key)).length === 0 ? (
+								<Text
+									fontSize='13px'
+									color='fg.muted'>
+									This model has no fields to filter by.
+								</Text>
+							) : (
+								<Flex
+									gap={3}
+									wrap='wrap'>
+									{groupable
+										.filter(f => !['createdAt', 'updatedAt'].includes(f.key))
+										.map(f => {
+											const on = r.readerFilters.includes(f.key);
+											return (
+												<Tick
+													key={f.key}
+													checked={on}
+													onChange={next =>
+														set({ readerFilters: next ? (r.readerFilters.length < 6 ? [...r.readerFilters, f.key] : r.readerFilters) : r.readerFilters.filter(k => k !== f.key) })
+													}>
+													{f.label}
+												</Tick>
+											);
+										})}
+								</Flex>
+							)}
 						</Box>
 					</Flex>
 				</Panel>
