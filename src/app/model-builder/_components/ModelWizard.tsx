@@ -36,7 +36,20 @@ import { toaster } from '@/components/ui/toaster';
 import SectionSelect from './SectionSelect';
 import SettingsEditor, { SettingsField } from '@/app/builder/_components/SettingsEditor';
 import SectionsEditor from '@/app/builder/_components/SectionsEditor';
-import FormRulesPanel from '@/app/builder/_components/FormRulesPanel';
+import FormRulesPanel, {
+	RuleField,
+	SectionRulesPanel,
+	formRuleProblems,
+	sectionRuleProblems,
+} from '@/app/builder/_components/FormRulesPanel';
+import FormStepsPanel, { formStepsProblems } from '@/app/builder/_components/FormStepsPanel';
+import PickerFiltersPanel from '@/app/builder/_components/PickerFiltersPanel';
+import ValueDisplayPanel from '@/app/builder/_components/ValueDisplayPanel';
+import GuidelinesEditor from '@/app/builder/_components/GuidelinesEditor';
+import CommentsPanel from '@/app/builder/_components/CommentsPanel';
+import NavSearchPanel from '@/app/builder/_components/NavSearchPanel';
+import ViewSectionRulesPanel, { viewSectionProblems } from '@/app/builder/_components/ViewSectionRulesPanel';
+import ViewTabsEditor, { tabProblems } from '@/app/builder/_components/ViewTabsEditor';
 import TableColumnsEditor, { TableField } from '@/app/builder/_components/TableColumnsEditor';
 import { BulkActionsPanel, PageOptionsPanel, RowMenuPanel } from '@/app/builder/_components/PagePanels';
 import FiltersPanel from '@/app/builder/_components/FiltersPanel';
@@ -423,6 +436,22 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 		...(route ? [{ route, model: preview.availability.name, title: model.title }] : []),
 	].map((r: any) => ({ route: r.route, model: r.model, title: r.title }));
 	const filterCheck = useMemo(() => validate(config.filters), [config.filters]);
+	const setRouteConfig = (patch: any) => setConfig(c => ({ ...c, rest: { ...c.rest, route: { ...c.rest.route, ...patch } } }));
+	// What the rules can test — built as the page editor (RouteEditor) builds them.
+	const ruleFieldOf = (f: any): RuleField => ({
+		key: f.key,
+		label: f.schema?.label || f.title,
+		input: f.schema?.type,
+		type: f.type,
+		options: Array.isArray(f.schema?.options) ? f.schema.options : undefined,
+		required: !!f.required,
+		// A record picker's linked route: its conditions pick records by name.
+		route: typeof f.schema?.model === 'string' ? f.schema.model : undefined,
+	});
+	const formKeys: string[] = formSections.flatMap((sec: any) => (sec.fields || []).flat()).filter((k: any) => typeof k === 'string');
+	// The form's conditions test the fields in the form; the record page's, any field the record has.
+	const ruleFields: RuleField[] = settings.filter((f: any) => !formKeys.length || formKeys.includes(f.key)).map(ruleFieldOf);
+	const viewRuleFields: RuleField[] = settings.filter((f: any) => !f.exclude).map(ruleFieldOf);
 	const recordName = singular(model.title.trim()) || 'record';
 	const settingsChanged = differs({ fields: settings }, generated?.settings);
 	// Both sides through the editor's filter format, so an untouched config never reads as changed.
@@ -435,7 +464,17 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 			Object.keys(validateMenu(page.select?.menu || [], BULK_MENU_TYPES)).length;
 		return [
 			...(menu ? [{ area: 'table' as AreaKey, text: 'Table page: a menu item is incomplete — fix the items marked in red' }] : []),
-			...viewProblems(config.rest.view).map(text => ({ area: 'view' as AreaKey, text: `Record page: ${text}` })),
+			...formStepsProblems(config.rest.formSteps).map(text => ({ area: 'form' as AreaKey, text: `Form: ${text}` })),
+			...[...formRuleProblems(config.rest.formRules, ruleFields), ...sectionRuleProblems(config.rest.form, ruleFields)].map(text => ({
+				area: 'form' as AreaKey,
+				text: `Form: ${text}`,
+			})),
+			...[
+				...viewProblems(config.rest.view),
+				...tabProblems(config.rest.viewTabs),
+				...viewSectionProblems(config.rest.view, viewRuleFields),
+				...formRuleProblems(config.rest.viewRules, viewRuleFields),
+			].map(text => ({ area: 'view' as AreaKey, text: `Record page: ${text}` })),
 			...(Object.keys(filterCheck.errors).length ? [{ area: 'filters' as AreaKey, text: 'Filters: some need attention' }] : []),
 			...linkedProblems(config.rest.linkedRelationships).map(text => ({ area: 'linked' as AreaKey, text: `Linked Relationships: ${text}` })),
 		];
@@ -1039,6 +1078,10 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						code={generated?.config?.route}
 						fields={tableFields}
 					/>
+					<ValueDisplayPanel
+						fields={settings}
+						onChange={setSettings}
+					/>
 				</Flex>
 			)}
 
@@ -1049,6 +1092,16 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					<AreaIntro
 						area='form'
 						onPreview={() => openPreview('form')}
+					/>
+					<FormStepsPanel
+						value={config.rest.formSteps}
+						form={formSections}
+						opensAsPage={page.button?.path !== undefined}
+						onOpenAsPage={() => {
+							const { isModal: _m, ...button } = page.button || { title: 'Add Item', isModal: true };
+							setRouteConfig({ button: { ...button, path: `/${route}/create` } });
+						}}
+						onChange={patch => setRest(patch)}
 					/>
 					<Panel
 						title={
@@ -1071,22 +1124,18 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						inherited={Object.fromEntries(
 							settings.filter((f: any) => f.schema?.renderIf?.field).map((f: any) => [f.key, f.schema.renderIf])
 						)}
-						fields={(() => {
-							const inForm = new Set<string>(
-								formSections.flatMap((sec: any) => (sec.fields || []).flat()).filter((k: any) => typeof k === 'string')
-							);
-							return settings
-								.filter((f: any) => !inForm.size || inForm.has(f.key))
-								.map((f: any) => ({
-									key: f.key,
-									label: f.schema?.label || f.title,
-									input: f.schema?.type,
-									type: f.type,
-									options: Array.isArray(f.schema?.options) ? f.schema.options : undefined,
-									required: !!f.required,
-								}));
-						})()}
+						fields={ruleFields}
 						onChange={formRules => setRest({ formRules })}
+					/>
+					<PickerFiltersPanel
+						fields={settings}
+						formKeys={formKeys}
+						onChange={setSettings}
+					/>
+					<SectionRulesPanel
+						sections={formSections}
+						fields={ruleFields}
+						onChange={form => setRest({ form })}
 					/>
 				</Flex>
 			)}
@@ -1115,6 +1164,28 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 						modelFields={preview?.fields || []}
 						routes={routeOptions}
 						model={preview?.availability?.name || ''}
+					/>
+					{viewSections.length > 0 && (
+						<ViewSectionRulesPanel
+							sections={viewSections}
+							fields={viewRuleFields}
+							onChange={view => setRest({ view })}
+						/>
+					)}
+					{viewSections.length > 0 && (
+						<FormRulesPanel
+							forView
+							rules={config.rest.viewRules || {}}
+							fields={viewRuleFields}
+							onChange={viewRules => setRest({ viewRules })}
+						/>
+					)}
+					<ViewTabsEditor
+						tabs={config.rest.viewTabs || []}
+						onChange={tabs => setRest({ viewTabs: tabs.length ? tabs : undefined })}
+						model={preview?.availability?.name || ''}
+						modelFields={preview?.fields || []}
+						routes={routeOptions}
 					/>
 				</Flex>
 			)}
@@ -1149,8 +1220,28 @@ const ModelWizard: FC<{ frame?: Frame }> = ({ frame: Wrap = Layout as Frame }) =
 					/>
 					<SettingsEditor
 						fields={settings}
+						model={preview?.availability?.name || ''}
 						codeFields={generated?.settings?.fields || []}
 						modelFields={preview?.fields || []}
+						onChange={setSettings}
+					/>
+					<GuidelinesEditor
+						value={page.guidelines}
+						onChange={guidelines => setRouteConfig({ guidelines })}
+					/>
+					{IS_TENANT_PANEL && (
+						<CommentsPanel
+							value={page}
+							onChange={setRouteConfig}
+						/>
+					)}
+					<NavSearchPanel
+						value={page.search}
+						fields={settings}
+						onChange={search => setRouteConfig({ search })}
+					/>
+					<ValueDisplayPanel
+						fields={settings}
 						onChange={setSettings}
 					/>
 				</Flex>
