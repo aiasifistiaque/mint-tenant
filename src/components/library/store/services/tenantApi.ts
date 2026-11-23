@@ -1491,7 +1491,7 @@ export const tenantApi = mainApi.injectEndpoints({
 		getReportModels: builder.query<{ doc: ReportModel[] }, void>({
 			query: () => 'saved-reports/models',
 		}),
-		previewSavedReport: builder.mutation<ReportRun, ReportInput & ReportDates>({
+		previewSavedReport: builder.mutation<ReportRun, ReportInput & Omit<ReportDates, 'filters'>>({
 			query: body => ({ url: 'saved-reports/preview', method: 'POST', body }),
 		}),
 		addSavedReport: builder.mutation<SavedReport, ReportInput>({
