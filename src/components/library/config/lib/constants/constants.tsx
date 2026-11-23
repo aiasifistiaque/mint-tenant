@@ -109,16 +109,19 @@ export const zIndex = {
 // 10px for menus, so nested chrome never shared a corner.
 // The marketing website's corners: rounded panels (16px), soft dialogs and
 // menus, pill buttons, 12px fields.
+// Each reads a `--panel-r-*` variable first, so a theme with its own shape
+// (palettes.ts `look.radius`) can square or soften every corner at once; unset,
+// the value after the comma is the built-in look.
 export const radius = {
-	CONTAINER: '16px',
-	MODAL: '20px',
-	MENU: '16px',
-	MENU_INNER: '10px',
+	CONTAINER: 'var(--panel-r-container, 16px)',
+	MODAL: 'var(--panel-r-modal, 20px)',
+	MENU: 'var(--panel-r-menu, 16px)',
+	MENU_INNER: 'var(--panel-r-menu-inner, 10px)',
 
-	BUTTON: '9999px',
-	INPUT: '12px',
-	SELECT_CONTAINER: '12px',
-	FILTER: '9999px',
+	BUTTON: 'var(--panel-r-button, 9999px)',
+	INPUT: 'var(--panel-r-input, 12px)',
+	SELECT_CONTAINER: 'var(--panel-r-input, 12px)',
+	FILTER: 'var(--panel-r-button, 9999px)',
 	PILL: '9999px',
 };
 

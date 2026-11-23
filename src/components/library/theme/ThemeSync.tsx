@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useGetSelfQuery } from '../store';
 import { useAppSelector } from '../hooks';
 import { applyTheme } from '@/theme/applyTheme';
-import { themeById } from '@/theme/palettes';
+import { effectiveThemeId, themeById } from '@/theme/palettes';
 
 /**
  * Keeps the page in the signed-in admin's saved theme. Mounted once, in the
@@ -17,7 +17,8 @@ import { themeById } from '@/theme/palettes';
 const ThemeSync = () => {
 	const loggedIn = useAppSelector((state: any) => state.auth.loggedIn);
 	const { data } = useGetSelfQuery({}, { skip: !loggedIn });
-	const theme = data ? themeById(data.theme).id : null;
+	// The admin's own pick, or the project's panel theme (default / locked).
+	const theme = effectiveThemeId(data);
 
 	useEffect(() => {
 		if (theme) applyTheme(themeById(theme));

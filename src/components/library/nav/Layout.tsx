@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { SelfMenu, SearchMenu, NotificationMenu } from '../menu';
+import FullScreenButton from '../menu/FullScreenButton';
 import { AuthWrapper } from '../wrappers';
 import ColorMode from '../components/color-mode/ColorMode';
 import { LayoutWrapper, Navbar, Sidebar, Body, MainBody } from '../nav';
@@ -81,6 +82,8 @@ const NavActions = memo(function NavActions({ sidebarData }: { sidebarData: any 
 				/>
 			)}
 			{/* Notifications come from per-record access, which tenant projects don't have yet. */}
+			{/* Computers only (FullScreenButton). */}
+			<FullScreenButton iconSize={ICON_SIZE} />
 			<NotificationMenu iconSize={ICON_SIZE} />
 			<SelfMenu iconSize={ICON_SIZE} />
 			{/* <CreateMenu /> */}

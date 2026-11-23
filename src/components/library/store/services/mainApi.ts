@@ -148,6 +148,7 @@ const tags: string[] = [
 	'tenant-mail',
 	'tenant-mail-accounts',
 	'tenant-panel-admins',
+	'tenant-panel-theme',
 	'tenant-panel-roles',
 	'tenant-reports',
 	'tenant-mail-designs',

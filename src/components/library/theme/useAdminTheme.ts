@@ -5,7 +5,7 @@ import { useGetSelfQuery, useUpdateSelfMutation } from '../store';
 import { useAppSelector } from '../hooks';
 import { toaster } from '@/components/ui/toaster';
 import { applyTheme } from '@/theme/applyTheme';
-import { DEFAULT_THEME, themeById } from '@/theme/palettes';
+import { effectiveThemeId, themeById } from '@/theme/palettes';
 
 /**
  * The signed-in admin's colour theme, saved on their own record
@@ -22,7 +22,9 @@ const useAdminTheme = () => {
 	// The choice just made, until the refetched record agrees with it.
 	const [pending, setPending] = useState<string | null>(null);
 
-	const saved = themeById(data?.theme || DEFAULT_THEME).id;
+	// The admin's own pick, else the project's panel theme; a locked panel theme is the only one.
+	const saved = effectiveThemeId(data) || themeById(null).id;
+	const locked = !!(data?.themeLocked && data?.projectTheme);
 	const current = pending || saved;
 
 	useEffect(() => {
@@ -30,7 +32,7 @@ const useAdminTheme = () => {
 	}, [pending, saved]);
 
 	const setTheme = async (id: string) => {
-		if (id === current) return;
+		if (id === current || locked) return;
 		setPending(id);
 		applyTheme(themeById(id));
 		try {
@@ -46,7 +48,7 @@ const useAdminTheme = () => {
 		}
 	};
 
-	return { theme: current, saved, loaded: !!data, setTheme, isSaving: isLoading };
+	return { theme: current, saved, loaded: !!data, setTheme, isSaving: isLoading, locked };
 };
 
 export default useAdminTheme;

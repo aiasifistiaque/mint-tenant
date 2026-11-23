@@ -52,6 +52,40 @@ export type Theme = {
 	 * theme is on.
 	 */
 	headingFont?: { family: string; href: string; /** Weight for those headings, e.g. '400' for a light serif. */ weight?: string };
+	/**
+	 * A whole look, not just colours: typeface, text size, corners and how
+	 * tables are drawn. Optional — the colour-only themes leave it out and
+	 * keep the built-in typography. applyTheme.ts turns it into CSS variables
+	 * (read by theme/index.ts and config `radius`) and table rules.
+	 */
+	look?: Look;
+};
+
+export type Look = {
+	/** The body typeface (everything but labels); `href` is a Google Fonts stylesheet. */
+	font?: { family: string; href: string };
+	/** Body text size, e.g. '14px'. The built-in look is 15px. */
+	text?: string;
+	/** Body text weight. The built-in look is a light 300. */
+	weight?: string;
+	/** Page and panel headings. The built-in look is uppercase and extra-light. */
+	headings?: { uppercase: boolean; weight: string; spacing?: string };
+	/** Form field labels. The built-in look is small spaced mono capitals. */
+	labels?: { font?: string; size: string; uppercase: boolean; weight?: string; spacing?: string };
+	/** square: 2–4px; soft: 6–12px; round: the built-in pills and 16px panels. */
+	corners?: 'square' | 'soft' | 'round';
+	table?: {
+		/** Row height: compact (dense ledgers), comfortable (built in), roomy. */
+		density: 'compact' | 'comfortable' | 'roomy';
+		/** grid: every cell ruled; rows: a line under each row (built in); none. */
+		lines: 'grid' | 'rows' | 'none';
+		/** Alternate rows shaded. */
+		striped?: boolean;
+		/** caps: small spaced capitals (built in); plain: sentence case; filled: plain on a shaded bar. */
+		header: 'caps' | 'plain' | 'filled';
+		/** Cell text size; the built-in look is 13px. */
+		text?: string;
+	};
 };
 
 export const DEFAULT_THEME = 'default';
@@ -389,6 +423,163 @@ export const THEMES: Theme[] = [
 			sidebarRail: '#222831',
 		},
 	},
+	// ── Full looks: their own type, sizes, corners and tables ─────────────
+	{
+		id: 'classic',
+		name: 'Classic',
+		description: 'Old-school ledger: serif type, ruled and striped tables, square corners.',
+		headingFont: { family: "'Libre Baskerville', Georgia, serif", href: 'https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap', weight: '700' },
+		look: {
+			font: { family: "'PT Serif', Georgia, 'Times New Roman', serif", href: 'https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap' },
+			text: '14px',
+			weight: '400',
+			headings: { uppercase: false, weight: '700', spacing: '0' },
+			labels: { font: "'PT Serif', Georgia, serif", size: '12.5px', uppercase: false, weight: '700', spacing: '0' },
+			corners: 'square',
+			table: { density: 'compact', lines: 'grid', striped: true, header: 'filled', text: '13.5px' },
+		},
+		light: {
+			accent: '#1d3557',
+			accentFg: '#fdfaf2',
+			page: '#f3eee1',
+			surface: '#fffdf6',
+			subtle: '#f1ead9',
+			muted: '#e6dcc4',
+			border: '#cdbf9f',
+			borderMuted: '#e0d5bb',
+			text: '#221c14',
+			textMuted: '#6b5f4c',
+			sidebar: '#1d2b3e',
+			sidebarText: '#c9c1ad',
+			sidebarTextActive: '#fdf6e3',
+			sidebarHeading: '#e9dfc6',
+			sidebarRail: '#33455e',
+		},
+		dark: {
+			accent: '#c9a55c',
+			accentFg: '#17130c',
+			page: '#15120d',
+			surface: '#1d1912',
+			subtle: '#262016',
+			muted: '#30291c',
+			border: '#4a3f2b',
+			borderMuted: '#352d1f',
+			text: '#efe6d2',
+			textMuted: '#a89a7e',
+			sidebar: '#0f0d09',
+			sidebarText: '#a89a7e',
+			sidebarTextActive: '#f6ecd6',
+			sidebarHeading: '#d8c9a8',
+			sidebarRail: '#2b2418',
+		},
+	},
+	{
+		id: 'console',
+		name: 'Console',
+		description: 'Dense and technical: IBM Plex at 13px, tight ruled rows, mono labels.',
+		look: {
+			font: { family: "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif", href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap' },
+			text: '13px',
+			weight: '400',
+			headings: { uppercase: false, weight: '600', spacing: '-0.01em' },
+			labels: { font: "'IBM Plex Mono', ui-monospace, monospace", size: '10px', uppercase: true, weight: '500', spacing: '0.08em' },
+			corners: 'soft',
+			table: { density: 'compact', lines: 'rows', header: 'caps', text: '12.5px' },
+		},
+		light: {
+			accent: '#0f766e',
+			accentFg: '#ffffff',
+			page: '#f4f6f7',
+			surface: '#ffffff',
+			subtle: '#eef2f3',
+			muted: '#e2e8ea',
+			border: '#d0d8db',
+			borderMuted: '#e2e8ea',
+			text: '#0e1a1f',
+			textMuted: '#56666d',
+			sidebar: '#0e1a1f',
+			sidebarText: '#9fb0b6',
+			sidebarTextActive: '#ffffff',
+			sidebarHeading: '#d5e0e3',
+			sidebarRail: '#21323a',
+		},
+		dark: {
+			accent: '#2dd4bf',
+			accentFg: '#04201d',
+			page: '#0a1115',
+			surface: '#0f181d',
+			subtle: '#142027',
+			muted: '#1a2830',
+			border: '#263840',
+			borderMuted: '#1a2830',
+			text: '#e2ecef',
+			textMuted: '#8aa0a8',
+			sidebar: '#060b0e',
+			sidebarText: '#8aa0a8',
+			sidebarTextActive: '#ffffff',
+			sidebarHeading: '#c2d3d8',
+			sidebarRail: '#172329',
+		},
+	},
+	{
+		id: 'cosy',
+		name: 'Cosy',
+		description: 'Big and friendly: Nunito at 16px, roomy striped tables, soft round corners.',
+		look: {
+			font: { family: "'Nunito', ui-rounded, system-ui, sans-serif", href: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap' },
+			text: '16px',
+			weight: '400',
+			headings: { uppercase: false, weight: '800', spacing: '-0.01em' },
+			labels: { size: '13px', uppercase: false, weight: '700', spacing: '0', font: "'Nunito', system-ui, sans-serif" },
+			corners: 'round',
+			table: { density: 'roomy', lines: 'none', striped: true, header: 'plain', text: '15px' },
+		},
+		light: {
+			accent: '#5b5bd6',
+			accentFg: '#ffffff',
+			page: '#faf7f2',
+			surface: '#ffffff',
+			subtle: '#f4efe7',
+			muted: '#ebe4d8',
+			border: '#e2d9cb',
+			borderMuted: '#efe8dc',
+			text: '#2a2540',
+			textMuted: '#706a84',
+			sidebar: '#f1ebe1',
+			sidebarText: '#5f5875',
+			sidebarTextActive: '#2a2540',
+			sidebarHeading: '#2a2540',
+			sidebarRail: '#e0d6c6',
+		},
+		dark: {
+			accent: '#9b9bff',
+			accentFg: '#14123a',
+			page: '#17151f',
+			surface: '#1e1b28',
+			subtle: '#252131',
+			muted: '#2e293c',
+			border: '#3a344b',
+			borderMuted: '#2e293c',
+			text: '#ece9f5',
+			textMuted: '#a29cb6',
+			sidebar: '#121019',
+			sidebarText: '#a29cb6',
+			sidebarTextActive: '#ffffff',
+			sidebarHeading: '#d6d1e6',
+			sidebarRail: '#26222f',
+		},
+	},
 ];
 
 export const themeById = (id?: string | null): Theme => THEMES.find(t => t.id === id) || THEMES[0];
+
+/**
+ * The theme a panel user sees. The project's developer sets a panel theme in
+ * the tenant panel (TenantProject.panelTheme); with `locked` it is the only
+ * one, otherwise it is the default until the user picks their own.
+ */
+export const effectiveThemeId = (self?: { theme?: string | null; projectTheme?: string | null; themeLocked?: boolean } | null) => {
+	if (!self) return null;
+	if (self.themeLocked && self.projectTheme) return themeById(self.projectTheme).id;
+	return themeById(self.theme || self.projectTheme || DEFAULT_THEME).id;
+};

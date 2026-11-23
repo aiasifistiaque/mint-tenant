@@ -194,34 +194,37 @@ export const system = createSystem(defaultConfig, {
 		},
 	},
 	globalCss: {
-		html: { fontFamily: SANS },
+		// The `--panel-*` variables are unset in the built-in look (the fallback
+		// after the comma is what it has always been); a theme with its own
+		// typography (palettes.ts `look`, written by applyTheme.ts) sets them.
+		html: { fontFamily: `var(--panel-font, ${SANS})` },
 		body: {
 			bg: 'bg',
-			fontFamily: SANS,
-			fontWeight: 300,
+			fontFamily: `var(--panel-font, ${SANS})`,
+			fontWeight: 'var(--panel-weight, 300)' as any,
 			textRendering: 'optimizeLegibility',
 		},
 		// Modernist headlines, as on the website: uppercase and extra-light.
-		'h1, h2, h3': { textTransform: 'uppercase' },
-		'h1, h2': { fontWeight: '200 !important', letterSpacing: '-0.012em' },
-		h3: { fontWeight: '300 !important', letterSpacing: '0.02em' },
+		'h1, h2, h3': { textTransform: 'var(--panel-heading-case, uppercase)' as any },
+		'h1, h2': { fontWeight: 'var(--panel-heading-weight, 200) !important', letterSpacing: 'var(--panel-heading-spacing, -0.012em)' },
+		h3: { fontWeight: 'var(--panel-heading-weight-3, 300) !important', letterSpacing: 'var(--panel-heading-spacing-3, 0.02em)' },
 		'strong, b': { fontWeight: 500 },
 		'::selection': { bg: '#c7f5e0', color: '#0b0d14' },
 		':focus-visible': { outline: '2px solid #8b5cf6', outlineOffset: '2px' },
 		// Field labels: the website's small spaced capitals in JetBrains Mono.
 		'label[data-scope=field][data-part=label]': {
-			fontFamily: MONO,
-			fontSize: '10.5px !important',
-			fontWeight: '400 !important',
-			letterSpacing: '0.14em',
-			textTransform: 'uppercase',
+			fontFamily: `var(--panel-label-font, ${MONO})`,
+			fontSize: 'var(--panel-label-size, 10.5px) !important',
+			fontWeight: 'var(--panel-label-weight, 400) !important',
+			letterSpacing: 'var(--panel-label-spacing, 0.14em)',
+			textTransform: 'var(--panel-label-case, uppercase)' as any,
 			color: 'fg.muted',
 		},
 		// `fg` resolves to the same #171717 / text.dark pair this used to spell
 		// out, but through a token, so a colour theme (applyTheme.ts) reaches it.
 		'body, p, span': {
 			color: 'fg',
-			fontSize: '15px',
+			fontSize: 'var(--panel-text, 15px)',
 		},
 		// …except inside a button, where text takes the button's own colour and
 		// size. The rule above painted a loading button's spinner and "Saving…"

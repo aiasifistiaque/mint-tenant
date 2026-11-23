@@ -195,7 +195,7 @@ const ThemeCard: FC<{ theme: Theme; selected: boolean; onSelect: () => void }> =
  * per-browser switch as the navbar's toggle.
  */
 const ThemeModal: FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-	const { theme, setTheme } = useAdminTheme();
+	const { theme, setTheme, locked } = useAdminTheme();
 	const { theme: mode, setTheme: setMode } = useTheme();
 
 	return (
@@ -278,10 +278,19 @@ const ThemeModal: FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onCl
 								</SegmentGroup.Root>
 							</Flex>
 
+							{locked && (
+								<Text
+									fontSize='sm'
+									color='fg.muted'
+									mb={3}>
+									This panel’s theme is set by its developers, so it can’t be changed here. Light or dark is still yours.
+								</Text>
+							)}
 							<Grid
 								templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
-								gap={3}>
-								{THEMES.map(t => (
+								gap={3}
+								pointerEvents={locked ? 'none' : undefined}>
+								{(locked ? THEMES.filter(t => t.id === theme) : THEMES).map(t => (
 									<ThemeCard
 										key={t.id}
 										theme={t}

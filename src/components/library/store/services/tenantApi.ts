@@ -614,6 +614,9 @@ export type ReportRun = {
 	report: SavedReport;
 };
 /** A run's dates, and the reader's pick for each reader filter. */
+/** A project's panel theme (panelAdmins.router /theme). */
+export type PanelThemeView = { theme: string | null; locked: boolean };
+
 export type ReportDates = { from?: string; to?: string; tz?: string; filters?: Record<string, string> };
 
 /** Saves a downloaded file under its server-given name (Content-Disposition), or `fallback`. */
@@ -1462,6 +1465,15 @@ export const tenantApi = mainApi.injectEndpoints({
 			query: () => ({ url: 'panel-admins/demo/new-link', method: 'POST' }),
 			invalidatesTags: ['tenant-panel-admins', 'history'],
 		}),
+		/** The panel apps' theme for this project (default, or with `locked` the only one). */
+		getPanelTheme: builder.query<PanelThemeView, void>({
+			query: () => 'panel-admins/theme',
+			providesTags: ['tenant-panel-theme'],
+		}),
+		setPanelTheme: builder.mutation<PanelThemeView, { theme?: string | null; locked?: boolean }>({
+			query: body => ({ url: 'panel-admins/theme', method: 'PUT', body }),
+			invalidatesTags: ['tenant-panel-theme', 'history'],
+		}),
 		/* ------------------ panel users' roles (docs/panel-users PU-01) */
 		getPanelRoles: builder.query<PanelRolesView, void>({
 			query: () => 'panel-roles',
@@ -1621,6 +1633,8 @@ export const {
 	useRemovePanelAdminMutation,
 	useAddDemoLoginMutation,
 	useNewDemoLinkMutation,
+	useGetPanelThemeQuery,
+	useSetPanelThemeMutation,
 	useGetPanelRolesQuery,
 	useAddPanelRoleMutation,
 	useUpdatePanelRoleMutation,
