@@ -130,6 +130,7 @@ const GUIDE_OF: Record<string, string> = {
 	websites: 'websites',
 	'site-setup': 'websites',
 	'site-general': 'websites',
+	'site-theme': 'websites',
 	'site-contact': 'websites',
 	'site-seo': 'websites',
 	'server-side': 'websites',

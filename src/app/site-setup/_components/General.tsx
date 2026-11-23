@@ -2,10 +2,11 @@
 
 import { FC, useState } from 'react';
 import { Box, Button, Flex, Grid, Text } from '@chakra-ui/react';
-import { PromptDialog, VColor, VImage, useDeleteBuiltModelMutation } from '@/components/library';
+import { PromptDialog, VImage, useDeleteBuiltModelMutation } from '@/components/library';
 import GuideLink from '@/components/library/tenant/GuideLink';
 import type { SiteConfig } from '@/components/library/store/services/tenantApi';
 import { SettingCard, TextField, changed, errorText, imageValue, useDraft, useSave } from './parts';
+import SiteTheme from './SiteTheme';
 
 /** General: who the site is — name, logo, favicon, footer — and its look. */
 
@@ -73,46 +74,6 @@ const Branding: FC<Props> = ({ config, canBuild }) => {
 	);
 };
 
-const Theme: FC<Props> = ({ config, canBuild }) => {
-	const saved = config.identity;
-	const { draft, set, reset, dirty } = useDraft({ primaryColor: saved.primaryColor, secondaryColor: saved.secondaryColor, fontFamily: saved.fontFamily });
-	const { save, saving, error } = useSave('Theme');
-	return (
-		<SettingCard
-			title='Theme'
-			description='The colours and font your site’s design uses.'
-			dirty={dirty}
-			saving={saving}
-			error={error}
-			disabled={!canBuild}
-			onReset={reset}
-			onSave={() => save({ identity: changed(draft, saved as any) })}>
-			<Grid
-				templateColumns={{ base: '1fr', md: '1fr 1fr 1fr' }}
-				gap={4}>
-				<VColor
-					label='Primary colour'
-					name='primaryColor'
-					value={draft.primaryColor}
-					onChange={(e: any) => set({ primaryColor: e.target.value })}
-				/>
-				<VColor
-					label='Secondary colour'
-					name='secondaryColor'
-					value={draft.secondaryColor}
-					onChange={(e: any) => set({ secondaryColor: e.target.value })}
-				/>
-				<TextField
-					label='Font'
-					help='A Google Font name, e.g. Inter'
-					value={draft.fontFamily}
-					onChange={fontFamily => set({ fontFamily })}
-				/>
-			</Grid>
-		</SettingCard>
-	);
-};
-
 /**
  * A website made before WO-38 still has the kit's Site settings table; its
  * record was copied here, so the table can go (its records are kept in the
@@ -172,7 +133,7 @@ export const GeneralTab: FC<Props> = props => (
 		gap={4}>
 		<LegacyTable {...props} />
 		<Branding {...props} />
-		<Theme {...props} />
+		<SiteTheme {...props} />
 	</Flex>
 );
 
