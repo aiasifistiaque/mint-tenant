@@ -36,6 +36,7 @@ const GUIDE_OF: Record<string, string> = {
 	'run-report': 'reports',
 	'build-report': 'reports',
 	'report-kinds': 'reports',
+	'report-calcs': 'reports',
 	'panel-app': 'reports',
 	'panel-users': 'reports',
 	'demo-login': 'reports',

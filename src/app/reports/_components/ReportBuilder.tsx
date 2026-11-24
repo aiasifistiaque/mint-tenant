@@ -28,7 +28,22 @@ import ConditionValue, { opsFor } from './ConditionValue';
  * time** (one row per day/week/month/year of a date). Fixed filters, the date the
  * reader's From/To use and the range it opens with, and whether it can be
  * downloaded (CSV, Excel, PDF). Preview runs it without saving.
+ *
+ * Report rules: a summary can be one row per pair of fields (Then per), show
+ * values of the linked record a row is (a leave type's days per year), list every
+ * pair even with nothing counted, and any kind adds calculated columns — a
+ * formula on each row (Left = days per year − days taken).
  */
+
+/** A calculated column's key from its title: "Days left" → daysLeft. */
+const keyFrom = (label: string, taken: string[]) => {
+	const words = label.replace(/[^a-zA-Z0-9 ]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+	let base = words.map((w, i) => (i ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w.toLowerCase())).join('') || 'calc';
+	if (!/^[a-zA-Z]/.test(base)) base = `c${base}`;
+	let key = base;
+	for (let n = 2; taken.includes(key); n++) key = `${base}${n}`;
+	return key;
+};
 
 const OPS = [
 	{ value: 'eq', label: 'is' },
@@ -51,6 +66,10 @@ const BLANK: ReportInput = {
 	sort: '',
 	totals: [],
 	groupBy: '',
+	thenBy: '',
+	lookups: [],
+	allRows: false,
+	calcs: [],
 	interval: 'month',
 	sums: [],
 	filters: [],
@@ -112,6 +131,26 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 	const numbers = fields.filter(f => f.number);
 	const dates = fields.filter(f => f.date);
 	const groupable = fields.filter(f => !f.number && !f.date && !['textarea', 'richtext', 'image', 'images', 'file', 'keyvalue'].includes(f.kind));
+	const lookups = r.lookups || [];
+	const calcs = r.calcs || [];
+	// The summary's grouped fields that are links, and the number fields of the records they pick.
+	const grouped = [r.groupBy, r.thenBy].filter(Boolean) as string[];
+	const linkedGroups = grouped
+		.map(key => {
+			const f = fields.find(x => x.key === key);
+			const target = f?.ref ? models?.doc.find(m => (m.model || m.name) === f.ref) : null;
+			return f && target ? { key, label: f.label, target } : null;
+		})
+		.filter(Boolean) as { key: string; label: string; target: NonNullable<typeof model> }[];
+	// What a calculated column's formula can use, by name.
+	const calcNames: { name: string; label: string }[] =
+		r.type === 'list'
+			? r.columns.map(c => ({ name: c.key, label: c.label || fields.find(f => f.key === c.key)?.label || c.key }))
+			: [
+					{ name: 'count', label: 'Records' },
+					...r.sums.map(x => ({ name: x.field, label: x.label || x.field })),
+					...(r.type === 'summary' ? lookups.map(l => ({ name: l.key, label: l.label || l.key })) : []),
+				];
 	const set = (patch: Partial<ReportInput>) => {
 		setPreview(null);
 		setR(prev => ({ ...prev, ...patch }));
@@ -119,7 +158,7 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 	const pickModel = (route: string) => {
 		const m = models?.doc.find(x => x.route === route);
 		const first = (m?.fields || []).filter(f => !['createdAt', 'updatedAt'].includes(f.key)).slice(0, 5);
-		set({ route, columns: first.map(f => ({ key: f.key })), totals: [], sort: '', groupBy: '', sums: [], filters: [], readerFilters: [], dateField: m?.fields.find(f => f.date && f.key !== 'createdAt' && f.key !== 'updatedAt')?.key || 'createdAt' });
+		set({ route, columns: first.map(f => ({ key: f.key })), totals: [], sort: '', groupBy: '', thenBy: '', lookups: [], allRows: false, calcs: [], sums: [], filters: [], readerFilters: [], dateField: m?.fields.find(f => f.date && f.key !== 'createdAt' && f.key !== 'updatedAt')?.key || 'createdAt' });
 	};
 	const hasColumn = (key: string) => r.columns.some(c => c.key === key);
 	const sortDir = r.sort.startsWith('-') ? '-' : '';
@@ -319,16 +358,27 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 								templateColumns={{ base: '1fr', md: '1fr 1fr' }}
 								gap={4}>
 								{r.type === 'summary' ? (
-									<Box>
-										<Label hint='Each row is one value of it, with how many records have it'>One row per</Label>
-										<Dropdown
-											size='sm'
-											value={r.groupBy}
-											placeholder='Pick a field'
-											onChange={v => set({ groupBy: v })}
-											items={groupable.map(f => ({ value: f.key, label: f.label }))}
-										/>
-									</Box>
+									<>
+										<Box>
+											<Label hint='Each row is one value of it, with how many records have it'>One row per</Label>
+											<Dropdown
+												size='sm'
+												value={r.groupBy}
+												placeholder='Pick a field'
+												onChange={v => set({ groupBy: v, thenBy: r.thenBy === v ? '' : r.thenBy, lookups: lookups.filter(l => [v, r.thenBy].includes(l.key.split('.')[0])) })}
+												items={groupable.map(f => ({ value: f.key, label: f.label }))}
+											/>
+										</Box>
+										<Box>
+											<Label hint='Optional — one row per pair, e.g. per employee and leave type'>Then per</Label>
+											<Dropdown
+												size='sm'
+												value={r.thenBy || ''}
+												onChange={v => set({ thenBy: v, lookups: lookups.filter(l => [r.groupBy, v].includes(l.key.split('.')[0])), allRows: v || r.allRows ? r.allRows : false })}
+												items={[{ value: '', label: 'Nothing else' }, ...groupable.filter(f => f.key !== r.groupBy).map(f => ({ value: f.key, label: f.label }))]}
+											/>
+										</Box>
+									</>
 								) : (
 									<Box>
 										<Label>One row per</Label>
@@ -346,6 +396,63 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 									</Box>
 								)}
 							</Grid>
+							{r.type === 'summary' && linkedGroups.length > 0 && (
+								<Box>
+									<Label hint={`Shown on each row from the ${linkedGroups.map(g => g.label.toLowerCase()).join(' / ')} it is — e.g. a leave type’s days per year`}>Values of the linked record</Label>
+									<Flex
+										direction='column'
+										gap={2}>
+										{linkedGroups.map(g => {
+											const nums = g.target.fields.filter(f => f.number);
+											return (
+												<Flex
+													key={g.key}
+													gap={3}
+													wrap='wrap'
+													align='center'>
+													<Text
+														fontSize='12px'
+														color='fg.muted'
+														minW='110px'>
+														{g.label}:
+													</Text>
+													{nums.length === 0 ? (
+														<Text
+															fontSize='13px'
+															color='fg.muted'>
+															No number fields.
+														</Text>
+													) : (
+														nums.map(f => {
+															const key = `${g.key}.${f.key}`;
+															return (
+																<Tick
+																	key={key}
+																	checked={lookups.some(l => l.key === key)}
+																	onChange={on => set({ lookups: on ? [...lookups, { key, label: f.label }] : lookups.filter(l => l.key !== key) })}>
+																	{f.label}
+																</Tick>
+															);
+														})
+													)}
+												</Flex>
+											);
+										})}
+										{linkedGroups.length === grouped.length && (
+											<Switch.Root
+												size='sm'
+												checked={!!r.allRows}
+												onCheckedChange={e => set({ allRows: !!e.checked })}>
+												<Switch.HiddenInput />
+												<Switch.Control />
+												<Switch.Label fontSize='13px'>
+													Every {grouped.length === 2 ? 'pair' : linkedGroups[0].label.toLowerCase()}, even with no records — e.g. an employee who took no leave of a type
+												</Switch.Label>
+											</Switch.Root>
+										)}
+									</Flex>
+								</Box>
+							)}
 							<Box>
 								<Label hint='Summed on each row, next to the count'>Totals of</Label>
 								{numbers.length === 0 ? (
@@ -371,6 +478,96 @@ const ReportBuilder: FC<{ report?: SavedReport | null }> = ({ report }) => {
 							</Box>
 						</Flex>
 					)}
+				</Panel>
+			)}
+
+			{model && (
+				<Panel
+					id='report-calcs'
+					title='Calculated columns'
+					subtitle='A number worked out on each row from the others — Left = days per year − days taken. The same formulas as formula fields: + − × ÷, round(), max(), min(), if(…).'
+					actions={<GuideLink section='report-calcs' />}>
+					<Flex
+						direction='column'
+						gap={3}>
+						{calcs.map((c, i) => {
+							const setAt = (patch: Partial<typeof c>) => set({ calcs: calcs.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+							return (
+								<Flex
+									key={i}
+									gap={2}
+									align='flex-start'
+									wrap={{ base: 'wrap', md: 'nowrap' }}>
+									<Box w={{ base: '100%', md: '200px' }}>
+										<Input
+											size='sm'
+											maxLength={80}
+											placeholder='Column title'
+											value={c.label || ''}
+											onChange={e => setAt({ label: e.target.value, key: keyFrom(e.target.value, calcs.filter((_, j) => j !== i).map(x => x.key)) })}
+										/>
+										<Text
+											fontSize='11px'
+											color='fg.muted'
+											mt={1}>
+											Used in later formulas as <code>{c.key}</code>
+										</Text>
+									</Box>
+									<Input
+										flex='1'
+										size='sm'
+										fontFamily='mono'
+										placeholder={r.type === 'list' ? 'total - paid' : 'leaveType.daysPerYear - approvedDays'}
+										value={c.formula}
+										onChange={e => setAt({ formula: e.target.value })}
+									/>
+									<IconButton
+										aria-label='Remove this column'
+										size='sm'
+										variant='ghost'
+										onClick={() => set({ calcs: calcs.filter((_, j) => j !== i) })}>
+										<X size={15} />
+									</IconButton>
+								</Flex>
+							);
+						})}
+						{calcNames.length > 0 && (
+							<Flex
+								gap={1.5}
+								wrap='wrap'
+								align='center'>
+								<Text
+									fontSize='12px'
+									color='fg.muted'>
+									Names you can use (click to add to the last formula):
+								</Text>
+								{[...calcNames, ...calcs.slice(0, -1).map(c => ({ name: c.key, label: c.label || c.key }))].map(n => (
+									<Button
+										key={n.name}
+										size='2xs'
+										variant='subtle'
+										fontFamily='mono'
+										title={n.label}
+										disabled={!calcs.length}
+										onClick={() => {
+											const last = calcs.length - 1;
+											set({ calcs: calcs.map((x, j) => (j === last ? { ...x, formula: `${x.formula}${x.formula && !/\s$/.test(x.formula) ? ' ' : ''}${n.name}` } : x)) });
+										}}>
+										{n.name}
+									</Button>
+								))}
+							</Flex>
+						)}
+						<Box>
+							<Button
+								size='xs'
+								variant='outline'
+								disabled={calcs.length >= 10}
+								onClick={() => set({ calcs: [...calcs, { key: keyFrom('Calculated', calcs.map(x => x.key)), label: '', formula: '' }] })}>
+								<Plus size={13} /> Add a calculated column
+							</Button>
+						</Box>
+					</Flex>
 				</Panel>
 			)}
 

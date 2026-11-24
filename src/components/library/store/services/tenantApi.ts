@@ -577,6 +577,14 @@ export type SavedReport = {
 	sort: string;
 	totals: string[];
 	groupBy: string;
+	/** summary: a second field — one row per pair (an employee × a leave type). */
+	thenBy?: string;
+	/** summary: values of the record a row is grouped by ("leaveType.daysPerYear"). */
+	lookups?: { key: string; label?: string }[];
+	/** summary: a row for every linked record (every pair), even with nothing counted. */
+	allRows?: boolean;
+	/** Calculated columns: a formula on each row, in the formula fields' language. */
+	calcs?: { key: string; label?: string; formula: string }[];
 	interval: 'day' | 'week' | 'month' | 'year';
 	sums: { field: string; label?: string }[];
 	filters: ReportFilter[];
