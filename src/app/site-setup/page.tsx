@@ -11,7 +11,7 @@ import { API_ORIGIN, pagePath, projectHref } from '@/components/library/config/l
 import { useProjectKey } from '@/components/library/tenant/useProjectKey';
 import { useWorkspace } from '@/components/library/tenant';
 import GuideLink from '@/components/library/tenant/GuideLink';
-import { ContactTab, GeneralTab } from './_components/General';
+import { ContactTab, GeneralTab, ThemeTab } from './_components/General';
 import { SeoTab } from './_components/Seo';
 import { ServerSideTab, TrackingTab } from './_components/Tracking';
 import { ScriptsTab } from './_components/Code';
@@ -30,6 +30,7 @@ import { LinkPreviewTab } from '../t/_seo/LinkPreview';
 
 const TABS = [
 	{ value: 'general', label: 'General' },
+	{ value: 'theme', label: 'Theme' },
 	{ value: 'contact', label: 'Contact & social' },
 	{ value: 'seo', label: 'SEO' },
 	{ value: 'tracking', label: 'Tracking' },
@@ -61,6 +62,8 @@ function SiteSetup() {
 		switch (tab) {
 			case 'general':
 				return <GeneralTab {...p} />;
+			case 'theme':
+				return <ThemeTab {...p} />;
 			case 'contact':
 				return <ContactTab {...p} />;
 			case 'seo':

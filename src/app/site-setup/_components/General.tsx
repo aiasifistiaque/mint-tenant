@@ -133,6 +133,14 @@ export const GeneralTab: FC<Props> = props => (
 		gap={4}>
 		<LegacyTable {...props} />
 		<Branding {...props} />
+	</Flex>
+);
+
+/** The website's look (colours and fonts): its own tab under Site setup. */
+export const ThemeTab: FC<Props> = props => (
+	<Flex
+		direction='column'
+		gap={4}>
 		<SiteTheme {...props} />
 	</Flex>
 );
