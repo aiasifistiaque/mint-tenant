@@ -55,6 +55,18 @@ export const withWebsiteSetup = (items: NavItem[]): NavItem[] => {
 };
 
 /**
+ * Theme (the website's colours and fonts) straight after Site setup, under
+ * Site, for a backend that doesn't send it — so existing projects get it too.
+ * It opens Site setup on its Theme tab. Build-only like Site setup itself.
+ */
+export const withSiteTheme = (items: NavItem[]): NavItem[] => {
+	if (!Array.isArray(items) || items.some(item => item?.path === 'site-setup-tab-theme')) return items;
+	const at = items.findIndex(item => item?.href === '/site-setup');
+	if (at === -1) return items;
+	return [...items.slice(0, at + 1), { title: 'Theme', href: '/site-setup?tab=theme', path: 'site-setup-tab-theme', icon: 'palette' }, ...items.slice(at + 1)];
+};
+
+/**
  * Panel theme straight after Panel roles, for a backend that doesn't send it
  * yet — the same rule, since Panel roles is shown to the same people. It opens
  * a dialog (sidebarModals.tsx). Once the backend sends it, nothing is added.
@@ -84,7 +96,7 @@ const useSidebarNav = () => {
 	const isLoading = isFetching || !Array.isArray(sidebarData);
 	const source: NavItem[] = useMemo(
 		// The sidebar's Home links to '/'; in the tenant panel that's the landing page (HOME).
-		() => withPanelTheme(withWebsiteSetup((isLoading ? fallback : sidebarData) as NavItem[])).map(item => ({ ...item, href: homeHref(item?.href) })),
+		() => withPanelTheme(withSiteTheme(withWebsiteSetup((isLoading ? fallback : sidebarData) as NavItem[]))).map(item => ({ ...item, href: homeHref(item?.href) })),
 		[isLoading, sidebarData]
 	);
 

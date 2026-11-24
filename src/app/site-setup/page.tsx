@@ -89,7 +89,7 @@ function SiteSetup() {
 	return (
 		<Layout
 			title='Site setup'
-			path='site-setup'>
+			path={tab === 'theme' ? 'site-setup-tab-theme' : 'site-setup'}>
 			<Flex
 				direction='column'
 				gap={4}
