@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-24T07:51:22.606Z",
+        "reason": "Claude: the Edge theme was asked for as a Cloudflare-dashboard look, whose identity is a neutral grotesque like Inter; plain on purpose"
+      }
+    ]
+  }
+}
