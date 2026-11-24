@@ -16,6 +16,25 @@ export type Value = Role | ((p: Palette) => string);
 export const mix = (a: string, pct: number, b: string) => `color-mix(in srgb, ${a} ${pct}%, ${b})`;
 export const alpha = (a: string, pct: number) => mix(a, pct, 'transparent');
 
+/** Relative lightness 0–1 of a #rgb / #rrggbb colour (anything else counts as light). */
+const lightness = (hex: string) => {
+	let h = hex.replace('#', '');
+	if (h.length === 3) h = h.replace(/./g, c => c + c);
+	if (!/^[0-9a-f]{6}/i.test(h)) return 1;
+	const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+/**
+ * The current page's row in the sidebar. On a sidebar the same side of light
+ * as the panels it's the panel colour (the website's pill); on a sidebar much
+ * darker or lighter than them (Classic's navy beside cream) a panel-coloured
+ * pill would sit under the sidebar's own text and hide it, so it's a tint of
+ * the sidebar instead.
+ */
+const selectedRow = (p: Palette) =>
+	Math.abs(lightness(p.sidebar) - lightness(p.surface)) > 0.35 ? mix(p.sidebarTextActive, 12, p.sidebar) : p.surface;
+
 /** [light token, dark token, value] — the same value taken from each palette. */
 export const PAIRS: [string, string, Value][] = [
 	['navbar.light', 'navbar.dark', 'page'],
@@ -29,7 +48,7 @@ export const PAIRS: [string, string, Value][] = [
 	['sidebar.headerBlur.light', 'sidebar.headerBlur.dark', p => alpha(p.sidebar, 55)],
 	['sidebar.borderBottom.light', 'sidebar.borderBottom.dark', 'sidebarRail'],
 	['sidebar.selectedItemBorder.light', 'sidebar.selectedItemBorder.dark', 'sidebarRail'],
-	['sidebar.selectedItemBg.light', 'sidebar.selectedItemBg.dark', 'surface'],
+	['sidebar.selectedItemBg.light', 'sidebar.selectedItemBg.dark', selectedRow],
 	['sidebar.rail.light', 'sidebar.rail.dark', 'sidebarRail'],
 	['sidebar.hoverUnderline.light', 'sidebar.hoverUnderline.dark', p => mix(p.sidebarText, 45, p.sidebar)],
 	['sidebar.headerText.light', 'sidebar.headerText.dark', 'sidebarTextActive'],

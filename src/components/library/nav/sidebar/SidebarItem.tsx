@@ -1,11 +1,12 @@
 'use client';
-import { FC, useContext } from 'react';
+import { FC, useContext, useState } from 'react';
 import { Box, Flex, Skeleton, Text, TextProps } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 
 import { useAppDispatch, useAppSelector, navigate, IconNameOptions } from '../..';
 import { LucideIcon } from '../../icon';
 import { SectionToneContext } from './sidebar-components/SidebarSection';
+import { SIDEBAR_MODALS } from './sidebarModals';
 
 type SidebarItemProps = {
 	children: string;
@@ -54,7 +55,16 @@ const SidebarItem: FC<SidebarItemProps> = ({ href, children, path, icon, withIco
 
 	const router = useRouter();
 
+	// An item that opens a dialog in place (sidebarModals.tsx) rather than a page.
+	const Modal = SIDEBAR_MODALS[path];
+	const [modalOpen, setModalOpen] = useState(false);
+
 	const changeRoute = (e: any): void => {
+		if (Modal) {
+			e.preventDefault();
+			setModalOpen(true);
+			return;
+		}
 		if (!href) return;
 		e.preventDefault();
 		router.push(href);
@@ -65,6 +75,13 @@ const SidebarItem: FC<SidebarItemProps> = ({ href, children, path, icon, withIco
 	const tone = useContext(SectionToneContext);
 
 	return (
+		<>
+		{Modal && modalOpen ? (
+			<Modal
+				open
+				onClose={() => setModalOpen(false)}
+			/>
+		) : null}
 		<Flex
 			onClick={changeRoute}
 			{...containerCss(isLoading, isSelected, withIcon)}>
@@ -102,6 +119,7 @@ const SidebarItem: FC<SidebarItemProps> = ({ href, children, path, icon, withIco
 				</>
 			)}
 		</Flex>
+		</>
 	);
 };
 
@@ -145,14 +163,16 @@ const containerCss = (isLoading: boolean, isSelected: boolean, withIcon: boolean
 	userSelect: 'none',
 	transition: 'background-color .12s ease, color .12s ease',
 	borderWidth: '1px',
-	borderColor: isSelected ? 'border' : 'transparent',
+	borderColor: isSelected ? 'sidebar.selectedItemBorder.light' : 'transparent',
 	boxShadow: isSelected ? SELECTED_SHADOW : 'none',
-	bg: isSelected ? 'bg.panel' : 'transparent',
+	// The sidebar's own selected-row colour (theme/roles.ts): the panel colour, or a tint of a sidebar far darker than the panels.
+	bg: isSelected ? 'sidebar.selectedItemBg.light' : 'transparent',
 	color: isSelected ? 'sidebar.bodyText.selectedLight' : 'sidebar.bodyText.light',
 	_hover: isLoading || isSelected ? {} : { bg: 'sidebar.itemHover.light', color: 'sidebar.bodyText.selectedLight' },
 	_dark: {
 		boxShadow: 'none',
-		bg: isSelected ? 'bg.panel' : 'transparent',
+		borderColor: isSelected ? 'sidebar.selectedItemBorder.dark' : 'transparent',
+		bg: isSelected ? 'sidebar.selectedItemBg.dark' : 'transparent',
 		color: isSelected ? 'sidebar.bodyText.selectedDark' : 'sidebar.bodyText.dark',
 		_hover: isLoading || isSelected ? {} : { bg: 'sidebar.itemHover.dark', color: 'sidebar.bodyText.selectedDark' },
 	},

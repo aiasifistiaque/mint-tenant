@@ -2,6 +2,7 @@
 // that used to live inside TableData.tsx's `TableBody`. `Price`/`DataArray`/
 // `DataArrayCount` are the 3 the doc flags as declared-but-unhandled — they
 // used to fall through to plain-text `default`.
+import { cloneElement, isValidElement } from 'react';
 import { Text, Flex, Badge, BadgeProps } from '@chakra-ui/react';
 import moment from 'moment';
 import { useColorMode } from '@/components/ui/color-mode';
@@ -141,6 +142,10 @@ export const PasswordCell = ({ children, ...props }: any) => (
  */
 const wordsOf = (value: any): any => {
 	if (value == null || typeof value !== 'object' || (value as any).$$typeof) return value;
+	// The cell's own children — a copy column's value and its copy icon — stay elements;
+	// joined into words, the icon read "[object Object]" (Code columns, 2026-11-24).
+	if (Array.isArray(value) && value.some(v => isValidElement(v)))
+		return value.map((v, i) => (isValidElement(v) ? cloneElement(v, { key: i }) : wordsOf(v)));
 	if (Array.isArray(value)) return value.map(wordsOf).filter(v => v != null && v !== '').join(', ');
 	if (value instanceof Date) return value.toISOString();
 	return value.name ?? value.title ?? value.label ?? value._id ?? '';

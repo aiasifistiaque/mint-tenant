@@ -21,7 +21,6 @@ import {
 } from '@/components/library/store/services/tenantApi';
 import type { DemoLogin, PanelAdmin } from '@/components/library/store/services/tenantApi';
 import GuideLink from '@/components/library/tenant/GuideLink';
-import PanelThemeCard from './PanelThemeCard';
 
 /**
  * A project's panel logins (Project → Panel admins / Panel users; backend
@@ -1123,8 +1122,6 @@ export default function PanelAdminsPage() {
 								kind={kind}
 							/>
 						)}
-						{/* The panel app's look; the project's managers only, like the demo. */}
-						{data.demo !== undefined && <PanelThemeCard appName={APP[kind].name} />}
 					</>
 				)}
 			</Flex>
