@@ -27,7 +27,7 @@ import { THEME_CSS_KEY, THEME_STYLE_ID } from './themeBoot';
 const cssVar = (token: string) => system.token.var(`colors.${token}`).replace(/^var\(|\)$/g, '');
 
 const CORNERS = {
-	square: { container: '3px', modal: '4px', menu: '3px', menuInner: '2px', button: '3px', input: '2px', l1: '2px', l2: '3px', l3: '4px' },
+	square: { table: '0px', container: '3px', modal: '4px', menu: '3px', menuInner: '2px', button: '3px', input: '2px', l1: '2px', l2: '3px', l3: '4px' },
 	soft: { container: '10px', modal: '12px', menu: '10px', menuInner: '6px', button: '7px', input: '7px', l1: '4px', l2: '6px', l3: '8px' },
 	round: { container: '20px', modal: '24px', menu: '18px', menuInner: '12px', button: '9999px', input: '14px', l1: '6px', l2: '10px', l3: '14px' },
 };
@@ -68,6 +68,7 @@ const lookCss = (theme: Theme) => {
 		const c = CORNERS[look.corners];
 		root.push(
 			`--panel-r-container:${c.container}`,
+			...('table' in c ? [`--panel-r-table:${c.table}`] : []),
 			`--panel-r-modal:${c.modal}`,
 			`--panel-r-menu:${c.menu}`,
 			`--panel-r-menu-inner:${c.menuInner}`,
@@ -89,9 +90,10 @@ const lookCss = (theme: Theme) => {
 		if (t.density === 'roomy') rules.push(`.chakra-table__body .chakra-table__row{height:54px}${head}{height:44px}`);
 		// Chakra writes style props (a page's own fontSize, Title's caps) as
 		// unlayered classes too, so the table text rules need !important to win.
-		if (t.text) rules.push(`${cell},${cell} p{font-size:${t.text}!important}`);
+		if (t.text) rules.push(`${cell},${cell} p,${cell} a{font-size:${t.text}!important}`);
 		const line = 'var(--chakra-colors-border)';
-		if (t.lines === 'grid') rules.push(`${cell},${head}{border:1px solid ${line}}.chakra-table__root{border-collapse:collapse}`);
+		// !important: CustomTd writes `border: none` as an unlayered style prop.
+		if (t.lines === 'grid') rules.push(`${cell},${head}{border:1px solid ${line}!important}.chakra-table__root{border-collapse:collapse}`);
 		if (t.lines === 'none') rules.push(`${cell},${head},.chakra-table__row{border-bottom-width:0!important}`);
 		if (t.striped) rules.push(`.chakra-table__body .chakra-table__row:nth-of-type(even):not(:hover){background:var(--chakra-colors-bg-subtle)}`);
 		if (t.header !== 'caps') {
@@ -99,6 +101,13 @@ const lookCss = (theme: Theme) => {
 			rules.push(`${head},${head} *{${plain}}`);
 		}
 		if (t.header === 'filled') rules.push(`${head}{background:var(--chakra-colors-bg-muted)!important}`);
+	}
+	const r = look.record;
+	if (r) {
+		root.push(`--panel-record-text:${r.text}`);
+		// Chakra's xs/sm sizes are variables, so re-pointing them inside the page
+		// scales every label and value that uses them without touching each one.
+		rules.push(`.panel-record{--chakra-font-sizes-xs:${r.xs};--chakra-font-sizes-sm:${r.sm};--panel-text:${r.sm}}`);
 	}
 	return { root, rules, imports };
 };

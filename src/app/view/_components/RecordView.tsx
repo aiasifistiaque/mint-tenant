@@ -140,7 +140,9 @@ const RecordView = ({ slug, id, tabs: ownTabs = [], title, badge, meta, actions,
 		<Layout
 			title={routeTitle}
 			path={slug}>
-			<Column {...containerCss}>
+			<Column
+				className='panel-record'
+				{...containerCss}>
 				<PageHeader
 					breadcrumbs={[
 						{ href: HOME, title: 'Home' },

@@ -92,7 +92,7 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 		if (isLoading) {
 			return (
 				<SkeletonContent isLoading>
-					<Text fontSize='13px'>—</Text>
+					<Text fontSize={'var(--panel-record-text, 13px)'}>—</Text>
 				</SkeletonContent>
 			);
 		}
@@ -101,7 +101,7 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 		if (isEmpty && !String(type).startsWith('file')) {
 			return (
 				<Text
-					fontSize='13px'
+					fontSize={'var(--panel-record-text, 13px)'}
 					color='fg.muted'>
 					—
 				</Text>
@@ -132,7 +132,7 @@ const ViewRow: FC<ViewRowProps> = ({ field, value, isLoading, block, doc }) => {
 			value={
 				isLoading ? (
 					<SkeletonContent isLoading>
-						<Text fontSize='13px'>—</Text>
+						<Text fontSize={'var(--panel-record-text, 13px)'}>—</Text>
 					</SkeletonContent>
 				) : isEmpty && !isImage ? undefined : (
 					<Flex

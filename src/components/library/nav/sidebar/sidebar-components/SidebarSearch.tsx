@@ -98,14 +98,16 @@ const containerCss: any = {
 	px: 2.5,
 	borderRadius: radius.INPUT,
 	borderWidth: '1px',
-	borderColor: 'field.border',
-	bgColor: 'field.bg',
-	color: 'fg.muted',
+	borderColor: 'sidebar.search.border.light',
+	bgColor: 'sidebar.search.bg.light',
+	color: 'sidebar.search.placeholder.light',
 	transition: 'border-color .12s ease, box-shadow .12s ease',
 	_hover: { borderColor: 'field.borderHover' },
 	_focusWithin: { borderColor: 'field.focusRing' },
 	_dark: {
 		bgColor: 'transparent',
+		borderColor: 'sidebar.search.border.dark',
+		color: 'sidebar.search.placeholder.dark',
 		_focusWithin: {
 			borderColor: 'border.emphasized',
 			boxShadow: `0 0 0 3px ${FOCUS_RING_DARK}`,
@@ -127,7 +129,7 @@ const inputCss: any = {
 	fontWeight: '500',
 	color: 'sidebar.bodyText.selectedLight',
 	_dark: { color: 'sidebar.bodyText.selectedDark' },
-	_placeholder: { color: 'field.placeholder', fontWeight: '400' },
+	_placeholder: { color: 'sidebar.search.placeholder.light', fontWeight: '400', _dark: { color: 'sidebar.search.placeholder.dark' } },
 };
 
 // Hairline only, on the same `field.*` tokens as the pill around it — a filled

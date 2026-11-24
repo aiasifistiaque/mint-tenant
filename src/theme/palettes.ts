@@ -86,6 +86,8 @@ export type Look = {
 		/** Cell text size; the built-in look is 13px. */
 		text?: string;
 	};
+	/** Record pages (RecordView's `.panel-record`): values (`text`), Chakra xs and sm, and plain text (= sm). Built in: 13px, 12px, 14px. */
+	record?: { text: string; xs: string; sm: string };
 };
 
 export const DEFAULT_THEME = 'default';
@@ -436,7 +438,8 @@ export const THEMES: Theme[] = [
 			headings: { uppercase: false, weight: '700', spacing: '0' },
 			labels: { font: "'PT Serif', Georgia, serif", size: '12.5px', uppercase: false, weight: '700', spacing: '0' },
 			corners: 'square',
-			table: { density: 'compact', lines: 'grid', striped: true, header: 'filled', text: '13.5px' },
+			table: { density: 'compact', lines: 'grid', striped: true, header: 'filled', text: '15px' },
+			record: { text: '14.5px', xs: '13.5px', sm: '15.5px' },
 		},
 		light: {
 			accent: '#1d3557',

@@ -229,6 +229,15 @@ export const colors: any = {
 			light: '#fff',
 			dark: '#0a0a0a',
 		},
+		// The sidebar's search pill. Built in it is an ordinary field; themes
+		// whose sidebar is far darker than the panels (Classic's navy) tint it
+		// from the sidebar instead (roles.ts), or the pill's light text vanishes
+		// on a panel-coloured fill.
+		search: {
+			bg: { light: '#fff', dark: 'transparent' },
+			border: { light: BORDER_LIGHT, dark: BORDER_DARK },
+			placeholder: { light: '#a3a3a3', dark: '#6b6b6b' },
+		},
 		hover: {
 			bgLight: '#fff',
 			bgDark: 'transparent',

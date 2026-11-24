@@ -8,7 +8,7 @@ type TableObjectProps = {
 			dark: string;
 		};
 		width: number;
-		radius: number;
+		radius: number | string;
 	};
 	bg: {
 		light: string;
@@ -52,7 +52,8 @@ const TABLE: TableObjectProps = {
 		width: 1,
 		// Matches `radius.CONTAINER`, so a table and a panel sitting on the same
 		// page share a corner instead of being 2px apart.
-		radius: 8,
+		// A theme's square look sets `--panel-r-table` (applyTheme.ts).
+		radius: 'var(--panel-r-table, 8px)',
 	},
 	bg: {
 		light: 'container.newLight',

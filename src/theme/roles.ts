@@ -32,8 +32,8 @@ const lightness = (hex: string) => {
  * pill would sit under the sidebar's own text and hide it, so it's a tint of
  * the sidebar instead.
  */
-const selectedRow = (p: Palette) =>
-	Math.abs(lightness(p.sidebar) - lightness(p.surface)) > 0.35 ? mix(p.sidebarTextActive, 12, p.sidebar) : p.surface;
+const offSide = (p: Palette) => Math.abs(lightness(p.sidebar) - lightness(p.surface)) > 0.35;
+const selectedRow = (p: Palette) => (offSide(p) ? mix(p.sidebarTextActive, 12, p.sidebar) : p.surface);
 
 /** [light token, dark token, value] — the same value taken from each palette. */
 export const PAIRS: [string, string, Value][] = [
@@ -49,6 +49,11 @@ export const PAIRS: [string, string, Value][] = [
 	['sidebar.borderBottom.light', 'sidebar.borderBottom.dark', 'sidebarRail'],
 	['sidebar.selectedItemBorder.light', 'sidebar.selectedItemBorder.dark', 'sidebarRail'],
 	['sidebar.selectedItemBg.light', 'sidebar.selectedItemBg.dark', selectedRow],
+	// The search pill: a field on a sidebar like the panels, a tint of the
+	// sidebar on one much darker or lighter (its text is the sidebar's).
+	['sidebar.search.bg.light', 'sidebar.search.bg.dark', p => (offSide(p) ? mix(p.sidebarText, 7, p.sidebar) : p.surface)],
+	['sidebar.search.border.light', 'sidebar.search.border.dark', p => (offSide(p) ? p.sidebarRail : p.border)],
+	['sidebar.search.placeholder.light', 'sidebar.search.placeholder.dark', p => (offSide(p) ? mix(p.sidebarText, 75, p.sidebar) : mix(p.textMuted, 75, p.surface))],
 	['sidebar.rail.light', 'sidebar.rail.dark', 'sidebarRail'],
 	['sidebar.hoverUnderline.light', 'sidebar.hoverUnderline.dark', p => mix(p.sidebarText, 45, p.sidebar)],
 	['sidebar.headerText.light', 'sidebar.headerText.dark', 'sidebarTextActive'],

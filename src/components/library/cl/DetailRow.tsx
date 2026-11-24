@@ -34,9 +34,9 @@ const DetailRow: FC<DetailRowProps> = ({ label, value, labelWidth = '150px', sta
 		</Text>
 
 		{value === null || value === undefined || value === '' ? (
-			<Text fontSize='13px'>—</Text>
+			<Text fontSize={'var(--panel-record-text, 13px)'}>—</Text>
 		) : typeof value === 'string' || typeof value === 'number' ? (
-			<Text fontSize='13px'>{value}</Text>
+			<Text fontSize={'var(--panel-record-text, 13px)'}>{value}</Text>
 		) : (
 			value
 		)}
