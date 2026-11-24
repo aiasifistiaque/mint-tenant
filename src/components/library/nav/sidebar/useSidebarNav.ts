@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { sidebarData as fallback, useAppSelector, useGetQuery, useGetSelfQuery } from '../..';
 import { homeHref } from '../../config/lib/constants/panel';
+import { useWorkspace } from '../../tenant/useWorkspace';
 
 const COLLAPSED_KEY = 'emint_sidebar_collapsed';
 
@@ -57,10 +58,11 @@ export const withWebsiteSetup = (items: NavItem[]): NavItem[] => {
 /**
  * Theme (the website's colours and fonts) straight after Site setup, under
  * Site, for a backend that doesn't send it — so existing projects get it too.
- * It opens Site setup on its Theme tab. Build-only like Site setup itself.
+ * It opens Site setup on its Theme tab. Build-only like Site setup itself, and
+ * only for website and ecommerce projects (`allowed`).
  */
-export const withSiteTheme = (items: NavItem[]): NavItem[] => {
-	if (!Array.isArray(items) || items.some(item => item?.path === 'site-setup-tab-theme')) return items;
+export const withSiteTheme = (items: NavItem[], allowed = true): NavItem[] => {
+	if (!allowed || !Array.isArray(items) || items.some(item => item?.path === 'site-setup-tab-theme')) return items;
 	const at = items.findIndex(item => item?.href === '/site-setup');
 	if (at === -1) return items;
 	return [...items.slice(0, at + 1), { title: 'Theme', href: '/site-setup?tab=theme', path: 'site-setup-tab-theme', icon: 'palette' }, ...items.slice(at + 1)];
@@ -87,6 +89,8 @@ const useSidebarNav = () => {
 	const sidebarType = process.env.NEXT_PUBLIC_SIDEBAR_TYPE || 'generic';
 
 	const { data: self } = useGetSelfQuery({});
+	const { project } = useWorkspace();
+	const hasTheme = project?.type === 'website' || project?.type === 'ecommerce';
 	const { data: sidebarData, isFetching } = useGetQuery({ path: `/sidebar/crm/${sidebarType}` });
 	const { selected } = useAppSelector((state: any) => state.route);
 
@@ -96,8 +100,8 @@ const useSidebarNav = () => {
 	const isLoading = isFetching || !Array.isArray(sidebarData);
 	const source: NavItem[] = useMemo(
 		// The sidebar's Home links to '/'; in the tenant panel that's the landing page (HOME).
-		() => withPanelTheme(withSiteTheme(withWebsiteSetup((isLoading ? fallback : sidebarData) as NavItem[]))).map(item => ({ ...item, href: homeHref(item?.href) })),
-		[isLoading, sidebarData]
+		() => withPanelTheme(withSiteTheme(withWebsiteSetup((isLoading ? fallback : sidebarData) as NavItem[]), hasTheme)).map(item => ({ ...item, href: homeHref(item?.href) })),
+		[isLoading, sidebarData, hasTheme]
 	);
 
 	const { lead, sections } = useMemo(() => toSections(source ?? []), [source]);

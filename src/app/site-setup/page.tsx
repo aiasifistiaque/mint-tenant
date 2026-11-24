@@ -28,7 +28,7 @@ import { LinkPreviewTab } from '../t/_seo/LinkPreview';
  * own, the site reads it from the site API, and track.js adds the tags.
  */
 
-const TABS = [
+const ALL_TABS = [
 	{ value: 'general', label: 'General' },
 	{ value: 'theme', label: 'Theme' },
 	{ value: 'contact', label: 'Contact & social' },
@@ -42,13 +42,17 @@ const TABS = [
 	{ value: 'previews', label: 'Link previews' },
 ];
 
+// The theme is for websites and online stores only.
+const tabsFor = (type?: string) => (type === 'website' || type === 'ecommerce' ? ALL_TABS : ALL_TABS.filter(t => t.value !== 'theme'));
+
 function SiteSetup() {
 	const router = useRouter();
 	const params = useSearchParams();
 	// ?tab=code is what the Add script tab was called before SB-30.
 	const asked = params.get('tab') === 'code' ? 'scripts' : params.get('tab');
-	const tab = TABS.some(t => t.value === asked) ? String(asked) : 'general';
 	const { project, can } = useWorkspace();
+	const TABS = tabsFor(project?.type);
+	const tab = TABS.some(t => t.value === asked) ? String(asked) : 'general';
 	const { data: config, isLoading, isError } = useGetSiteConfigQuery();
 	// The site API's address with the project key (docs/api-builder D14) — robots.txt and sitemap.xml are read from it.
 	const apiKey = useProjectKey();
