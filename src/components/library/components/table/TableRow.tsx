@@ -38,7 +38,11 @@ const TableRow: FC<TableRowProps> = ({ children, actions, selectable, id, ...pro
 		// the hydration mismatch that nesting produced) without giving up the
 		// grid layout the card relies on.
 		return (
-			<Table.Row border='none'>
+			<Table.Row
+				border='none'
+				// Panel looks style table rows (stripes, heights, padding); this
+				// tells their stylesheet to leave cards alone (theme/applyTheme).
+				data-card=''>
 				<Table.Cell
 					colSpan={100}
 					p={0}

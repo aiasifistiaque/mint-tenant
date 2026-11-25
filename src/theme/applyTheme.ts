@@ -81,21 +81,26 @@ const lookCss = (theme: Theme) => {
 	}
 	const t = look.table;
 	if (t) {
-		const cell = '.chakra-table__cell';
+		// Card view (a phone, or Cards picked in Preferences) is built from the same
+		// <tr>/<td>, so these row rules would land on the cards too: a stripe behind
+		// every second card, padding pushing it down, a fixed row height clipping
+		// its values. Each card's row is marked `data-card` (TableRow) and skipped.
+		const cell = '.chakra-table__cell:not([data-card] *)';
+		const row = '.chakra-table__row:not([data-card])';
 		const head = '.chakra-table__columnHeader';
 		const pad = DENSITY[t.density];
 		if (pad) rules.push(`${cell},${head}{padding-top:${pad}!important;padding-bottom:${pad}!important}`);
 		// Rows carry a fixed 40px height (RowContainerMd) besides the padding.
-		if (t.density === 'compact') rules.push(`.chakra-table__body .chakra-table__row{height:32px}${head}{height:30px}`);
-		if (t.density === 'roomy') rules.push(`.chakra-table__body .chakra-table__row{height:54px}${head}{height:44px}`);
+		if (t.density === 'compact') rules.push(`.chakra-table__body ${row}{height:32px}${head}{height:30px}`);
+		if (t.density === 'roomy') rules.push(`.chakra-table__body ${row}{height:54px}${head}{height:44px}`);
 		// Chakra writes style props (a page's own fontSize, Title's caps) as
 		// unlayered classes too, so the table text rules need !important to win.
 		if (t.text) rules.push(`${cell},${cell} p,${cell} a{font-size:${t.text}!important}`);
 		const line = 'var(--chakra-colors-border)';
 		// !important: CustomTd writes `border: none` as an unlayered style prop.
 		if (t.lines === 'grid') rules.push(`${cell},${head}{border:1px solid ${line}!important}.chakra-table__root{border-collapse:collapse}`);
-		if (t.lines === 'none') rules.push(`${cell},${head},.chakra-table__row{border-bottom-width:0!important}`);
-		if (t.striped) rules.push(`.chakra-table__body .chakra-table__row:nth-of-type(even):not(:hover){background:var(--chakra-colors-bg-subtle)}`);
+		if (t.lines === 'none') rules.push(`${cell},${head},${row}{border-bottom-width:0!important}`);
+		if (t.striped) rules.push(`.chakra-table__body ${row}:nth-of-type(even):not(:hover){background:var(--chakra-colors-bg-subtle)}`);
 		if (t.header !== 'caps') {
 			const plain = `text-transform:none!important;letter-spacing:0!important;font-size:calc(${t.text || '13px'} - 0.5px)!important;font-weight:600!important;font-family:var(--panel-font,inherit)!important`;
 			rules.push(`${head},${head} *{${plain}}`);
