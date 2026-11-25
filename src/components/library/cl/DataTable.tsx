@@ -1,6 +1,7 @@
 'use client';
 
-import type { MouseEvent as _M, ReactNode } from 'react';
+import { ReactNode } from 'react';
+import NextLink from 'next/link';
 import { Box, Flex, Table } from '@chakra-ui/react';
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 
@@ -125,7 +126,7 @@ const DataTable = <T,>({
 						cursor={onRowClick || rowHref ? 'pointer' : undefined}
 						transition='background 120ms'
 						_hover={{ bg: 'bg.subtle' }}
-						onClick={onRowClick ? () => onRowClick(row) : undefined}>
+						onClick={onRowClick && !rowHref ? () => onRowClick(row) : undefined}>
 						{columns.map(column => (
 							<Table.Cell
 								key={column.key}
@@ -136,25 +137,11 @@ const DataTable = <T,>({
 								p={rowHref ? 0 : undefined}
 								truncate>
 								{rowHref ? (
-									<Box
-										as='a'
+									<NextLink
 										href={rowHref(row)}
-										display='block'
-										px='3'
-										py='2'
-										color='inherit'
-										textDecoration='none'
-										truncate
-										onClick={(event: _M) => {
-											// Let the browser handle modified clicks (new tab/window).
-											if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-											if (onRowClick) {
-												event.preventDefault();
-												onRowClick(row);
-											}
-										}}>
+										style={{ display: 'block', padding: '8px 12px', color: 'inherit', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>
 										{column.render(row)}
-									</Box>
+									</NextLink>
 								) : (
 									column.render(row)
 								)}

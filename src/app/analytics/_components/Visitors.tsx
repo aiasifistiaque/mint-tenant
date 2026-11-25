@@ -241,7 +241,6 @@ const Visitors: FC<{ range: AnalyticsRange }> = ({ range }) => {
 						rows={rows}
 						rowKey={v => v.visitorId}
 						rowHref={v => projectHref(`/analytics/visitors/${encodeURIComponent(v.visitorId)}`)}
-						onRowClick={v => router.push(projectHref(`/analytics/visitors/${encodeURIComponent(v.visitorId)}`))}
 					/>
 				</Box>
 			)}
