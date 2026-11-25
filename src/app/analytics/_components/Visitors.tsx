@@ -1,7 +1,6 @@
 'use client';
 
 import { FC, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react';
 import { useGetAnalyticsVisitorsQuery } from '@/components/library';
 import { DataTable, Dropdown, EmptyState, ErrorState, FilterInput, Panel, TableSkeleton } from '@/components/library/cl';
@@ -153,7 +152,6 @@ const columns: Column<AnalyticsVisitor>[] = [
 ];
 
 const Visitors: FC<{ range: AnalyticsRange }> = ({ range }) => {
-	const router = useRouter();
 	const [search, setSearch] = useState('');
 	const [q, setQ] = useState('');
 	const [channel, setChannel] = useState('');
