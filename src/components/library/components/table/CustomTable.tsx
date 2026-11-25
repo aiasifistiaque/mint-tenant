@@ -6,7 +6,7 @@ import { Archive, Sigma } from 'lucide-react';
 import { useAppDispatch } from '../../hooks/useReduxHooks';
 import { useIsMobile, useIsCardView, useTableUrlSync } from '../../hooks';
 import TableContainer from './table-components/containers/TableContainer';
-import TableSkeleton from './TableSkeleton';
+import TableSkeleton, { CardSkeleton, TableHeaderSkeleton } from './TableSkeleton';
 import TableSearch from './table-components/tool-bar/table-toolbar/TableSearch';
 import ResultContainer from './table-components/pagination/ResultContainer';
 import TableRefresh from './table-components/tool-bar/table-toolbar/TableRefresh';
@@ -47,21 +47,28 @@ const CustomTable: FC<CustomTableProps> = ({
 	table,
 	error,
 }) => {
-	const tbody = isLoading ? (
-		<TableSkeleton
-			row={10}
-			col={col || 5}
-		/>
-	) : (
-		children
-	);
-
 	const dispatch = useAppDispatch();
 	const isMobile = useIsMobile();
 	const isCardView = useIsCardView();
 	// Cards on a desktop. On a phone they already stack one per row and the
 	// viewport does the work; here there is width to fill, so they tile.
 	const isCardGrid = isCardView && !isMobile;
+
+	// One skeleton for the whole load. Its column count is fixed rather than
+	// `col`: `col` follows the preferences, which land partway through loading,
+	// so the skeleton used to change shape (5 bars and no header, then N bars
+	// under a header of skeleton titles). Card view gets cards, not table bars.
+	const tbody = !isLoading ? (
+		children
+	) : isCardView ? (
+		<CardSkeleton count={isCardGrid ? 6 : 4} />
+	) : (
+		<TableSkeleton
+			row={10}
+			col={LOADING_COLS}
+		/>
+	);
+	const thead = isLoading && !isCardView ? <TableHeaderSkeleton col={LOADING_COLS} /> : header;
 	const onUnselect = () => dispatch(selectAll({ ids: [], isSelected: false }));
 
 	// "View total" / "Calculate" for the ticked rows — presets from the route's
@@ -201,7 +208,7 @@ const CustomTable: FC<CustomTableProps> = ({
 						zIndex={1}
 						_light={{ bg: 'table.head.bgLight' }}
 						_dark={{ bg: 'table.head.bgDark' }}>
-						<Table.Row bg='inherit'>{header}</Table.Row>
+						<Table.Row bg='inherit'>{thead}</Table.Row>
 					</Table.Header>
 					<Table.Body css={isCardGrid ? cardGridCss : undefined}>{tbody}</Table.Body>
 				</Table.Root>
@@ -249,6 +256,9 @@ const CustomTable: FC<CustomTableProps> = ({
  * breakpoint guess, and the card's own bottom margin is dropped so the grid gap
  * is the only thing setting the spacing.
  */
+/** Columns drawn while a table loads (see `tbody`). */
+const LOADING_COLS = 5;
+
 const cardGridCss = {
 	display: 'grid',
 	gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',

@@ -2,9 +2,7 @@
 
 import { ComponentType } from 'react';
 import { useGetRouteQuery } from '../../store';
-import Layout from '../../nav/Layout';
 import ServerPage from './ServerPage';
-import { DetailSkeleton } from '../../cl/States';
 
 /**
  * Lets the route builder take over a hand-written table page.
@@ -25,15 +23,10 @@ const withPublishedConfig = <P extends { table: any; layoutPath?: string }>(Page
 		const path: string | undefined = props.table?.path;
 		const { data, isLoading } = useGetRouteQuery(path as string, { skip: !path });
 
-		if (path && isLoading)
-			return (
-				<Layout
-					showFooter={false}
-					title={props.table?.title || ''}
-					path={props.layoutPath || path}>
-					<DetailSkeleton />
-				</Layout>
-			);
+		// ServerPage's own loading state (it reads the same in-flight route
+		// query), so the page shows one table skeleton throughout — this used to
+		// be a detail-page skeleton that the table's skeleton then replaced.
+		if (path && isLoading) return <ServerPage route={path} />;
 
 		if (path && data?.path) return <ServerPage route={path} />;
 
