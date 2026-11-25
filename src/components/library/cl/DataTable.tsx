@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import type { MouseEvent as _M, ReactNode } from 'react';
 import { Box, Flex, Table } from '@chakra-ui/react';
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 
@@ -23,6 +23,9 @@ type DataTableProps<T> = {
 	rows: T[];
 	rowKey: (row: T) => string;
 	onRowClick?: (row: T) => void;
+	/** Makes every cell a real link, so right-click → Open in new tab and
+	 *  middle/ctrl-click work. A plain click still goes through onRowClick. */
+	rowHref?: (row: T) => string;
 	/** Trailing borderless cell for a `⋯` menu. */
 	rowActions?: (row: T) => ReactNode;
 	sortKey?: string;
@@ -42,6 +45,7 @@ const DataTable = <T,>({
 	rows,
 	rowKey,
 	onRowClick,
+	rowHref,
 	rowActions,
 	sortKey,
 	sortDir = 'asc',
@@ -118,7 +122,7 @@ const DataTable = <T,>({
 					<Table.Row
 						key={rowKey(row)}
 						bg='transparent'
-						cursor={onRowClick ? 'pointer' : undefined}
+						cursor={onRowClick || rowHref ? 'pointer' : undefined}
 						transition='background 120ms'
 						_hover={{ bg: 'bg.subtle' }}
 						onClick={onRowClick ? () => onRowClick(row) : undefined}>
@@ -129,8 +133,31 @@ const DataTable = <T,>({
 								fontSize='13px'
 								borderColor='border.muted'
 								maxW='320px'
+								p={rowHref ? 0 : undefined}
 								truncate>
-								{column.render(row)}
+								{rowHref ? (
+									<Box
+										as='a'
+										href={rowHref(row)}
+										display='block'
+										px='3'
+										py='2'
+										color='inherit'
+										textDecoration='none'
+										truncate
+										onClick={(event: _M) => {
+											// Let the browser handle modified clicks (new tab/window).
+											if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+											if (onRowClick) {
+												event.preventDefault();
+												onRowClick(row);
+											}
+										}}>
+										{column.render(row)}
+									</Box>
+								) : (
+									column.render(row)
+								)}
 							</Table.Cell>
 						))}
 						{rowActions && (
