@@ -2,7 +2,7 @@
 
 import { FC, FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Box, Button, Center, Field, Flex, Grid, Input, SegmentGroup, Skeleton, Text, Textarea } from '@chakra-ui/react';
-import { Archive, ArchiveRestore, Boxes, Globe, Store, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, Pin, PinOff, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
+import { Archive, ArchiveRestore, Boxes, Calculator, Globe, Store, LayoutGrid, LayoutTemplate, MoreHorizontal, Pencil, Pin, PinOff, PlugZap, Plus, Search, Trash2, Wrench, X } from 'lucide-react';
 import {
 	Dialog,
 	DialogBody,
@@ -38,10 +38,11 @@ const TYPES: { value: ProjectType; title: string; hint: string; icon: ReactNode 
 	{ value: 'website', title: 'Website', hint: 'Pages, SEO, content blocks and site settings, with a site API and analytics.', icon: <Globe size={18} /> },
 	{ value: 'api', title: 'API', hint: 'A backend for your own app or site: models behind endpoints, customer sign-in, webhooks.', icon: <PlugZap size={18} /> },
 	{ value: 'ecommerce', title: 'E-commerce', hint: 'A store set up for you: products, stock per outlet, orders, a POS, returns and refunds.', icon: <Store size={18} /> },
+	{ value: 'accounting', title: 'Accounting', hint: 'Books set up for you: sales, purchases, payments, stock, expenses, vouchers and reports.', icon: <Calculator size={18} /> },
 ];
 
 /** Each kind's colour, from the website's tones. */
-const KIND_TONE: Record<string, Tone> = { app: 'emerald', website: 'sky', api: 'violet', ecommerce: 'amber' };
+const KIND_TONE: Record<string, Tone> = { app: 'emerald', website: 'sky', api: 'violet', ecommerce: 'amber', accounting: 'rose' };
 
 /** A project's kind, as a word and an icon. */
 const KIND: Record<ProjectType, { label: string; icon: ReactNode }> = Object.fromEntries(TYPES.map(t => [t.value, { label: t.title, icon: t.icon }])) as any;
@@ -50,6 +51,8 @@ const kindOf = (p: TenantProject) => (p.edition === 'seo' ? { label: 'Mint SEO',
 
 /** Mint SEO's address, where an SEO project's logins sign in. */
 const SEO_URL = (process.env.NEXT_PUBLIC_SEO_URL || 'https://seo.tcrypt.site').replace(/\/+$/, '');
+/** Where an accounting project's logins sign in (backend docs/accounting D7). */
+const ACCOUNTING_URL = (process.env.NEXT_PUBLIC_ACCOUNTING_URL || 'https://accounting.tcrypt.site').replace(/\/+$/, '');
 
 const domainList = (text: string) =>
 	text
@@ -241,6 +244,8 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 			if (type === 'ecommerce') return openProject(res.data.publicSlug, '/store/setup');
 			// Mint SEO: its people sign in to the SEO app with logins made here (docs/seo-panel SP-11).
 			if (forSeo) return openProject(res.data.publicSlug, '/panel-admins');
+			// Accounting: its people sign in to Mint Accounting with logins made here (docs/accounting D7).
+			if (type === 'accounting') return openProject(res.data.publicSlug, '/panel-users');
 			// A new project starts with its Get started page (WO-35) — on the template picked here, if one was.
 			openProject(res.data.publicSlug, `/get-started${start === 'own' ? '?start=own' : start ? `?template=${encodeURIComponent(start)}` : ''}`);
 		}
@@ -371,7 +376,14 @@ const ProjectDialog: FC<{ open: boolean; onClose: () => void; project?: TenantPr
 								</Text>
 							</Box>
 						)}
-						{!project && open && type !== 'ecommerce' && !(type === 'website' && seo) && (
+						{!project && type === 'accounting' && (
+							<Text
+								{...helperCss}
+								mt={-1}>
+								{`Mint Accounting: the people who keep the books sign in at ${ACCOUNTING_URL.replace(/^https?:\/\//, '')} with logins you make next.`}
+							</Text>
+						)}
+						{!project && open && type !== 'ecommerce' && type !== 'accounting' && !(type === 'website' && seo) && (
 							<StartFrom
 								type={type}
 								value={start}
